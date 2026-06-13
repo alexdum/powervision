@@ -17,12 +17,30 @@ Built with [R Shiny](https://shiny.posit.co/) and [MapLibre GL](https://maplibre
 
 ## Quick Start
 
+The application is designed to be run inside a Docker container to ensure environment consistency.
+
+### 🐳 Recommended: Using Docker (Production)
+
+```bash
+# Build and run the container in the background
+docker compose up -d --build
+
+# The app will be available at http://localhost:3838
+```
+
+### 💻 Local Development (R)
+
+If you are developing locally and prefer to run the app directly in RStudio:
+
 ```r
-# Install dependencies (if needed)
-install.packages(c("shiny", "mapgl", "sf", "dplyr", "bslib", "bsicons"))
+# Restore exact package versions using renv
+renv::restore()
+
+# Or manually install core dependencies (if not using renv)
+# install.packages(c("shiny", "mapgl", "sf", "dplyr", "bslib", "bsicons", "arrow", "plotly"))
 
 # Run the app
-shiny::runApp(".")
+shiny::runApp("app")
 ```
 
 ## Data Sources
