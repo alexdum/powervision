@@ -1,0 +1,24 @@
+# R / renv
+app/renv/library/
+app/renv/staging/
+app/renv/sandbox/
+renv-cache/
+.Rproj.user/
+.Rhistory
+.RData
+*.Rproj
+
+# Generated Parquet data (reproducible from pipeline scripts)
+app/www/data/pecd/
+
+# Runtime logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

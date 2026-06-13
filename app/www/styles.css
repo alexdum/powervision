@@ -1,0 +1,1025 @@
+/* styles.css */
+/* ==============================================================================
+   Copernicus PECD v4.2 — PowerClimate Vision Explorer
+   UI Redesign: Full-screen SPA with glassmorphism floating panels
+   Author: Climate Research & Spatial Analysis Team (Code for Earth 2026)
+   ============================================================================== */
+
+/* ---------------------------------------------------------------------------- */
+/* Global Reset & Typography                                                     */
+/* ---------------------------------------------------------------------------- */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0a0f1e;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Full-Screen Map Canvas                                                        */
+/* ---------------------------------------------------------------------------- */
+
+#map {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 0;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* MapLibre Popup (hover tooltips on map polygons)                              */
+/* ---------------------------------------------------------------------------- */
+
+.maplibregl-popup-content,
+.mapboxgl-popup-content {
+  background: rgba(10, 15, 35, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 10px !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.50) !important;
+  padding: 8px 12px !important;
+  color: #f1f5f9 !important;
+  font-family: 'Inter', sans-serif;
+}
+
+.maplibregl-popup-tip,
+.mapboxgl-popup-tip {
+  border-top-color: rgba(10, 15, 35, 0.92) !important;
+  border-bottom-color: rgba(10, 15, 35, 0.92) !important;
+}
+
+.maplibregl-popup-close-button,
+.mapboxgl-popup-close-button {
+  color: rgba(255, 255, 255, 0.5) !important;
+  font-size: 18px;
+}
+
+.maplibregl-popup-close-button:hover,
+.mapboxgl-popup-close-button:hover {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+
+/* bslib page_fillable root container */
+.bslib-page-fill {
+  position: fixed !important;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Design Tokens (CSS Custom Properties)                                        */
+/* ---------------------------------------------------------------------------- */
+
+:root {
+  /* Glass panel — dark navy */
+  --glass-dark-bg:     rgba(10, 15, 35, 0.85);
+  --glass-dark-border: rgba(255, 255, 255, 0.10);
+  --glass-dark-blur:   blur(20px);
+
+  /* Glass panel — light frosted */
+  --glass-light-bg:     rgba(255, 255, 255, 0.92);
+  --glass-light-border: rgba(0, 0, 0, 0.08);
+  --glass-light-blur:   blur(16px);
+
+  /* Brand colours */
+  --accent:       #3b82f6;   /* Copernicus blue */
+  --accent-glow:  rgba(59, 130, 246, 0.35);
+  --danger:       #ef4444;   /* crimson selection */
+  --success:      #22c55e;
+  --text-primary: #f1f5f9;
+  --text-muted:   rgba(241, 245, 249, 0.55);
+  --border-dark:  rgba(255, 255, 255, 0.10);
+
+  /* Spacing */
+  --panel-radius: 14px;
+  --card-radius:  10px;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Left Glassmorphism Control Panel                                             */
+/* ---------------------------------------------------------------------------- */
+
+#control-panel {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  width: 290px;
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 1000;
+
+  background: var(--glass-dark-bg);
+  border: 1px solid var(--glass-dark-border);
+  border-radius: var(--panel-radius);
+  backdrop-filter: var(--glass-dark-blur);
+  -webkit-backdrop-filter: var(--glass-dark-blur);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+
+  padding: 20px 18px 16px;
+  color: var(--text-primary);
+
+  /* Smooth scroll for overflow */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+
+#control-panel::-webkit-scrollbar        { width: 4px; }
+#control-panel::-webkit-scrollbar-track  { background: transparent; }
+#control-panel::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.18); border-radius: 2px; }
+
+/* App branding inside the panel */
+#control-panel .app-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-dark);
+}
+
+#control-panel .app-brand .brand-icon {
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, var(--accent), #1e40af);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+#control-panel .app-brand .brand-text {
+  line-height: 1.2;
+}
+
+#control-panel .app-brand .brand-title {
+  font-size: 0.82em;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--text-primary);
+}
+
+#control-panel .app-brand .brand-subtitle {
+  font-size: 0.70em;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* Labels inside control panel */
+#control-panel label,
+#control-panel .control-label {
+  font-size: 0.80em;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+
+/* Override bslib/Bootstrap inputs inside dark panel */
+#control-panel .form-select,
+#control-panel select {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  font-size: 0.88em;
+  padding: 8px 12px;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Cpath fill='%23aaaaaa' d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: calc(100% - 12px) center !important;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+#control-panel .form-select:focus,
+#control-panel select:focus {
+  outline: none !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-glow) !important;
+  background-color: rgba(59, 130, 246, 0.10) !important;
+}
+
+#control-panel option {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+/* Section divider inside panel */
+#control-panel .panel-divider {
+  border: none;
+  border-top: 1px solid var(--border-dark);
+  margin: 14px 0;
+}
+
+/* Section label chip */
+#control-panel .section-label {
+  font-size: 0.70em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+
+/* Layer info text block */
+#control-panel .layer-info-text {
+  font-size: 0.83em;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+#control-panel .layer-info-text p {
+  margin: 0 0 4px;
+}
+
+#control-panel .layer-info-text b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Data attribution footer */
+#control-panel .data-attribution {
+  font-size: 0.68em;
+  color: rgba(255,255,255,0.30);
+  text-align: center;
+  line-height: 1.4;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-dark);
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Slider Override — inside dark panel                                          */
+/* ---------------------------------------------------------------------------- */
+
+.irs--flat .irs-line {
+  height: 5px;
+  background-color: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+.irs--flat .irs-bar {
+  height: 5px;
+  background: linear-gradient(90deg, var(--accent), #1d4ed8);
+  border-radius: 3px;
+}
+
+.irs--flat .irs-handle > i:first-child {
+  width: 14px;
+  height: 14px;
+  top: 1px;
+  background: #ffffff;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.irs--flat .irs-handle.state_hover > i:first-child,
+.irs--flat .irs-handle:hover > i:first-child {
+  transform: scale(1.2);
+  border-color: #1d4ed8;
+}
+
+.irs--flat .irs-single {
+  background-color: var(--accent);
+  border-radius: 4px;
+  font-size: 0.80em;
+  padding: 2px 7px;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+}
+
+.irs--flat .irs-single::after {
+  border-top-color: var(--accent);
+}
+
+.irs--flat .irs-min, .irs--flat .irs-max {
+  color: rgba(255,255,255,0.35);
+  font-size: 0.75em;
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Projection Toggle — pill-shaped slide switch                                 */
+/* ---------------------------------------------------------------------------- */
+
+.projection-toggle-wrapper {
+  margin-bottom: 2px;
+}
+
+.projection-toggle-wrapper > .control-label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* The track — a rounded pill container */
+.projection-toggle {
+  position: relative;
+  display: flex;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* Sliding highlight pill — positioned absolutely, moves via JS transform */
+.projection-toggle .toggle-pill {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  background: linear-gradient(135deg, var(--accent), #1d4ed8);
+  border-radius: 8px;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 10px var(--accent-glow);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* When the second option is active, slide the pill right */
+.projection-toggle.toggle-right .toggle-pill {
+  transform: translateX(100%);
+}
+
+/* Each clickable segment */
+.projection-toggle .toggle-option {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78em;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: color 0.22s ease;
+  border-radius: 8px;
+  min-height: 44px;            /* touch target ≥ 44px */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.projection-toggle .toggle-option:hover {
+  color: var(--text-primary);
+}
+
+/* Active option label turns bright white */
+.projection-toggle .toggle-option.active {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Right Mini Panel — Basemap Selector (hover-expand)                          */
+/* ---------------------------------------------------------------------------- */
+
+.map-layer-control {
+  background: var(--glass-dark-bg);
+  border: 1px solid var(--glass-dark-border);
+  border-radius: 10px;
+  backdrop-filter: var(--glass-dark-blur);
+  -webkit-backdrop-filter: var(--glass-dark-blur);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  padding: 9px 11px;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  transition:
+    width  0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  z-index: 1000 !important;
+  color: var(--text-primary);
+}
+
+.map-layer-control:hover,
+.map-layer-control.expanded {
+  width: 230px;
+  height: auto;
+  background: rgba(10, 15, 35, 0.95);
+}
+
+.map-layer-control .control-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--text-primary);
+}
+
+.map-layer-control .control-content {
+  display: none;
+  margin-top: 10px;
+  min-width: 200px;
+}
+
+.map-layer-control:hover .control-content,
+.map-layer-control.expanded .control-content {
+  display: block;
+}
+
+.map-layer-control label {
+  font-size: 0.82em;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+}
+
+.map-layer-control .form-check-label,
+.map-layer-control .form-check-input:checked ~ .form-check-label {
+  color: var(--text-primary) !important;
+}
+
+.map-layer-control hr {
+  margin: 7px 0;
+  border-color: var(--border-dark);
+}
+
+/* Radio buttons inside dark panel */
+.map-layer-control .form-check-input {
+  background-color: rgba(255,255,255,0.10) !important;
+  border-color: rgba(255,255,255,0.25) !important;
+}
+
+.map-layer-control .form-check-input:checked {
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Right Button Column — Zoom In / Zoom Out / Home                             */
+/* All three share the same glassmorphism base; home gets an extra glow accent  */
+/* ---------------------------------------------------------------------------- */
+
+#right-btn-col {
+  /* The absolutePanel wrapper — flex column already set via inline style */
+  pointer-events: none;   /* let map events pass through the gap between buttons */
+}
+
+#right-btn-col > * {
+  pointer-events: auto;   /* but re-enable for the actual controls */
+}
+
+.btn-map-ctrl {
+  background: var(--glass-dark-bg);
+  border: 1px solid var(--glass-dark-border);
+  border-radius: 10px;
+  backdrop-filter: var(--glass-dark-blur);
+  -webkit-backdrop-filter: var(--glass-dark-blur);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.30);
+  color: var(--text-primary);
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+  transition: background 0.18s, box-shadow 0.18s, transform 0.15s;
+  cursor: pointer;
+}
+
+.btn-map-ctrl:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.40);
+  color: #ffffff;
+  transform: scale(1.06);
+}
+
+.btn-map-ctrl:active {
+  transform: scale(0.96);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.30);
+}
+
+/* Home button gets an accent glow to distinguish it from the zoom pair */
+.btn-map-ctrl.btn-map-ctrl--home {
+  margin-top: 4px;   /* a little extra breathing room from the zoom pair */
+}
+
+.btn-map-ctrl.btn-map-ctrl--home:hover {
+  background: rgba(59, 130, 246, 0.20);
+  border-color: rgba(59, 130, 246, 0.50);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Slide-Up Region Stats Drawer                                                 */
+/* ---------------------------------------------------------------------------- */
+
+#stats-drawer {
+  position: fixed;
+  bottom: 0;
+  /* Start the drawer AFTER the left control panel (290px width + 18px left gap + 18px internal margin = 326px) */
+  /* This keeps the control panel fully visible while the drawer is open — users can still change the */
+  /* variable/year without closing the drawer first. This is a key UX improvement over full-width drawers. */
+  left: 326px;
+  right: 0;
+  z-index: 1100;
+
+  background: rgba(10, 15, 35, 0.92);
+  border-top: 1px solid var(--glass-dark-border);
+  /* Rounded top-left corner since the drawer no longer touches the left edge */
+  border-radius: 12px 0 0 0;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.55), -4px 0 24px rgba(0, 0, 0, 0.20);
+
+  padding: 16px 24px 18px;
+  height: 40vh;
+  max-height: 40vh;
+  display: flex;
+  flex-direction: column;
+
+  /* Hidden by default — slides in from below */
+  transform: translateY(100%);
+  transition: transform 0.38s cubic-bezier(0.32, 0, 0.15, 1);
+}
+
+#stats-drawer.is-visible {
+  transform: translateY(0);
+}
+
+/* Two-column dashboard layout inside bottom stats drawer */
+#stats-drawer .drawer-body-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#stats-drawer .drawer-sidebar-column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: clamp(285px, 25vw, 340px);
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.12) transparent;
+}
+
+#stats-drawer .drawer-sidebar-column::-webkit-scrollbar {
+  width: 4px;
+}
+
+#stats-drawer .drawer-sidebar-column::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.12);
+  border-radius: 2px;
+}
+
+#stats-drawer .drawer-chart-column {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  position: relative;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--card-radius);
+  padding: 8px;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Choropleth Legend — embedded at the bottom of the left control panel
+   ========================================================================== */
+
+.choropleth-legend-container {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--card-radius);
+  padding: 12px 14px;
+  margin-top: 4px;
+}
+
+/* Year slider animation button premium styling */
+.slider-animate-container {
+  margin-top: 4px !important;
+}
+
+.slider-animate-button {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: var(--text-muted) !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+  cursor: pointer !important;
+  min-height: 28px !important;
+  min-width: 50px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 0.15s, color 0.15s, border-color 0.15s !important;
+  font-family: Inter, sans-serif !important;
+}
+
+.slider-animate-button:hover {
+  background: rgba(56, 189, 248, 0.15) !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  color: #38bdf8 !important;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2) !important;
+}
+
+/* Responsive styles for tablet and mobile devices */
+@media (max-width: 768px) {
+  #stats-drawer {
+    /* On mobile the left panel is not visible, so the drawer goes full-width again */
+    left: 0;
+    border-radius: 0;
+    height: 60vh;
+    max-height: 60vh;
+    padding: 14px 18px;
+  }
+
+  #stats-drawer .drawer-body-layout {
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+  }
+
+  #stats-drawer .drawer-sidebar-column {
+    width: 100%;
+    overflow-y: visible;
+  }
+
+  #stats-drawer .drawer-chart-column {
+    height: 280px;
+    flex-shrink: 0;
+  }
+}
+
+/* Drawer header row */
+#stats-drawer .drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+#stats-drawer .drawer-title {
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#stats-drawer .drawer-close {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+}
+
+#stats-drawer .drawer-close:hover {
+  background: rgba(239, 68, 68, 0.20);
+  border-color: rgba(239, 68, 68, 0.40);
+  color: #ef4444;
+}
+
+/* Metric cards grid */
+#stats-drawer .metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+/* Individual metric card */
+.metric-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--card-radius);
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.metric-card.accent-danger {
+  border-left-color: var(--danger);
+}
+
+.metric-card.accent-success {
+  border-left-color: var(--success);
+}
+
+.metric-card .metric-label {
+  font-size: 0.68em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metric-card .metric-value {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metric-card .metric-value code {
+  font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.88em;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Tooltip icons inside panel                                                   */
+/* ---------------------------------------------------------------------------- */
+
+#control-panel .bs-tooltip,
+#control-panel [data-bs-toggle="tooltip"] {
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Code tags — standalone use outside drawer                                   */
+/* ---------------------------------------------------------------------------- */
+
+code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 0.88em;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* About Button — right column info icon                                        */
+/* ---------------------------------------------------------------------------- */
+
+.btn-map-ctrl.btn-map-ctrl--about {
+  margin-top: 4px;   /* breathing room from the layer control above */
+}
+
+.btn-map-ctrl.btn-map-ctrl--about:hover {
+  background: rgba(59, 130, 246, 0.20);
+  border-color: rgba(59, 130, 246, 0.50);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+/* ---------------------------------------------------------------------------- */
+/* About Modal Overlay                                                          */
+/* Full-screen overlay with a glassmorphism card centred on screen.              */
+/* Hidden by default; .is-visible triggers fade-in + slide-up.                  */
+/* ---------------------------------------------------------------------------- */
+
+#about-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Hidden by default */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+#about-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Dark semi-transparent backdrop */
+#about-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.60);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* The modal card itself */
+#about-modal {
+  position: relative;
+  z-index: 1;
+  width: min(520px, calc(100vw - 48px));
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+
+  background: var(--glass-dark-bg);
+  border: 1px solid var(--glass-dark-border);
+  border-radius: var(--panel-radius);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 16px 64px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+
+  padding: 28px 28px 24px;
+  color: var(--text-primary);
+
+  /* Slide up on open */
+  transform: translateY(20px);
+  transition: transform 0.35s cubic-bezier(0.32, 0, 0.15, 1);
+
+  /* Smooth scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+
+#about-modal::-webkit-scrollbar       { width: 4px; }
+#about-modal::-webkit-scrollbar-track { background: transparent; }
+#about-modal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }
+
+#about-overlay.is-visible #about-modal {
+  transform: translateY(0);
+}
+
+/* Close button — top-right */
+.about-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+  min-height: 44px;      /* touch target */
+  min-width: 44px;
+}
+
+.about-close:hover {
+  background: rgba(239, 68, 68, 0.20);
+  border-color: rgba(239, 68, 68, 0.40);
+  color: #ef4444;
+}
+
+/* Header — icon + title row */
+.about-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-dark);
+}
+
+.about-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, var(--accent), #1e40af);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+  box-shadow: 0 0 18px var(--accent-glow);
+}
+
+.about-header-text h2 {
+  font-size: 1.05em;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-primary);
+  margin: 0 0 2px;
+}
+
+.about-version {
+  font-size: 0.78em;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Body content typography */
+.about-body {
+  line-height: 1.65;
+}
+
+.about-body p {
+  font-size: 0.88em;
+  color: rgba(241, 245, 249, 0.80);
+  margin: 0 0 16px;
+}
+
+.about-body h3 {
+  font-size: 0.72em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent);
+  margin: 20px 0 8px;
+}
+
+.about-body ul {
+  margin: 0 0 12px;
+  padding-left: 18px;
+}
+
+.about-body li {
+  font-size: 0.84em;
+  color: rgba(241, 245, 249, 0.75);
+  margin-bottom: 5px;
+  line-height: 1.5;
+}
+
+.about-body li strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Footer — links & copyright */
+.about-footer {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-dark);
+  text-align: center;
+}
+
+.about-footer p {
+  font-size: 0.78em;
+  color: var(--text-muted);
+  margin: 0 0 4px;
+}
+
+.about-footer a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+
+.about-footer a:hover {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+.about-copyright {
+  font-size: 0.72em !important;
+  color: rgba(255,255,255,0.30) !important;
+}

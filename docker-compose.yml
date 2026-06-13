@@ -1,0 +1,27 @@
+services:
+  powervision:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: powervision-app
+    restart: unless-stopped
+    ports:
+      - "3838:3838"
+    volumes:
+      - ./logs:/var/log/shiny-server
+    environment:
+      - PECD_GEOJSON_VERSION=mixed
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "4.0"
+        reservations:
+          memory: 1G
+          cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3838/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
