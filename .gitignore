@@ -22,3 +22,7 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# AI Agent Instructions
+AGENTS.md
+DEVELOPMENT_GUIDELINES.md

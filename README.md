@@ -122,8 +122,6 @@ environment:
 │           │   ├── annual/    # One .parquet per variable (all spatial levels)
 │           │   └── seasonal/  # One .parquet per variable (all spatial levels)
 │           └── projections/   # Future climate projection data
-├── AGENTS.md         # AI assistant development guidelines
-└── DEVELOPMENT_GUIDELINES.md
 ```
 
 ## License
