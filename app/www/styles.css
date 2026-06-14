@@ -629,6 +629,47 @@ body, html {
   border-radius: 2px;
 }
 
+/* Download CSV button in drawer sidebar */
+.drawer-download-section {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+/* Override Shiny's btn-default styling on the download <a> tag */
+#stats-drawer .drawer-download-btn.btn.btn-default.shiny-download-link,
+#stats-drawer a.drawer-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #94a3b8;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+  text-decoration: none;
+}
+
+#stats-drawer .drawer-download-btn.btn:hover,
+#stats-drawer a.drawer-download-btn:hover {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.30);
+  color: #e2e8f0;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+}
+
+#stats-drawer .drawer-download-btn.btn:active,
+#stats-drawer a.drawer-download-btn:active {
+  transform: scale(0.97);
+}
+
 #stats-drawer .drawer-chart-column {
   flex: 1;
   min-width: 0;

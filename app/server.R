@@ -1801,7 +1801,16 @@ server <- function(input, output, session) {
           ),
           bgcolor = "rgba(0,0,0,0)"
         ),
-        hovermode = "x unified"
+        hovermode = "x unified",
+        hoverlabel = list(
+          bgcolor = "rgba(15, 23, 42, 0.90)",
+          bordercolor = "rgba(255, 255, 255, 0.15)",
+          font = list(
+            family = "Inter, sans-serif",
+            size = 12,
+            color = "#e2e8f0"
+          )
+        )
       ) %>%
       config(displayModeBar = FALSE) # Clean interface without cluttering toolbars
 
@@ -1815,4 +1824,120 @@ server <- function(input, output, session) {
         )
     })
   })
+
+  # ----------------------------------------------------------------------------
+  # CSV Download Handler — export chart data for the selected region
+  # ----------------------------------------------------------------------------
+  # Downloads the historical time series (and projections when ON) for the
+  # currently clicked region as a CSV file. The exported file contains columns:
+  #   Year, Value, Source (ERA5/Projection), Variable, Region, Season
+  # Scientists can use this for their own analyses or for publication figures.
+  # ----------------------------------------------------------------------------
+  output$download_chart_csv <- downloadHandler(
+
+    # Dynamic filename based on selected region and variable
+    filename = function() {
+      region <- clicked_region()
+      var_name <- input$climate_variable
+      temp_mode <- input$temporal_mode
+      # Use [[ ]] bracket access (safer than $ for atomic vectors)
+      region_id <- if (!is.null(region)) region[["zone_id"]] else "unknown"
+      paste0("powervision_", region_id, "_", var_name, "_", temp_mode, ".csv")
+    },
+
+    content = function(file) {
+      region <- clicked_region()
+      req(region, input$climate_variable, input$temporal_mode, input$spatial_level)
+
+      var_name     <- input$climate_variable
+      temp_mode    <- input$temporal_mode
+      target_region <- region[["zone_id"]]
+      region_name  <- region[["name"]]
+      sp_level     <- spatial_level_to_parquet[input$spatial_level]
+
+      message(sprintf("  CSV download: region=%s, var=%s, mode=%s", target_region, var_name, temp_mode))
+
+      # ── Collect historical data ──────────────────────────────────────────────
+      if (temp_mode == "Annual") {
+        ds <- hist_annual_ds
+      } else {
+        ds <- hist_seasonal_ds
+      }
+
+      query <- ds |>
+        dplyr::filter(variable == var_name,
+                      SpatialLevel == sp_level,
+                      Region == target_region)
+
+      if (temp_mode != "Annual") {
+        query <- query |> dplyr::filter(Season == temp_mode)
+      }
+
+      df_hist <- as.data.frame(dplyr::collect(query))
+
+      if (nrow(df_hist) > 0) {
+        df_hist$Source <- "ERA5 Reanalysis"
+        df_hist$Region_Name <- region_name
+        # Keep only useful columns
+        export_cols <- c("Year", "Value", "Source", "variable", "Region", "Region_Name")
+        if ("Season" %in% names(df_hist)) export_cols <- c(export_cols, "Season")
+        df_hist <- df_hist[, intersect(export_cols, names(df_hist))]
+      }
+
+      # ── Collect projection data if available ─────────────────────────────────
+      df_proj_export <- NULL
+      show_proj <- isTRUE(input$show_projections == "1")
+      proj_data_exists <- (var_name %in% projection_available_variables &&
+                           sp_level %in% projection_available_spatial_levels)
+
+      if (show_proj && proj_data_exists) {
+        scenario_val <- input$ssp_scenario
+
+        if (temp_mode == "Annual") {
+          ds_proj <- proj_annual_ds
+        } else {
+          ds_proj <- proj_seasonal_ds
+        }
+
+        if (!is.null(ds_proj)) {
+          query_proj <- ds_proj |>
+            dplyr::filter(variable == var_name,
+                          SpatialLevel == sp_level,
+                          Region == target_region,
+                          scenario == !!scenario_val)
+
+          if (temp_mode != "Annual") {
+            query_proj <- query_proj |> dplyr::filter(Season == temp_mode)
+          }
+
+          df_proj_raw <- as.data.frame(dplyr::collect(query_proj))
+
+          if (nrow(df_proj_raw) > 0) {
+            # Include all models (not just the median) for scientific use
+            df_proj_raw$Source <- paste0("CMIP6 Projection (", scenario_val, ")")
+            df_proj_raw$Region_Name <- region_name
+            # Rename model column for clarity
+            export_cols_proj <- c("Year", "Value", "Source", "variable", "Region", "Region_Name", "model")
+            if ("Season" %in% names(df_proj_raw)) export_cols_proj <- c(export_cols_proj, "Season")
+            df_proj_export <- df_proj_raw[, intersect(export_cols_proj, names(df_proj_raw))]
+          }
+        }
+      }
+
+      # ── Combine and write CSV ────────────────────────────────────────────────
+      if (!is.null(df_proj_export)) {
+        # Add empty model column to historical data for alignment
+        if (!"model" %in% names(df_hist)) df_hist$model <- "ERA5"
+        df_combined <- rbind(df_hist, df_proj_export)
+      } else {
+        df_combined <- df_hist
+      }
+
+      # Sort by Year and round values for readability
+      df_combined <- df_combined[order(df_combined$Year), ]
+      df_combined$Value <- round(df_combined$Value, 1)
+
+      write.csv(df_combined, file, row.names = FALSE)
+    }
+  )
 }

@@ -43,14 +43,13 @@ COPY app/renv/activate.R renv/activate.R
 COPY app/renv/settings.json renv/settings.json
 
 # --- Restore R packages from lockfile ---
+# arrow and plotly are now included in renv.lock alongside all other dependencies,
+# so a single renv::restore() handles everything.
 ENV RENV_CONFIG_SANDBOX_ENABLED=FALSE
 ENV RENV_CONFIG_CACHE_SYMLINKS=FALSE
-RUN R -e 'renv::restore()'
-
-# --- Install packages not in lockfile but required by global.R ---
 ENV ARROW_WITH_SNAPPY=ON
 ENV NOT_CRAN=true
-RUN R -e 'install.packages(c("arrow", "plotly"), repos = "https://cloud.r-project.org")'
+RUN R -e 'renv::restore()'
 
 # --- Copy the full app source ---
 COPY app/ .

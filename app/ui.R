@@ -547,7 +547,19 @@ ui <- page_fillable(
       class = "drawer-body-layout",
       div(
         class = "drawer-sidebar-column",
-        div(class = "metric-grid", htmlOutput("region_stats_cards"))
+        div(class = "metric-grid", htmlOutput("region_stats_cards")),
+
+        # Download CSV button — exports the chart data (historical + projections)
+        # for the currently selected region as a CSV file.
+        div(
+          class = "drawer-download-section",
+          downloadButton(
+            outputId = "download_chart_csv",
+            label = "Download CSV",
+            class = "drawer-download-btn",
+            icon = shiny::icon("download")
+          )
+        )
       ),
       div(
         class = "drawer-chart-column",
