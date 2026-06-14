@@ -728,6 +728,297 @@ body, html {
   color: #ef4444;
 }
 
+/* ---------------------------------------------------------------------------- */
+/* Projection Controls — toggle + scenario selector in drawer header            */
+/* ---------------------------------------------------------------------------- */
+
+/* Container group — flex row, centered vertically with other header items */
+/* Sidebar projection controls — vertical stack in the left panel */
+.sidebar-projection-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: opacity 0.25s ease, max-height 0.35s ease;
+}
+
+/* When projection data is not available, hide the entire group */
+.sidebar-projection-controls.is-disabled {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+
+/* Projection pill toggle — full-width in sidebar */
+.projection-show-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  overflow: hidden;
+  height: 32px;
+  width: 100%;
+}
+
+/* Sliding highlight pill */
+.projection-show-toggle .proj-toggle-pill {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.30);
+  border-radius: 6px;
+  transition: transform 0.25s cubic-bezier(0.32, 0, 0.15, 1);
+  z-index: 0;
+}
+
+.projection-show-toggle.toggle-right .proj-toggle-pill {
+  transform: translateX(100%);
+}
+
+/* Toggle option buttons */
+.proj-toggle-option {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 4px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+  min-height: 44px; /* touch-target compliance */
+}
+
+.proj-toggle-option.active {
+  color: #e2e8f0;
+}
+
+.proj-toggle-option:hover:not(.active) {
+  color: #cbd5e1;
+}
+
+/* Scenario dropdown wrapper — hidden until toggle is ON */
+.scenario-selector-wrapper {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.scenario-selector-wrapper.is-visible {
+  display: block;
+  opacity: 1;
+}
+
+/* Override Shiny's selectInput styles inside the drawer header */
+.scenario-selector-wrapper .form-group {
+  margin-bottom: 0;
+}
+
+.scenario-selector-wrapper .selectize-input {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 6px !important;
+  color: #e2e8f0 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.75rem !important;
+  padding: 4px 10px !important;
+  min-height: 32px !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(8px);
+}
+
+.scenario-selector-wrapper .selectize-input.focus {
+  border-color: rgba(56, 189, 248, 0.40) !important;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.15) !important;
+}
+
+.scenario-selector-wrapper .selectize-dropdown {
+  background: rgba(10, 15, 35, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(16px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.scenario-selector-wrapper .selectize-dropdown .option {
+  color: #cbd5e1 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.75rem !important;
+  padding: 8px 12px !important;
+}
+
+.scenario-selector-wrapper .selectize-dropdown .option.active {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Info tooltip icon */
+.proj-info-icon {
+  color: var(--text-muted);
+  cursor: help;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.proj-info-icon:hover {
+  color: #38bdf8;
+}
+
+/* Tooltip z-index fix: bslib tooltips must appear ABOVE the stats drawer (z-index 1100).
+   Without this, the tooltip renders behind the chart panel because the drawer's stacking
+   context traps children at z-index <= 1100. */
+.tooltip, .popover,
+.bslib-tooltip-popover,
+[data-bs-toggle="tooltip"] + .tooltip {
+  z-index: 1300 !important;
+}
+
+/* Display mode toggle — Absolute vs Anomaly pill switch */
+.display-mode-wrapper {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.display-mode-wrapper.is-visible {
+  display: block;
+  opacity: 1;
+}
+
+/* Display mode toggle — full-width in sidebar */
+.display-mode-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  overflow: hidden;
+  height: 32px;
+  width: 100%;
+}
+
+.display-mode-toggle .display-toggle-pill {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.30);
+  border-radius: 6px;
+  transition: transform 0.25s cubic-bezier(0.32, 0, 0.15, 1);
+  z-index: 0;
+}
+
+.display-mode-toggle.toggle-right .display-toggle-pill {
+  transform: translateX(100%);
+}
+
+.display-toggle-option {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 4px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+  min-height: 44px;
+}
+
+.display-toggle-option.active {
+  color: #e2e8f0;
+}
+
+.display-toggle-option:hover:not(.active) {
+  color: #cbd5e1;
+}
+
+/* Reference period dropdown — same show/hide pattern as scenario selector */
+.reference-period-wrapper {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.reference-period-wrapper.is-visible {
+  display: block;
+  opacity: 1;
+}
+
+/* Reuse the same glassmorphism selectize overrides for the reference period dropdown */
+.reference-period-wrapper .form-group {
+  margin-bottom: 0;
+}
+
+.reference-period-wrapper .selectize-input {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 6px !important;
+  color: #e2e8f0 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.75rem !important;
+  padding: 4px 10px !important;
+  min-height: 32px !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(8px);
+}
+
+.reference-period-wrapper .selectize-input.focus {
+  border-color: rgba(56, 189, 248, 0.40) !important;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.15) !important;
+}
+
+.reference-period-wrapper .selectize-dropdown {
+  background: rgba(10, 15, 35, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(16px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.reference-period-wrapper .selectize-dropdown .option {
+  color: #cbd5e1 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.75rem !important;
+  padding: 8px 12px !important;
+}
+
+.reference-period-wrapper .selectize-dropdown .option.active {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #e2e8f0 !important;
+}
+
 /* Metric cards grid */
 #stats-drawer .metric-grid {
   display: grid;

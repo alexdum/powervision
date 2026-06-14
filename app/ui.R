@@ -191,6 +191,128 @@ ui <- page_fillable(
 
     hr(class = "panel-divider"),
 
+    # ── Section: Climate Projections ────────────────────────────────────────────
+    # These controls allow exploring projected climate data (CMIP6 models) on
+    # the map without needing to click a region first. They affect both the
+    # map choropleth and the time-series chart in the bottom drawer.
+    # The entire group is hidden when projection data is not available for the
+    # current variable/spatial level (controlled by server via JS message).
+    div(
+      id = "projection-controls",
+      class = "sidebar-projection-controls",
+
+      # Section label
+      span(
+        class = "control-label",
+        "Climate Projections",
+        tooltip(
+          bsicons::bs_icon("question-circle", size = "0.85em"),
+          paste0(
+            "SSP (Shared Socioeconomic Pathway) scenarios represent different ",
+            "plausible futures based on greenhouse gas emissions. ",
+            "Lower numbers (SSP1) = strong climate policies; ",
+            "higher numbers (SSP5) = continued fossil fuel reliance. ",
+            "Projections show the median of 6 CMIP6 climate models."
+          )
+        )
+      ),
+
+      # Toggle switch — Off / Projections
+      tags$input(
+        type = "hidden",
+        id = "show_projections",
+        value = "0",
+        class = "shiny-bound-input"
+      ),
+      div(
+        class = "projection-show-toggle",
+        id = "projection-show-toggle",
+        div(class = "proj-toggle-pill"),
+        tags$button(
+          type = "button",
+          class = "proj-toggle-option active",
+          `data-value` = "0",
+          bsicons::bs_icon("eye-slash", size = "0.8em"),
+          "Off"
+        ),
+        tags$button(
+          type = "button",
+          class = "proj-toggle-option",
+          `data-value` = "1",
+          bsicons::bs_icon("graph-up-arrow", size = "0.8em"),
+          "Projections"
+        )
+      ),
+
+      # Scenario dropdown — only visible when toggle is on
+      div(
+        id = "scenario-selector-wrapper",
+        class = "scenario-selector-wrapper",
+        selectInput(
+          inputId = "ssp_scenario",
+          label = NULL,
+          choices = c(
+            "SSP1-2.6 \u2014 Sustainability"           = "ssp1_2_6",
+            "SSP2-4.5 \u2014 Middle of the Road"        = "ssp2_4_5",
+            "SSP3-7.0 \u2014 Regional Rivalry"           = "ssp3_7_0",
+            "SSP5-8.5 \u2014 Fossil-fueled Development"  = "ssp5_8_5"
+          ),
+          selected = "ssp2_4_5",
+          width = "100%"
+        )
+      ),
+
+      # Display mode toggle — Absolute vs Anomaly
+      div(
+        id = "display-mode-wrapper",
+        class = "display-mode-wrapper",
+        tags$input(
+          type = "hidden",
+          id = "display_mode",
+          value = "absolute",
+          class = "shiny-bound-input"
+        ),
+        div(
+          class = "display-mode-toggle",
+          id = "display-mode-toggle",
+          div(class = "display-toggle-pill"),
+          tags$button(
+            type = "button",
+            class = "display-toggle-option active",
+            `data-value` = "absolute",
+            bsicons::bs_icon("thermometer-half", size = "0.8em"),
+            "Absolute"
+          ),
+          tags$button(
+            type = "button",
+            class = "display-toggle-option",
+            `data-value` = "anomaly",
+            bsicons::bs_icon("plus-slash-minus", size = "0.8em"),
+            "Anomaly"
+          )
+        )
+      ),
+
+      # Reference period dropdown — visible when Anomaly mode selected
+      div(
+        id = "reference-period-wrapper",
+        class = "reference-period-wrapper",
+        selectInput(
+          inputId = "reference_period",
+          label = NULL,
+          choices = c(
+            "Baseline: 1981\u20132010 (WMO Current)"  = "1981-2010",
+            "Baseline: 1971\u20132000 (WMO Previous)" = "1971-2000",
+            "Baseline: 1961\u20131990 (WMO Classic)"  = "1961-1990"
+          ),
+          selected = "1981-2010",
+          width = "100%"
+        )
+      )
+    ),
+
+    hr(class = "panel-divider"),
+
     # ── Section: Layer Info ─────────────────────────────────────────────────────
     div(class = "layer-info-text", htmlOutput("layer_metadata_text")),
 
@@ -341,14 +463,18 @@ ui <- page_fillable(
   tags$div(
     id = "stats-drawer",
 
-    # Header row: title + close button
+    # Header row: region name + close button
     div(
       class = "drawer-header",
+
+      # Left side: drawer title
       div(
         class = "drawer-title",
         bsicons::bs_icon("geo-alt-fill", size = "0.9em"),
         "Selected Region Analysis"
       ),
+
+      # Right side: close button
       tags$button(
         id = "drawer-close-btn",
         class = "drawer-close",

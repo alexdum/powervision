@@ -290,3 +290,74 @@ for (level_code in names(spatial_levels)) {
   }
 }
 
+# ==============================================================================
+# Projection Data Configuration
+# ==============================================================================
+# Metadata used by server.R to conditionally show/hide the projection toggle
+# and to label scenarios / models in the time-series chart overlay.
+# ==============================================================================
+
+# Variables that have projection data available in PECD v4.2
+# (only temperature and precipitation for now — solar / wind not available)
+projection_available_variables <- c("2m_temperature", "total_precipitation")
+
+# Detect which spatial levels actually have projection data in the parquet store.
+# This is computed at startup rather than hard-coded so that newly downloaded
+# SZON/SZOF data is picked up automatically after reprocessing.
+projection_available_spatial_levels <- character(0)
+if (!is.null(proj_annual_ds)) {
+  projection_available_spatial_levels <- proj_annual_ds |>
+    dplyr::distinct(SpatialLevel) |>
+    dplyr::collect() |>
+    dplyr::pull(SpatialLevel)
+  message(sprintf(
+    "  [OK] Projection spatial levels detected: %s",
+    paste(projection_available_spatial_levels, collapse = ", ")
+  ))
+}
+
+# SSP emission scenario display labels — plain-language descriptions for
+# non-climate-expert scientists. The key is the parquet column value;
+# the value is the human-readable label shown in the UI dropdown.
+ssp_scenario_labels <- c(
+  "ssp1_2_6" = "SSP1-2.6 \u2014 Sustainability",
+  "ssp2_4_5" = "SSP2-4.5 \u2014 Middle of the Road",
+  "ssp3_7_0" = "SSP3-7.0 \u2014 Regional Rivalry",
+  "ssp5_8_5" = "SSP5-8.5 \u2014 Fossil-fueled Development"
+)
+
+# IPCC-inspired color palette for each SSP scenario.
+# These are used for the ensemble median line and the model spread envelope
+# in the time-series chart. Colors follow the IPCC AR6 convention.
+ssp_colors <- list(
+  "ssp1_2_6" = list(line = "#2563eb", fill = "rgba(37, 99, 235, 0.15)"),
+  "ssp2_4_5" = list(line = "#f59e0b", fill = "rgba(245, 158, 11, 0.15)"),
+  "ssp3_7_0" = list(line = "#ef4444", fill = "rgba(239, 68, 68, 0.15)"),
+  "ssp5_8_5" = list(line = "#7c3aed", fill = "rgba(124, 58, 237, 0.15)")
+)
+
+# CMIP6 model display names (for potential future individual-model toggle)
+climate_model_labels <- c(
+  "awi_cm_1_1_mr" = "AWI-CM-1.1-MR",
+  "bcc_csm2_mr"   = "BCC-CSM2-MR",
+  "cmcc_cm2_sr5"  = "CMCC-CM2-SR5",
+  "ec_earth3"     = "EC-Earth3",
+  "mpi_esm1_2_hr" = "MPI-ESM1-2-HR",
+  "mri_esm2_0"    = "MRI-ESM2-0"
+)
+
+# ==============================================================================
+# Diverging Anomaly Palettes (for map choropleth in anomaly mode)
+# ==============================================================================
+# These replace the sequential palettes when the display mode is "Anomaly".
+# The palettes are centered on white/neutral for zero departure, with
+# negative values (cooler/drier) on the left and positive (warmer/wetter) right.
+# ==============================================================================
+
+# Temperature anomaly: blue (cooler) → white (no change) → red (warmer)
+anomaly_palette_temperature <- c("#2166ac", "#67a9cf", "#d1e5f0", "#f7f7f7",
+                                  "#fddbc7", "#ef8a62", "#b2182b")
+
+# Precipitation anomaly: brown (drier) → white (no change) → teal (wetter)
+anomaly_palette_precipitation <- c("#8c510a", "#d8b365", "#f6e8c3", "#f5f5f5",
+                                    "#c7eae5", "#5ab4ac", "#01665e")

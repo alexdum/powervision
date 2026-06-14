@@ -7,6 +7,7 @@
 
 $(document).ready(function () {
 
+
   // --------------------------------------------------------------------------
   // Floating Layer Control — hover-expand / auto-collapse
   // --------------------------------------------------------------------------
@@ -153,6 +154,112 @@ $(document).ready(function () {
   $(document).on('keydown', function (event) {
     if (event.key === 'Escape' && $('#about-overlay').hasClass('is-visible')) {
       $('#about-overlay').removeClass('is-visible');
+    }
+  });
+  // --------------------------------------------------------------------------
+  // Projection Toggle — Show/Hide projections on time-series chart
+  // --------------------------------------------------------------------------
+  // When toggled ON ("1"), the scenario selector, display mode toggle, and
+  // (conditionally) the reference period selector fade in.
+  // When toggled OFF ("0"), all projection sub-controls hide.
+  // --------------------------------------------------------------------------
+  $(document).on('click', '.projection-show-toggle .proj-toggle-option', function () {
+    var $btn       = $(this);
+    var $container = $btn.closest('.projection-show-toggle');
+    var newValue   = $btn.data('value');
+
+    // Skip if this option is already active
+    if ($btn.hasClass('active')) return;
+
+    // Swap active class
+    $container.find('.proj-toggle-option').removeClass('active');
+    $btn.addClass('active');
+
+    // Slide the pill: "1" (Projections) = toggle-right, "0" (Off) = default left
+    if (newValue === '1' || newValue === 1) {
+      $container.addClass('toggle-right');
+      $('#scenario-selector-wrapper').addClass('is-visible');
+      $('#display-mode-wrapper').addClass('is-visible');
+      // Only show reference period if display mode is "anomaly"
+      var currentMode = $('#display-mode-toggle .display-toggle-option.active').data('value');
+      if (currentMode === 'anomaly') {
+        $('#reference-period-wrapper').addClass('is-visible');
+      }
+    } else {
+      $container.removeClass('toggle-right');
+      $('#scenario-selector-wrapper').removeClass('is-visible');
+      $('#display-mode-wrapper').removeClass('is-visible');
+      $('#reference-period-wrapper').removeClass('is-visible');
+    }
+
+    // Push the value into Shiny's input binding
+    Shiny.setInputValue('show_projections', String(newValue));
+  });
+
+  // --------------------------------------------------------------------------
+  // Display Mode Toggle — Absolute vs Anomaly
+  // --------------------------------------------------------------------------
+  // Switches between absolute values and anomaly (departure from baseline)
+  // for both the map choropleth and the time-series chart.
+  // When "absolute" is selected, the reference period dropdown hides.
+  // When "anomaly" is selected, the reference period dropdown appears.
+  // --------------------------------------------------------------------------
+  $(document).on('click', '.display-mode-toggle .display-toggle-option', function () {
+    var $btn       = $(this);
+    var $container = $btn.closest('.display-mode-toggle');
+    var newValue   = $btn.data('value');
+
+    // Skip if this option is already active
+    if ($btn.hasClass('active')) return;
+
+    // Swap active class
+    $container.find('.display-toggle-option').removeClass('active');
+    $btn.addClass('active');
+
+    // Slide the pill: "anomaly" = toggle-right, "absolute" = default left
+    if (newValue === 'anomaly') {
+      $container.addClass('toggle-right');
+      $('#reference-period-wrapper').addClass('is-visible');
+    } else {
+      $container.removeClass('toggle-right');
+      $('#reference-period-wrapper').removeClass('is-visible');
+    }
+
+    // Push the value into Shiny's input binding
+    Shiny.setInputValue('display_mode', newValue);
+  });
+
+  // --------------------------------------------------------------------------
+  // Projection Controls — Enable / Disable from server
+  // --------------------------------------------------------------------------
+  // The server sends this message when the variable or spatial level changes.
+  // If projection data is unavailable for the current combination, we hide
+  // the entire projection controls group and reset all toggles.
+  // --------------------------------------------------------------------------
+  Shiny.addCustomMessageHandler('toggle_projection_controls', function (msg) {
+    var $controls = $('#projection-controls');
+    if (msg.available) {
+      $controls.removeClass('is-disabled');
+    } else {
+      // Hide and reset to off
+      $controls.addClass('is-disabled');
+      // Reset the projection toggle to Off
+      var $projToggle = $('#projection-show-toggle');
+      $projToggle.find('.proj-toggle-option').removeClass('active');
+      $projToggle.find('.proj-toggle-option[data-value="0"]').addClass('active');
+      $projToggle.removeClass('toggle-right');
+      // Hide all sub-controls
+      $('#scenario-selector-wrapper').removeClass('is-visible');
+      $('#display-mode-wrapper').removeClass('is-visible');
+      $('#reference-period-wrapper').removeClass('is-visible');
+      // Reset display mode to absolute (default)
+      var $modeToggle = $('#display-mode-toggle');
+      $modeToggle.find('.display-toggle-option').removeClass('active');
+      $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active');
+      $modeToggle.removeClass('toggle-right');
+      // Push reset values to Shiny
+      Shiny.setInputValue('show_projections', '0');
+      Shiny.setInputValue('display_mode', 'absolute');
     }
   });
 

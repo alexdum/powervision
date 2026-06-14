@@ -32,74 +32,128 @@ server <- function(input, output, session) {
   # ----------------------------------------------------------------------------
   # This reactive filters the pre-loaded global historical dataset based on
   # the user's selected variable, temporal mode, year, and spatial level.
+  # When projections are ON and the selected year is beyond the historical
+  # range (>2023), it reads from the projection dataset instead, computing
+  # the ensemble MEDIAN across 6 CMIP6 models for the selected SSP scenario.
   # Returns a simple data.frame with columns: Region, Value
   # ----------------------------------------------------------------------------
   filtered_climate_data <- reactive({
     req(input$climate_variable, input$temporal_mode, input$selected_year, input$spatial_level)
-    
-    var_name <- input$climate_variable
+
+    var_name  <- input$climate_variable
     temp_mode <- input$temporal_mode
-    sel_year <- as.integer(input$selected_year)
-    sp_level <- spatial_level_to_parquet[input$spatial_level]
-    
-    # Select the appropriate lazy Arrow dataset (annual vs seasonal)
-    if (temp_mode == "Annual") {
-      ds <- hist_annual_ds
+    sel_year  <- as.integer(input$selected_year)
+    sp_level  <- spatial_level_to_parquet[input$spatial_level]
+
+    # Determine whether to use projection data (year > 2023 with projections ON)
+    show_proj <- isTRUE(input$show_projections == "1")
+    proj_data_exists <- (var_name %in% projection_available_variables &&
+                         sp_level %in% projection_available_spatial_levels)
+    use_projection <- (show_proj && sel_year > 2023 && proj_data_exists)
+
+    if (use_projection) {
+      # ── Read from projection dataset ─────────────────────────────────────────
+      req(input$ssp_scenario)
+      scenario_val <- input$ssp_scenario
+
+      if (temp_mode == "Annual") {
+        ds <- proj_annual_ds
+      } else {
+        ds <- proj_seasonal_ds
+      }
+
+      if (is.null(ds)) return(NULL)
+
+      # Query all 6 models for the selected scenario + year
+      query <- ds |>
+        dplyr::filter(variable == var_name,
+                      SpatialLevel == sp_level,
+                      Year == sel_year,
+                      scenario == !!scenario_val)
+
+      if (temp_mode != "Annual") {
+        query <- query |> dplyr::filter(Season == temp_mode)
+      }
+
+      df_raw <- dplyr::collect(query)
+
+      if (nrow(df_raw) == 0) return(NULL)
+
+      # Compute ensemble median per region (across 6 climate models)
+      df_out <- df_raw |>
+        dplyr::group_by(Region) |>
+        dplyr::summarise(Value = median(Value, na.rm = TRUE), .groups = "drop")
+
+      # Carry forward the other columns needed downstream
+      df_out$variable     <- var_name
+      df_out$SpatialLevel <- sp_level
+      df_out$Year         <- sel_year
+
+      return(df_out)
+
     } else {
-      ds <- hist_seasonal_ds
+      # ── Read from historical dataset (existing path) ─────────────────────────
+      if (temp_mode == "Annual") {
+        ds <- hist_annual_ds
+      } else {
+        ds <- hist_seasonal_ds
+      }
+
+      if (is.null(ds)) return(NULL)
+
+      query <- ds |>
+        dplyr::filter(variable == var_name,
+                      SpatialLevel == sp_level,
+                      Year == sel_year)
+
+      if (temp_mode != "Annual") {
+        query <- query |> dplyr::filter(Season == temp_mode)
+      }
+
+      dplyr::collect(query)
     }
-    
-    if (is.null(ds)) {
-      return(NULL)
-    }
-    
-    # Build a lazy query with partition pruning on 'variable',
-    # then filter in-file columns SpatialLevel and Year.
-    query <- ds |>
-      dplyr::filter(variable == var_name,
-                    SpatialLevel == sp_level,
-                    Year == sel_year)
-    
-    # Filter by season if we are in seasonal mode
-    if (temp_mode != "Annual") {
-      query <- query |> dplyr::filter(Season == temp_mode)
-    }
-    
-    # collect() materializes only the matching rows into a data.frame
-    dplyr::collect(query)
   })
 
   # ----------------------------------------------------------------------------
-  # Dynamic Year Slider Bounds based on Onshore/Offshore Spatial Tier
+  # Dynamic Year Slider Bounds based on Spatial Tier + Projection State
   # ----------------------------------------------------------------------------
   # Onshore PECD spatial tiers (NUT0, NUT2, PEON, SZON) only contain historical
   # data up to 2021. Offshore tiers (PEOF, SZOF) go up to 2023.
-  # This observer adjusts the year slider's bounds dynamically, protecting the
-  # user from selecting blank periods and ensuring polygons are colored at startup.
+  # When projections are toggled ON and the selected variable has projection
+  # data, the slider extends to 2100 to allow browsing projected values.
   # ----------------------------------------------------------------------------
   observe({
-    req(input$spatial_level, input$temporal_mode)
-    
-    # Determine the maximum year based on Onshore/Offshore tier
+    req(input$spatial_level, input$temporal_mode, input$climate_variable)
+
+    # Determine the historical maximum year based on Onshore/Offshore tier
     is_offshore <- input$spatial_level %in% c("PEOF", "SZOF")
-    max_year <- if (is_offshore) 2023 else 2021
-    
+    hist_max_year <- if (is_offshore) 2023 else 2021
+
+    # Check if projections should extend the slider
+    show_proj <- isTRUE(input$show_projections == "1")
+    var_name  <- input$climate_variable
+    sp_level  <- spatial_level_to_parquet[input$spatial_level]
+    proj_data_exists <- (var_name %in% projection_available_variables &&
+                         sp_level %in% projection_available_spatial_levels)
+
+    max_year <- if (show_proj && proj_data_exists) 2100 else hist_max_year
+
     # Winter season has incomplete 1950 data, so min year is 1951 for seasonal mode
     min_year <- if (input$temporal_mode == "Annual") 1950 else 1951
-    
+
     # Adjust current year selection if it lies outside the valid range
     current_yr <- input$selected_year
     if (is.null(current_yr)) {
-      current_yr <- max_year
+      current_yr <- hist_max_year
     }
-    
+
     new_val <- current_yr
     if (new_val < min_year) {
       new_val <- min_year
     } else if (new_val > max_year) {
       new_val <- max_year
     }
-    
+
     updateSliderInput(
       session = session,
       inputId = "selected_year",
@@ -201,13 +255,67 @@ server <- function(input, output, session) {
   })
 
   # ----------------------------------------------------------------------------
+  # Baseline Map Data Reactive — per-region baseline for map anomaly mode
+  # ----------------------------------------------------------------------------
+  # Unlike baseline_mean_value() which computes the baseline for a single
+  # clicked region, this reactive computes the mean Value for EVERY region
+  # at the current spatial level over the selected reference period.
+  # Returns a data.frame with columns: Region, baseline_value
+  # Used by the map rendering observer to convert all polygon values to anomalies.
+  # ----------------------------------------------------------------------------
+  baseline_map_data <- reactive({
+    req(input$show_projections == "1", input$display_mode == "anomaly")
+    req(input$reference_period, input$climate_variable, input$temporal_mode, input$spatial_level)
+
+    # Parse reference period
+    ref_years <- as.integer(strsplit(input$reference_period, "-")[[1]])
+    ref_start <- ref_years[1]
+    ref_end   <- ref_years[2]
+
+    var_name  <- input$climate_variable
+    temp_mode <- input$temporal_mode
+    sp_level  <- spatial_level_to_parquet[input$spatial_level]
+
+    # Select the appropriate historical dataset
+    if (temp_mode == "Annual") {
+      ds <- hist_annual_ds
+    } else {
+      ds <- hist_seasonal_ds
+    }
+
+    if (is.null(ds)) return(NULL)
+
+    # Query ALL regions for the reference period
+    query <- ds |>
+      dplyr::filter(variable == var_name,
+                    SpatialLevel == sp_level,
+                    Year >= ref_start,
+                    Year <= ref_end)
+
+    if (temp_mode != "Annual") {
+      query <- query |> dplyr::filter(Season == temp_mode)
+    }
+
+    df_ref <- dplyr::collect(query)
+
+    if (nrow(df_ref) == 0) return(NULL)
+
+    # Compute per-region mean baseline
+    baseline_df <- df_ref |>
+      dplyr::group_by(Region) |>
+      dplyr::summarise(baseline_value = mean(Value, na.rm = TRUE), .groups = "drop")
+
+    baseline_df
+  })
+
+  # ----------------------------------------------------------------------------
   # Central Zone Layer Renderer
   # ----------------------------------------------------------------------------
   # This single observe() block is responsible for ALL polygon drawing.
   # It fires when: (a) the spatial level changes, (b) the map first loads,
   # or (c) style_trigger is incremented after a basemap switch.
-  # Keeping the draw logic here (rather than duplicating it in the basemap
-  # observer) prevents the accumulation/overlap problem.
+  # When projections are ON, it also applies anomaly transformations and
+  # swaps to diverging color palettes based on the display mode.
   # ----------------------------------------------------------------------------
   observe({
     req(map_loaded())
@@ -224,6 +332,8 @@ server <- function(input, output, session) {
     # Get the selected variable metadata
     var_meta <- climate_variables[[input$climate_variable]]
     palette <- var_meta$palette
+    var_label <- var_meta$label
+    var_unit <- var_meta$unit
 
     # Left join the climate data onto the boundary geometries
     if (!is.null(clim_data) && nrow(clim_data) > 0) {
@@ -234,23 +344,90 @@ server <- function(input, output, session) {
       joined_geom$Value <- NA_real_
     }
 
-    # Build clean HTML tooltips for hover popups
-    var_label <- var_meta$label
-    var_unit <- var_meta$unit
-    joined_geom <- joined_geom %>%
-      mutate(
-        tooltip_html = paste0(
-          "<div class='map-tooltip-content' style='font-family: Inter, sans-serif; padding: 4px;'>",
-          "  <div class='tooltip-title' style='font-weight: 600; color: #f8fafc; font-size: 0.85rem;'>", name, " (", zone_id, ")</div>",
-          "  <div class='tooltip-metric' style='margin-top: 4px; font-size: 0.8rem;'>",
-          "    <span class='tooltip-metric-label' style='color: #94a3b8;'>", var_label, ":</span> ",
-          "    <span class='tooltip-metric-value' style='font-weight: 500; color: #38bdf8;'>", 
-                 ifelse(is.na(Value), "No Data", paste0(format(round(Value, 2), big.mark = ","), " ", var_unit)),
-          "    </span>",
-          "  </div>",
-          "</div>"
+    # ── Check whether anomaly mode is active for the map ──────────────────────
+    show_proj <- isTRUE(input$show_projections == "1")
+    use_anomaly_map <- (show_proj && isTRUE(input$display_mode == "anomaly"))
+    is_precip <- (input$climate_variable == "total_precipitation")
+    sel_year <- as.integer(input$selected_year)
+    is_projection_year <- (sel_year > 2023)
+
+    # Determine the display unit for tooltips
+    if (use_anomaly_map) {
+      display_unit <- if (is_precip) "%" else var_unit
+    } else {
+      display_unit <- var_unit
+    }
+
+    # ── Apply anomaly transformation if active ────────────────────────────────
+    if (use_anomaly_map) {
+      baseline_df <- baseline_map_data()
+
+      if (!is.null(baseline_df) && nrow(baseline_df) > 0) {
+        # Join baseline values onto the geometry
+        joined_geom <- joined_geom %>%
+          left_join(baseline_df, by = c("zone_id" = "Region"))
+
+        # Transform values to anomalies
+        if (is_precip) {
+          # Precipitation: relative change (%), guard against zero baseline
+          joined_geom <- joined_geom %>%
+            mutate(Value = ifelse(
+              is.na(baseline_value) | abs(baseline_value) < 0.001,
+              NA_real_,
+              (Value - baseline_value) / baseline_value * 100
+            ))
+        } else {
+          # Temperature: absolute change
+          joined_geom <- joined_geom %>%
+            mutate(Value = Value - baseline_value)
+        }
+      }
+
+      # Swap to diverging anomaly palette
+      palette <- if (is_precip) anomaly_palette_precipitation else anomaly_palette_temperature
+    }
+
+    # ── Build tooltips ────────────────────────────────────────────────────────
+    if (use_anomaly_map) {
+      # Anomaly tooltips with sign prefix and reference period
+      ref_label <- input$reference_period
+      proj_note <- if (is_projection_year) " (projection median)" else ""
+      joined_geom <- joined_geom %>%
+        mutate(
+          tooltip_html = paste0(
+            "<div class='map-tooltip-content' style='font-family: Inter, sans-serif; padding: 4px;'>",
+            "  <div class='tooltip-title' style='font-weight: 600; color: #f8fafc; font-size: 0.85rem;'>", name, " (", zone_id, ")</div>",
+            "  <div class='tooltip-metric' style='margin-top: 4px; font-size: 0.8rem;'>",
+            "    <span class='tooltip-metric-label' style='color: #94a3b8;'>", var_label, " anomaly:</span> ",
+            "    <span class='tooltip-metric-value' style='font-weight: 500; color: #38bdf8;'>",
+                   ifelse(is.na(Value), "No Data",
+                          paste0(ifelse(Value >= 0, "+", ""),
+                                 format(round(Value, 2), big.mark = ","), " ", display_unit)),
+            "    </span>",
+            "  </div>",
+            "  <div style='margin-top: 2px; font-size: 0.7rem; color: #64748b;'>vs ", ref_label, proj_note, "</div>",
+            "</div>"
+          )
         )
-      )
+    } else {
+      # Standard absolute tooltips
+      proj_note <- if (show_proj && is_projection_year) " (projection median)" else ""
+      joined_geom <- joined_geom %>%
+        mutate(
+          tooltip_html = paste0(
+            "<div class='map-tooltip-content' style='font-family: Inter, sans-serif; padding: 4px;'>",
+            "  <div class='tooltip-title' style='font-weight: 600; color: #f8fafc; font-size: 0.85rem;'>", name, " (", zone_id, ")</div>",
+            "  <div class='tooltip-metric' style='margin-top: 4px; font-size: 0.8rem;'>",
+            "    <span class='tooltip-metric-label' style='color: #94a3b8;'>", var_label, ":</span> ",
+            "    <span class='tooltip-metric-value' style='font-weight: 500; color: #38bdf8;'>",
+                   ifelse(is.na(Value), "No Data", paste0(format(round(Value, 2), big.mark = ","), " ", var_unit)),
+            "    </span>",
+            ifelse(proj_note != "", paste0("<span style='font-size: 0.7rem; color: #64748b;'>", proj_note, "</span>"), ""),
+            "  </div>",
+            "</div>"
+          )
+        )
+    }
 
     # Calculate min and max values for interpolation stops, ignoring NAs
     vals <- joined_geom$Value
@@ -259,12 +436,21 @@ server <- function(input, output, session) {
     if (length(vals) > 0) {
       min_val <- min(vals)
       max_val <- max(vals)
+
+      # For anomaly mode, force symmetric scale around 0
+      if (use_anomaly_map) {
+        abs_max <- max(abs(min_val), abs(max_val))
+        if (abs_max < 0.1) abs_max <- 0.1 # prevent degenerate scale
+        min_val <- -abs_max
+        max_val <- abs_max
+      }
+
       if (min_val == max_val) {
         min_val <- min_val - 0.1
         max_val <- max_val + 0.1
       }
       interpolation_values <- seq(min_val, max_val, length.out = length(palette))
-      
+
       fill_expr <- mapgl::interpolate(
         column = "Value",
         type = "linear",
@@ -752,43 +938,101 @@ server <- function(input, output, session) {
   # Computes the color scale gradient and min/max data range labels for the
   # active variable/year. Embedded at the bottom of the left control panel
   # so users can always interpret the choropleth without clicking a region.
+  # When projections are ON in anomaly mode, shows diverging palette with
+  # signed labels and reference period context.
   # ----------------------------------------------------------------------------
   output$choropleth_legend <- renderUI({
     # Take dependencies on controls
     req(input$climate_variable, input$temporal_mode, input$selected_year)
-    
+
     var_meta <- climate_variables[[input$climate_variable]]
-    palette <- var_meta$palette
-    
+    is_precip <- (input$climate_variable == "total_precipitation")
+
+    # Check display mode
+    show_proj <- isTRUE(input$show_projections == "1")
+    use_anomaly_legend <- (show_proj && isTRUE(input$display_mode == "anomaly"))
+    sel_year <- as.integer(input$selected_year)
+    is_projection_year <- (sel_year > 2023)
+
     # Get the current data range
     clim_data <- filtered_climate_data()
     if (is.null(clim_data) || nrow(clim_data) == 0) {
       return(div(class = "legend-no-data", "No data available for legend"))
     }
-    
+
     vals <- clim_data$Value
     vals <- vals[is.finite(vals)]
-    
+
     if (length(vals) == 0) {
       return(div(class = "legend-no-data", "No data available for legend"))
     }
-    
-    min_val <- min(vals)
-    max_val <- max(vals)
-    
+
+    if (use_anomaly_legend) {
+      # ── Anomaly legend: diverging palette, symmetric around 0 ──────────────
+      palette <- if (is_precip) anomaly_palette_precipitation else anomaly_palette_temperature
+      display_unit <- if (is_precip) "%" else var_meta$unit
+      ref_label <- input$reference_period
+
+      # Compute anomaly values for range (apply per-region baselines)
+      baseline_df <- baseline_map_data()
+      if (!is.null(baseline_df) && nrow(baseline_df) > 0) {
+        # Recompute anomalies for legend range
+        df_with_baseline <- clim_data |>
+          dplyr::left_join(baseline_df, by = "Region")
+        if (is_precip) {
+          anomaly_vals <- ifelse(
+            is.na(df_with_baseline$baseline_value) | abs(df_with_baseline$baseline_value) < 0.001,
+            NA_real_,
+            (df_with_baseline$Value - df_with_baseline$baseline_value) / df_with_baseline$baseline_value * 100
+          )
+        } else {
+          anomaly_vals <- df_with_baseline$Value - df_with_baseline$baseline_value
+        }
+        anomaly_vals <- anomaly_vals[is.finite(anomaly_vals)]
+        if (length(anomaly_vals) > 0) {
+          abs_max <- max(abs(anomaly_vals))
+          if (abs_max < 0.1) abs_max <- 0.1
+        } else {
+          abs_max <- 1
+        }
+      } else {
+        abs_max <- max(abs(vals))
+        if (abs_max < 0.1) abs_max <- 0.1
+      }
+
+      # Signed min/max labels
+      label_min <- sprintf("-%s %s", format(round(abs_max, 1), big.mark = ","), display_unit)
+      label_max <- sprintf("+%s %s", format(round(abs_max, 1), big.mark = ","), display_unit)
+
+      # Build title with context
+      proj_note <- if (is_projection_year) paste0(", ", ssp_scenario_labels[input$ssp_scenario]) else ""
+      legend_title <- sprintf("%s Anomaly (%s %s%s vs %s)",
+                               var_meta$label, input$temporal_mode, input$selected_year,
+                               proj_note, ref_label)
+
+    } else {
+      # ── Absolute legend: sequential palette (unchanged) ────────────────────
+      palette <- var_meta$palette
+      display_unit <- var_meta$unit
+      min_val <- min(vals)
+      max_val <- max(vals)
+      label_min <- sprintf("%s %s", format(round(min_val, 1), big.mark = ","), display_unit)
+      label_max <- sprintf("%s %s", format(round(max_val, 1), big.mark = ","), display_unit)
+
+      # Build title
+      proj_note <- if (show_proj && is_projection_year) paste0(" ", ssp_scenario_labels[input$ssp_scenario], " proj.") else ""
+      legend_title <- sprintf("%s (%s %s%s)", var_meta$label, input$temporal_mode, input$selected_year, proj_note)
+    }
+
     # Construct CSS linear gradient from the palette colors
     gradient_css <- paste0("linear-gradient(to right, ", paste(palette, collapse = ", "), ")")
-    
-    # Format min/max labels nicely
-    label_min <- sprintf("%s %s", format(round(min_val, 1), big.mark = ","), var_meta$unit)
-    label_max <- sprintf("%s %s", format(round(max_val, 1), big.mark = ","), var_meta$unit)
-    
+
     div(
       class = "choropleth-legend-container",
       div(
         class = "legend-title",
         style = "font-weight: 600; font-size: 0.8rem; color: #e2e8f0; margin-bottom: 6px; font-family: Inter, sans-serif;",
-        sprintf("%s (%s %s)", var_meta$label, input$temporal_mode, input$selected_year)
+        legend_title
       ),
       div(
         class = "legend-gradient-bar",
@@ -804,47 +1048,219 @@ server <- function(input, output, session) {
   })
 
   # ----------------------------------------------------------------------------
-  # Time-Series Plotly Chart Renderer
+  # Projection Controls Availability Observer
+  # ----------------------------------------------------------------------------
+  # When the selected climate variable or spatial level changes, this observer
+  # checks whether projection data exists for the combination and sends a JS
+  # message to show or hide the projection controls in the left sidebar.
+  # This prevents user confusion from disabled controls — the controls simply
+  # disappear when not relevant and reappear when they are.
+  # ----------------------------------------------------------------------------
+  observe({
+    req(input$climate_variable, input$spatial_level)
+
+    var_name <- input$climate_variable
+    sp_level <- spatial_level_to_parquet[input$spatial_level]
+
+    # Check whether this variable + spatial level combination has projection data
+    var_available <- var_name %in% projection_available_variables
+    spatial_available <- sp_level %in% projection_available_spatial_levels
+    projections_available <- var_available && spatial_available
+
+    session$sendCustomMessage(
+      "toggle_projection_controls",
+      list(available = projections_available)
+    )
+  })
+
+  # ----------------------------------------------------------------------------
+  # Filtered Projection Data Reactive
+  # ----------------------------------------------------------------------------
+  # Only fires when the projection toggle is ON, a region is clicked, and the
+  # selected variable + spatial level has projection data.
+  # Reads all 6 CMIP6 models for the chosen SSP scenario and computes per-year
+  # ensemble statistics: median, min, max (for the envelope / band).
+  # Returns a data.frame with columns: Year, median_val, min_val, max_val
+  # ----------------------------------------------------------------------------
+  filtered_projection_data <- reactive({
+    # Only compute if the toggle is on
+    req(input$show_projections == "1")
+    req(input$ssp_scenario)
+
+    region <- clicked_region()
+    req(region, input$climate_variable, input$temporal_mode, input$spatial_level)
+
+    var_name <- input$climate_variable
+    temp_mode <- input$temporal_mode
+    target_region <- region$zone_id
+    sp_level <- spatial_level_to_parquet[input$spatial_level]
+    scenario <- input$ssp_scenario
+
+    # Guard: exit early if this combination has no projection data
+    if (!(var_name %in% projection_available_variables)) return(NULL)
+    if (!(sp_level %in% projection_available_spatial_levels)) return(NULL)
+
+    # Select the correct lazy Arrow dataset (annual vs seasonal)
+    if (temp_mode == "Annual") {
+      ds <- proj_annual_ds
+    } else {
+      ds <- proj_seasonal_ds
+    }
+
+    if (is.null(ds)) return(NULL)
+
+    # Build query: filter by variable, spatial level, region, and scenario.
+    # This loads all 6 models for the chosen scenario in one query.
+    query <- ds |>
+      dplyr::filter(variable == var_name,
+                    SpatialLevel == sp_level,
+                    Region == target_region,
+                    scenario == !!scenario)
+
+    # If seasonal mode, filter to the active season
+    if (temp_mode != "Annual") {
+      query <- query |> dplyr::filter(Season == temp_mode)
+    }
+
+    df_proj <- dplyr::collect(query)
+
+    if (nrow(df_proj) == 0) return(NULL)
+
+    # Compute ensemble statistics grouped by Year:
+    # - median_val: the central model estimate (robust to outliers)
+    # - min_val: the lowest model value (bottom of the "model agreement" band)
+    # - max_val: the highest model value (top of the band)
+    ensemble_stats <- df_proj |>
+      dplyr::group_by(Year) |>
+      dplyr::summarise(
+        median_val = median(Value, na.rm = TRUE),
+        min_val    = min(Value, na.rm = TRUE),
+        max_val    = max(Value, na.rm = TRUE),
+        .groups = "drop"
+      ) |>
+      dplyr::arrange(Year)
+
+    ensemble_stats
+  })
+
+  # ----------------------------------------------------------------------------
+  # Baseline Mean Reactive — reference period average for anomaly calculation
+  # ----------------------------------------------------------------------------
+  # Computes the mean historical value over the user-selected WMO reference
+  # period (e.g., 1981-2010). This single number is subtracted from both the
+  # historical and projection data to convert to anomalies.
+  # For precipitation, anomalies are shown as % change instead of absolute.
+  # Returns a single numeric value (the baseline average), or NULL if the
+  # reference period has no data.
+  # ----------------------------------------------------------------------------
+  baseline_mean_value <- reactive({
+    # Only compute when projections are toggled on
+    req(input$show_projections == "1", input$reference_period)
+
+    region <- clicked_region()
+    req(region, input$climate_variable, input$temporal_mode, input$spatial_level)
+
+    # Parse the year range from the dropdown value (e.g., "1981-2010")
+    ref_years <- as.integer(strsplit(input$reference_period, "-")[[1]])
+    ref_start <- ref_years[1]
+    ref_end   <- ref_years[2]
+
+    var_name <- input$climate_variable
+    temp_mode <- input$temporal_mode
+    target_region <- region$zone_id
+    sp_level <- spatial_level_to_parquet[input$spatial_level]
+
+    # Select the appropriate historical dataset
+    if (temp_mode == "Annual") {
+      ds <- hist_annual_ds
+    } else {
+      ds <- hist_seasonal_ds
+    }
+
+    if (is.null(ds)) return(NULL)
+
+    # Query historical data for the reference period years only
+    query <- ds |>
+      dplyr::filter(variable == var_name,
+                    SpatialLevel == sp_level,
+                    Region == target_region,
+                    Year >= ref_start,
+                    Year <= ref_end)
+
+    # Filter by season if in seasonal mode
+    if (temp_mode != "Annual") {
+      query <- query |> dplyr::filter(Season == temp_mode)
+    }
+
+    df_ref <- dplyr::collect(query)
+
+    if (nrow(df_ref) == 0) return(NULL)
+
+    # Compute the mean value over the reference period
+    baseline <- mean(df_ref$Value, na.rm = TRUE)
+
+    message(sprintf("  Baseline for %s (%s, %s): %.2f over %d-%d (%d years of data)",
+                    var_name, target_region, temp_mode, baseline, ref_start, ref_end, nrow(df_ref)))
+
+    baseline
+  })
+
+  # ----------------------------------------------------------------------------
+  # Time-Series Plotly Chart Renderer — with Projection Overlay & Anomaly Mode
   # ----------------------------------------------------------------------------
   # When a region polygon is clicked, this block loads the full historical record
   # (1950-2023) for that specific region and selected climate variable, and plots
   # it as an interactive time series line chart using Plotly.
+  #
+  # When the projection toggle is ON, it overlays:
+  #   - A dashed ensemble median line (colored by SSP scenario, IPCC convention)
+  #   - A semi-transparent "model agreement" band (min-max of 6 CMIP6 models)
+  #   - A vertical "Present Day" marker at 2023
+  #   - A horizontal y=0 baseline reference line
+  #   - A vertical shaded band highlighting the reference period
+  #   - All values converted to anomalies (departures from the baseline mean)
   # ----------------------------------------------------------------------------
   output$region_timeseries <- renderPlotly({
     # Ensure a region is clicked and variable/mode are set
     region <- clicked_region()
     req(region, input$climate_variable, input$temporal_mode)
-    
+
+    message(sprintf("  Chart render START: region=%s, var=%s, mode=%s, show_proj=%s, display_mode=%s",
+                    region$zone_id, input$climate_variable, input$temporal_mode,
+                    input$show_projections, input$display_mode))
+
+    tryCatch({
+
     var_name <- input$climate_variable
     temp_mode <- input$temporal_mode
     target_region <- region$zone_id
-    
+
     # Load the full historical record from the lazy Arrow dataset
     if (temp_mode == "Annual") {
       ds <- hist_annual_ds
     } else {
       ds <- hist_seasonal_ds
     }
-    
+
     req(ds)
-    
+
     # Filter to only the clicked region, correct spatial level, and variable
     sp_level <- spatial_level_to_parquet[input$spatial_level]
     query <- ds |>
       dplyr::filter(variable == var_name,
                     SpatialLevel == sp_level,
                     Region == target_region)
-    
+
     # If seasonal mode, filter to the active season
     if (temp_mode != "Annual") {
       query <- query |> dplyr::filter(Season == temp_mode)
     }
-    
+
     df_region <- dplyr::collect(query)
-    
+
     # Order chronologically by Year
     df_region <- df_region[order(df_region$Year), ]
-    
+
     if (nrow(df_region) == 0) {
       # Return an empty plotly object with a text message if no data exists
       return(
@@ -858,34 +1274,286 @@ server <- function(input, output, session) {
           )
       )
     }
-    
+
     # Extract label and unit for the chart
     var_meta <- climate_variables[[var_name]]
     var_label <- var_meta$label
     var_unit <- var_meta$unit
-    
+
     # Use the variable's primary palette color for the chart line/fill (last color is usually strong/dark)
     accent_color <- tail(var_meta$palette, 1)
     # If the color is too bright or white, use a nice highlight color
     if (accent_color %in% c("#f7fbff", "#ffeaa7")) {
       accent_color <- "#38bdf8" # Sky blue accent
     }
-    
-    # Build interactive Plotly chart with dark glassmorphism styling
-    plot_ly(
-      data = df_region,
-      x = ~Year,
-      y = ~Value,
-      type = 'scatter',
-      mode = 'lines+markers',
-      line = list(color = accent_color, width = 2),
-      marker = list(color = accent_color, size = 5),
-      text = ~paste0("Year: ", Year, "<br>", var_label, ": ", round(Value, 2), " ", var_unit),
-      hoverinfo = 'text'
-    ) %>%
+
+    # Check whether projections should be overlaid
+    show_proj <- isTRUE(input$show_projections == "1")
+    proj_data <- NULL
+    baseline <- NULL
+    if (show_proj) {
+      proj_data <- filtered_projection_data()
+      baseline <- baseline_mean_value()
+    }
+
+    # Determine whether we are using anomaly mode (projections ON + baseline computed)
+    use_anomaly <- show_proj && isTRUE(input$display_mode == "anomaly") && !is.null(baseline) && is.finite(baseline)
+
+    # Determine whether this is a relative (%) anomaly variable (precipitation)
+    # or an absolute anomaly variable (temperature)
+    is_relative_anomaly <- (var_name == "total_precipitation")
+
+    # ── Apply anomaly transformation if active ──────────────────────────────────
+    if (use_anomaly) {
+      if (is_relative_anomaly) {
+        # Precipitation: relative change (%) from baseline
+        # Guard against zero baseline (would cause division by zero)
+        if (abs(baseline) > 0.001) {
+          df_region$Value <- (df_region$Value - baseline) / baseline * 100
+          if (!is.null(proj_data) && nrow(proj_data) > 0) {
+            proj_data$median_val <- (proj_data$median_val - baseline) / baseline * 100
+            proj_data$min_val    <- (proj_data$min_val - baseline) / baseline * 100
+            proj_data$max_val    <- (proj_data$max_val - baseline) / baseline * 100
+          }
+          anomaly_unit <- "%"
+        } else {
+          # Baseline is essentially zero — fall back to absolute anomaly
+          df_region$Value <- df_region$Value - baseline
+          if (!is.null(proj_data) && nrow(proj_data) > 0) {
+            proj_data$median_val <- proj_data$median_val - baseline
+            proj_data$min_val    <- proj_data$min_val - baseline
+            proj_data$max_val    <- proj_data$max_val - baseline
+          }
+          anomaly_unit <- var_unit
+        }
+      } else {
+        # Temperature (and other variables): absolute change from baseline
+        df_region$Value <- df_region$Value - baseline
+        if (!is.null(proj_data) && nrow(proj_data) > 0) {
+          proj_data$median_val <- proj_data$median_val - baseline
+          proj_data$min_val    <- proj_data$min_val - baseline
+          proj_data$max_val    <- proj_data$max_val - baseline
+        }
+        anomaly_unit <- var_unit
+      }
+
+      # Parse reference period label for the axis and title
+      ref_period_label <- input$reference_period
+      y_axis_label <- sprintf("Change from %s (%s)", ref_period_label, anomaly_unit)
+      hover_unit <- anomaly_unit
+
+    } else {
+      # Normal absolute mode (no anomalies)
+      y_axis_label <- sprintf("%s (%s)", var_label, var_unit)
+      hover_unit <- var_unit
+    }
+
+    # ── Determine chart title ───────────────────────────────────────────────────
+    if (!is.null(proj_data) && nrow(proj_data) > 0) {
+      scenario_label <- ssp_scenario_labels[input$ssp_scenario]
+      chart_title <- sprintf("%s: %s (%s) \u2014 %s vs %s",
+                              var_label, region$name, temp_mode,
+                              scenario_label, input$reference_period)
+    } else if (use_anomaly) {
+      chart_title <- sprintf("%s Anomaly: %s (%s) vs %s",
+                              var_label, region$name, temp_mode, input$reference_period)
+    } else {
+      chart_title <- sprintf("Historical Record: %s (%s)", region$name, temp_mode)
+    }
+
+    # ── Build the Plotly chart ──────────────────────────────────────────────────
+
+    # Start with the historical line trace
+    p <- plot_ly() %>%
+      add_trace(
+        data = df_region,
+        x = ~Year,
+        y = ~Value,
+        type = 'scatter',
+        mode = 'lines+markers',
+        name = 'Historical (ERA5)',
+        line = list(color = accent_color, width = 2),
+        marker = list(color = accent_color, size = 4),
+        text = ~paste0("Year: ", Year, "<br>", var_label, ": ",
+                       round(Value, 2), " ", hover_unit),
+        hoverinfo = 'text'
+      )
+
+    # ── Overlay projection data if available ────────────────────────────────────
+    if (!is.null(proj_data) && nrow(proj_data) > 0) {
+
+      # Get the SSP-specific color palette
+      ssp_key <- input$ssp_scenario
+      proj_line_color <- ssp_colors[[ssp_key]]$line
+      proj_fill_color <- ssp_colors[[ssp_key]]$fill
+
+      # Add the model agreement envelope (min-max band)
+      # Plotly fill='tonexty' requires the traces in order: bottom boundary,
+      # then top boundary with fill referencing the previous trace.
+      p <- p %>%
+        # Bottom boundary of the envelope (invisible line)
+        add_trace(
+          data = proj_data,
+          x = ~Year,
+          y = ~min_val,
+          type = 'scatter',
+          mode = 'lines',
+          name = 'Model Agreement (min)',
+          line = list(color = 'transparent', width = 0),
+          showlegend = FALSE,
+          hoverinfo = 'skip'
+        ) %>%
+        # Top boundary of the envelope, filled down to the min trace
+        add_trace(
+          data = proj_data,
+          x = ~Year,
+          y = ~max_val,
+          type = 'scatter',
+          mode = 'lines',
+          name = 'Model Agreement',
+          fill = 'tonexty',
+          fillcolor = proj_fill_color,
+          line = list(color = 'transparent', width = 0),
+          text = ~paste0("Year: ", Year,
+                         "<br>Model range: ", round(min_val, 2),
+                         " \u2013 ", round(max_val, 2), " ", hover_unit),
+          hoverinfo = 'text'
+        ) %>%
+        # Ensemble median line (dashed)
+        add_trace(
+          data = proj_data,
+          x = ~Year,
+          y = ~median_val,
+          type = 'scatter',
+          mode = 'lines',
+          name = 'Projection Median',
+          line = list(color = proj_line_color, width = 2.5, dash = 'dash'),
+          text = ~paste0("Year: ", Year,
+                         "<br>Median projection: ", round(median_val, 2),
+                         " ", hover_unit),
+          hoverinfo = 'text'
+        )
+    }
+
+    # ── Add shapes and annotations when projections are ON ──────────────────────
+    chart_shapes <- list()
+    chart_annotations <- list()
+
+    if (show_proj) {
+
+      # Vertical "Present Day" line at 2023
+      chart_shapes <- c(chart_shapes, list(
+        list(
+          type = "line",
+          x0 = 2023, x1 = 2023,
+          y0 = 0, y1 = 1,
+          yref = "paper",
+          line = list(
+            color = "rgba(255, 255, 255, 0.35)",
+            width = 1.5,
+            dash = "dot"
+          )
+        )
+      ))
+
+      chart_annotations <- c(chart_annotations, list(
+        list(
+          x = 2023,
+          y = 1.02,
+          yref = "paper",
+          text = "Present",
+          showarrow = FALSE,
+          font = list(
+            family = "Inter, sans-serif",
+            size = 10,
+            color = "rgba(255, 255, 255, 0.50)"
+          ),
+          xanchor = "center"
+        )
+      ))
+
+      # If anomaly mode is active, add reference period visual elements
+      if (use_anomaly) {
+
+        # Parse reference period years for the shaded band
+        ref_years <- as.integer(strsplit(input$reference_period, "-")[[1]])
+        ref_start <- ref_years[1]
+        ref_end   <- ref_years[2]
+
+        # Horizontal baseline line at y=0 (the "no change" reference)
+        chart_shapes <- c(chart_shapes, list(
+          list(
+            type = "line",
+            x0 = 0, x1 = 1,
+            xref = "paper",
+            y0 = 0, y1 = 0,
+            line = list(
+              color = "rgba(255, 255, 255, 0.40)",
+              width = 1.5,
+              dash = "dash"
+            )
+          )
+        ))
+
+        # Vertical shaded band highlighting the reference period
+        chart_shapes <- c(chart_shapes, list(
+          list(
+            type = "rect",
+            x0 = ref_start, x1 = ref_end,
+            y0 = 0, y1 = 1,
+            yref = "paper",
+            fillcolor = "rgba(56, 189, 248, 0.06)",
+            line = list(
+              color = "rgba(56, 189, 248, 0.20)",
+              width = 1
+            )
+          )
+        ))
+
+        # Label for the baseline line
+        chart_annotations <- c(chart_annotations, list(
+          list(
+            x = 0.01,
+            xref = "paper",
+            y = 0,
+            text = "Baseline",
+            showarrow = FALSE,
+            font = list(
+              family = "Inter, sans-serif",
+              size = 9,
+              color = "rgba(255, 255, 255, 0.45)"
+            ),
+            xanchor = "left",
+            yanchor = "bottom",
+            yshift = 4
+          )
+        ))
+
+        # Label for the reference period band
+        ref_band_midpoint <- (ref_start + ref_end) / 2
+        chart_annotations <- c(chart_annotations, list(
+          list(
+            x = ref_band_midpoint,
+            y = 0.98,
+            yref = "paper",
+            text = input$reference_period,
+            showarrow = FALSE,
+            font = list(
+              family = "Inter, sans-serif",
+              size = 9,
+              color = "rgba(56, 189, 248, 0.50)"
+            ),
+            xanchor = "center"
+          )
+        ))
+      }
+    }
+
+    # ── Apply common chart layout ───────────────────────────────────────────────
+    p %>%
       layout(
         title = list(
-          text = sprintf("Historical Record: %s (%s)", region$name, temp_mode),
+          text = chart_title,
           font = list(family = "Inter, sans-serif", size = 14, color = "#e2e8f0"),
           x = 0.05
         ),
@@ -893,18 +1561,43 @@ server <- function(input, output, session) {
         plot_bgcolor = "rgba(0,0,0,0)",
         margin = list(t = 50, r = 20, b = 40, l = 50),
         xaxis = list(
-          title = list(text = "Year", font = list(family = "Inter, sans-serif", color = "#94a3b8")),
+          title = "",
           tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
           gridcolor = "rgba(255, 255, 255, 0.05)",
           zeroline = FALSE
         ),
         yaxis = list(
-          title = list(text = sprintf("%s (%s)", var_label, var_unit), font = list(family = "Inter, sans-serif", color = "#94a3b8")),
+          title = list(text = y_axis_label, font = list(family = "Inter, sans-serif", color = "#94a3b8")),
           tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
           gridcolor = "rgba(255, 255, 255, 0.05)",
           zeroline = FALSE
-        )
+        ),
+        shapes = chart_shapes,
+        annotations = chart_annotations,
+        legend = list(
+          orientation = "h",
+          x = 0.5,
+          xanchor = "center",
+          y = -0.15,
+          font = list(
+            family = "Inter, sans-serif",
+            size = 11,
+            color = "#94a3b8"
+          ),
+          bgcolor = "rgba(0,0,0,0)"
+        ),
+        hovermode = "x unified"
       ) %>%
       config(displayModeBar = FALSE) # Clean interface without cluttering toolbars
+
+    }, error = function(e) {
+      message(sprintf("  *** Chart render ERROR: %s", conditionMessage(e)))
+      plot_ly() %>%
+        layout(
+          title = list(text = paste("Chart error:", conditionMessage(e)), font = list(color = "#ef4444")),
+          paper_bgcolor = "rgba(0,0,0,0)",
+          plot_bgcolor = "rgba(0,0,0,0)"
+        )
+    })
   })
 }
