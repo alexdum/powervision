@@ -37,8 +37,14 @@ ui <- page_fillable(
     left = 18,
     width = 290,
 
-    # Brand header
+    # ── Scrollable controls area ───────────────────────────────────────────────
+    # All controls live in this scrollable zone. When projection controls expand,
+    # only this area scrolls — the legend footer stays pinned at the bottom.
     div(
+      class = "sidebar-scroll-area",
+
+      # Brand header
+      div(
       class = "app-brand",
       div(class = "brand-icon", HTML("&#9889;")), # ⚡ lightning
       div(
@@ -125,6 +131,55 @@ ui <- page_fillable(
       step = 1,
       sep = "",
       ticks = FALSE
+    ),
+
+    # View mode toggle — Year vs Period
+    # Always available. Controls whether the map shows a single year (slider)
+    # or a multi-year period average (dropdown with historical & projected periods).
+    tags$input(
+      type = "hidden",
+      id = "projection_view_mode",
+      value = "year",
+      class = "shiny-bound-input"
+    ),
+    div(
+      class = "view-mode-toggle",
+      id = "view-mode-toggle",
+      div(class = "view-toggle-pill"),
+      tags$button(
+        type = "button",
+        class = "view-toggle-option active",
+        `data-value` = "year",
+        bsicons::bs_icon("calendar3", size = "0.8em"),
+        "Year"
+      ),
+      tags$button(
+        type = "button",
+        class = "view-toggle-option",
+        `data-value` = "period",
+        bsicons::bs_icon("calendar-range", size = "0.8em"),
+        "Period"
+      )
+    ),
+
+    # Period dropdown — visible when Period mode selected
+    # Includes both historical WMO baselines and IPCC projection windows.
+    # Projected periods are added dynamically by server when projections are ON.
+    div(
+      id = "projection-period-wrapper",
+      class = "projection-period-wrapper",
+      selectInput(
+        inputId = "projection_period",
+        label = NULL,
+        choices = c(
+          "1961\u20131990 (WMO Classic)"   = "1961-1990",
+          "1971\u20132000 (WMO Previous)"  = "1971-2000",
+          "1981\u20132010 (WMO Current)"   = "1981-2010",
+          "2011\u20132023 (Recent)"        = "2011-2023"
+        ),
+        selected = "1981-2010",
+        width = "100%"
+      )
     ),
 
     hr(class = "panel-divider"),
@@ -314,21 +369,25 @@ ui <- page_fillable(
     hr(class = "panel-divider"),
 
     # ── Section: Layer Info ─────────────────────────────────────────────────────
-    div(class = "layer-info-text", htmlOutput("layer_metadata_text")),
+    div(class = "layer-info-text", htmlOutput("layer_metadata_text"))
+    ), # end sidebar-scroll-area
 
-    hr(class = "panel-divider"),
-
-    # ── Choropleth Legend ─────────────────────────────────────────────────────
-    # Always visible at the bottom of the control panel so users can interpret
-    # the map color scale without needing to click a region.
-    htmlOutput("choropleth_legend"),
-
-    # Data attribution
+    # ── Pinned footer: legend + attribution ────────────────────────────────────
+    # This section is always visible at the bottom of the sidebar, regardless
+    # of scroll position. Scientists need the legend to interpret the map.
     div(
-      class = "data-attribution",
-      "Copernicus Climate Data Store · PECD v4.2",
-      tags$br(),
-      "Eurostat GISCO NUTS 2021"
+      class = "sidebar-footer",
+
+      # Choropleth Legend
+      htmlOutput("choropleth_legend"),
+
+      # Data attribution
+      div(
+        class = "data-attribution",
+        "Copernicus Climate Data Store · PECD v4.2",
+        tags$br(),
+        "Eurostat GISCO NUTS 2021"
+      )
     )
   ),
 

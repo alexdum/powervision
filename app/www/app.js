@@ -185,11 +185,22 @@ $(document).ready(function () {
       if (currentMode === 'anomaly') {
         $('#reference-period-wrapper').addClass('is-visible');
       }
+      // Only show projection period if view mode is "period"
+      var currentView = $('#view-mode-toggle .view-toggle-option.active').data('value');
+      if (currentView === 'period') {
+        $('#projection-period-wrapper').addClass('is-visible');
+      }
+      // Add projected periods to the period dropdown
+      Shiny.setInputValue('projections_toggled', 'on', {priority: 'event'});
     } else {
       $container.removeClass('toggle-right');
       $('#scenario-selector-wrapper').removeClass('is-visible');
       $('#display-mode-wrapper').removeClass('is-visible');
       $('#reference-period-wrapper').removeClass('is-visible');
+      // Restore year slider if it was hidden by period mode
+      $('#selected_year').closest('.form-group').slideDown(200);
+      // Remove projected periods from the period dropdown
+      Shiny.setInputValue('projections_toggled', 'off', {priority: 'event'});
     }
 
     // Push the value into Shiny's input binding
@@ -230,6 +241,42 @@ $(document).ready(function () {
   });
 
   // --------------------------------------------------------------------------
+  // View Mode Toggle — Year vs Period
+  // --------------------------------------------------------------------------
+  // Switches between single-year view (year slider) and period-averaged view
+  // (IPCC 20-year windows). When "period" is selected, the projection period
+  // dropdown appears. When "year" is selected, it hides.
+  // --------------------------------------------------------------------------
+  $(document).on('click', '.view-mode-toggle .view-toggle-option', function () {
+    var $btn       = $(this);
+    var $container = $btn.closest('.view-mode-toggle');
+    var newValue   = $btn.data('value');
+
+    // Skip if this option is already active
+    if ($btn.hasClass('active')) return;
+
+    // Swap active class
+    $container.find('.view-toggle-option').removeClass('active');
+    $btn.addClass('active');
+
+    // Slide the pill: "period" = toggle-right, "year" = default left
+    if (newValue === 'period') {
+      $container.addClass('toggle-right');
+      $('#projection-period-wrapper').addClass('is-visible');
+      // Hide the year slider — it's replaced by the period dropdown
+      $('#selected_year').closest('.form-group').slideUp(200);
+    } else {
+      $container.removeClass('toggle-right');
+      $('#projection-period-wrapper').removeClass('is-visible');
+      // Show the year slider again
+      $('#selected_year').closest('.form-group').slideDown(200);
+    }
+
+    // Push the value into Shiny's input binding
+    Shiny.setInputValue('projection_view_mode', newValue);
+  });
+
+  // --------------------------------------------------------------------------
   // Projection Controls — Enable / Disable from server
   // --------------------------------------------------------------------------
   // The server sends this message when the variable or spatial level changes.
@@ -257,9 +304,17 @@ $(document).ready(function () {
       $modeToggle.find('.display-toggle-option').removeClass('active');
       $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active');
       $modeToggle.removeClass('toggle-right');
+      // Reset view mode to year (default)
+      var $viewToggle = $('#view-mode-toggle');
+      $viewToggle.find('.view-toggle-option').removeClass('active');
+      $viewToggle.find('.view-toggle-option[data-value="year"]').addClass('active');
+      $viewToggle.removeClass('toggle-right');
       // Push reset values to Shiny
       Shiny.setInputValue('show_projections', '0');
       Shiny.setInputValue('display_mode', 'absolute');
+      Shiny.setInputValue('projection_view_mode', 'year');
+      // Restore year slider if it was hidden by period mode
+      $('#selected_year').closest('.form-group').slideDown(200);
     }
   });
 

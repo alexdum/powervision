@@ -309,6 +309,160 @@ server <- function(input, output, session) {
   })
 
   # ----------------------------------------------------------------------------
+  # Period-Averaged Climate Data for Map — historical & projected
+  # ----------------------------------------------------------------------------
+  # When the user selects "Period" view mode, this reactive computes the
+  # period-averaged values for ALL regions on the map.
+  #
+  # For HISTORICAL periods (end year ≤ 2023):
+  #   - Simple mean of ERA5 reanalysis values across all years in the period
+  #
+  # For PROJECTED periods (end year > 2023):
+  #   - CMIP6/IPCC approach: per-model mean over the period → ensemble median
+  #   - This gives "median of model means" (robust central estimate)
+  #
+  # Returns a data.frame with columns: Region, Value
+  # (same shape as filtered_climate_data output)
+  # ----------------------------------------------------------------------------
+  period_averaged_climate_data <- reactive({
+    req(input$projection_view_mode == "period")
+    req(input$projection_period)
+    req(input$climate_variable, input$temporal_mode, input$spatial_level)
+
+    # Parse period (e.g., "2041-2060" or "1981-2010")
+    period_years <- as.integer(strsplit(input$projection_period, "-")[[1]])
+    period_start <- period_years[1]
+    period_end   <- period_years[2]
+
+    var_name  <- input$climate_variable
+    temp_mode <- input$temporal_mode
+    sp_level  <- spatial_level_to_parquet[input$spatial_level]
+
+    # Decide whether this is a historical or projected period
+    is_historical_period <- (period_end <= 2023)
+
+    if (is_historical_period) {
+      # ── Historical period: mean from ERA5 reanalysis ──────────────────────────
+      if (temp_mode == "Annual") {
+        ds <- hist_annual_ds
+      } else {
+        ds <- hist_seasonal_ds
+      }
+
+      if (is.null(ds)) return(NULL)
+
+      query <- ds |>
+        dplyr::filter(variable == var_name,
+                      SpatialLevel == sp_level,
+                      Year >= period_start,
+                      Year <= period_end)
+
+      if (temp_mode != "Annual") {
+        query <- query |> dplyr::filter(Season == temp_mode)
+      }
+
+      df_raw <- dplyr::collect(query)
+
+      if (nrow(df_raw) == 0) return(NULL)
+
+      message(sprintf("  Historical period data: %d rows for %s, %d-%d",
+                      nrow(df_raw), var_name, period_start, period_end))
+
+      # Simple per-region mean across all years in the period
+      df_out <- df_raw |>
+        dplyr::group_by(Region) |>
+        dplyr::summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop")
+
+    } else {
+      # ── Projected period: CMIP6 ensemble (median of model means) ──────────────
+      req(input$show_projections == "1", input$ssp_scenario)
+      scenario_val <- input$ssp_scenario
+
+      # Guard: exit early if no projection data for this combination
+      if (!(var_name %in% projection_available_variables)) return(NULL)
+      if (!(sp_level %in% projection_available_spatial_levels)) return(NULL)
+
+      if (temp_mode == "Annual") {
+        ds <- proj_annual_ds
+      } else {
+        ds <- proj_seasonal_ds
+      }
+
+      if (is.null(ds)) return(NULL)
+
+      query <- ds |>
+        dplyr::filter(variable == var_name,
+                      SpatialLevel == sp_level,
+                      Year >= period_start,
+                      Year <= period_end,
+                      scenario == !!scenario_val)
+
+      if (temp_mode != "Annual") {
+        query <- query |> dplyr::filter(Season == temp_mode)
+      }
+
+      df_raw <- dplyr::collect(query)
+
+      if (nrow(df_raw) == 0) return(NULL)
+
+      message(sprintf("  Projected period data: %d rows for %s, %s, %d-%d",
+                      nrow(df_raw), var_name, scenario_val, period_start, period_end))
+
+      # Step 1: Per-model period mean (mean over years for each model × region)
+      model_means <- df_raw |>
+        dplyr::group_by(Region, model) |>
+        dplyr::summarise(model_mean = mean(Value, na.rm = TRUE), .groups = "drop")
+
+      # Step 2: Ensemble median across models (robust central estimate per region)
+      df_out <- model_means |>
+        dplyr::group_by(Region) |>
+        dplyr::summarise(Value = median(model_mean, na.rm = TRUE), .groups = "drop")
+    }
+
+    # Add metadata columns for compatibility with filtered_climate_data output
+    df_out$variable     <- var_name
+    df_out$SpatialLevel <- sp_level
+    df_out$Year         <- as.integer(round((period_start + period_end) / 2))
+
+    df_out
+  })
+
+  # ----------------------------------------------------------------------------
+  # Dynamic Period Dropdown — add/remove projected periods when projections toggle
+  # ----------------------------------------------------------------------------
+  # When projections are toggled ON, projected period choices (2021-2100) are
+  # appended to the dropdown. When toggled OFF, they are removed so only
+  # historical periods remain.
+  # ----------------------------------------------------------------------------
+  observeEvent(input$projections_toggled, {
+    if (input$projections_toggled == "on") {
+      # Add projected periods to the dropdown
+      updateSelectInput(session, "projection_period",
+        choices = c(
+          "1961\u20131990 (WMO Classic)"   = "1961-1990",
+          "1971\u20132000 (WMO Previous)"  = "1971-2000",
+          "1981\u20132010 (WMO Current)"   = "1981-2010",
+          "2011\u20132023 (Recent)"        = "2011-2023",
+          "2021\u20132040 (Near-term)"     = "2021-2040",
+          "2041\u20132060 (Mid-term)"      = "2041-2060",
+          "2061\u20132080 (Mid-late)"      = "2061-2080",
+          "2081\u20132100 (Long-term)"     = "2081-2100"
+        )
+      )
+    } else {
+      # Remove projected periods, keep only historical
+      updateSelectInput(session, "projection_period",
+        choices = c(
+          "1961\u20131990 (WMO Classic)"   = "1961-1990",
+          "1971\u20132000 (WMO Previous)"  = "1971-2000",
+          "1981\u20132010 (WMO Current)"   = "1981-2010",
+          "2011\u20132023 (Recent)"        = "2011-2023"
+        )
+      )
+    }
+  })
+
+  # ----------------------------------------------------------------------------
   # Central Zone Layer Renderer
   # ----------------------------------------------------------------------------
   # This single observe() block is responsible for ALL polygon drawing.
@@ -324,8 +478,24 @@ server <- function(input, output, session) {
     geom_data <- current_boundaries()
     req(geom_data)
 
-    # Reactive climate data filter dependency
-    clim_data <- filtered_climate_data()
+    # Explicit dependencies: ensure observer re-fires when these inputs change.
+    # Reading them unconditionally registers them in Shiny's reactive graph,
+    # even though we only use them conditionally below.
+    view_mode <- input$projection_view_mode        # "year" or "period"
+    proj_period <- input$projection_period          # e.g. "2041-2060"
+    proj_scenario <- input$ssp_scenario             # e.g. "ssp2_4_5"
+    display_mode_val <- input$display_mode           # "absolute" or "anomaly"
+
+    # Reactive climate data — choose between single-year and period-averaged.
+    # Period mode works for both historical and projected periods.
+    show_proj <- isTRUE(input$show_projections == "1")
+    use_period <- isTRUE(view_mode == "period")
+
+    if (use_period) {
+      clim_data <- period_averaged_climate_data()
+    } else {
+      clim_data <- filtered_climate_data()
+    }
 
     message(sprintf("Rendering %d polygons to MapLibre...", nrow(geom_data)))
 
@@ -345,11 +515,16 @@ server <- function(input, output, session) {
     }
 
     # ── Check whether anomaly mode is active for the map ──────────────────────
-    show_proj <- isTRUE(input$show_projections == "1")
     use_anomaly_map <- (show_proj && isTRUE(input$display_mode == "anomaly"))
     is_precip <- (input$climate_variable == "total_precipitation")
     sel_year <- as.integer(input$selected_year)
-    is_projection_year <- (sel_year > 2023)
+    # Determine if current data is from projections based on actual period/year
+    if (use_period && !is.null(proj_period) && nchar(proj_period) > 0) {
+      period_end_year <- as.integer(strsplit(proj_period, "-")[[1]][2])
+      is_projection_year <- (period_end_year > 2023)
+    } else {
+      is_projection_year <- (sel_year > 2023)
+    }
 
     # Determine the display unit for tooltips
     if (use_anomaly_map) {
@@ -388,10 +563,12 @@ server <- function(input, output, session) {
     }
 
     # ── Build tooltips ────────────────────────────────────────────────────────
+    # Determine the projection annotation for tooltips
+    period_label <- if (use_period) paste0(input$projection_period, " period mean") else ""
     if (use_anomaly_map) {
       # Anomaly tooltips with sign prefix and reference period
       ref_label <- input$reference_period
-      proj_note <- if (is_projection_year) " (projection median)" else ""
+      proj_note <- if (use_period) paste0(" (", period_label, ")") else if (is_projection_year) " (projection median)" else ""
       joined_geom <- joined_geom %>%
         mutate(
           tooltip_html = paste0(
@@ -411,7 +588,7 @@ server <- function(input, output, session) {
         )
     } else {
       # Standard absolute tooltips
-      proj_note <- if (show_proj && is_projection_year) " (projection median)" else ""
+      proj_note <- if (use_period) paste0(" (", period_label, ")") else if (show_proj && is_projection_year) " (projection median)" else ""
       joined_geom <- joined_geom %>%
         mutate(
           tooltip_html = paste0(
@@ -942,8 +1119,11 @@ server <- function(input, output, session) {
   # signed labels and reference period context.
   # ----------------------------------------------------------------------------
   output$choropleth_legend <- renderUI({
-    # Take dependencies on controls
+    # Take dependencies on all controls that affect the legend
     req(input$climate_variable, input$temporal_mode, input$selected_year)
+    # Explicit dependencies for period mode
+    view_mode <- input$projection_view_mode
+    proj_period <- input$projection_period
 
     var_meta <- climate_variables[[input$climate_variable]]
     is_precip <- (input$climate_variable == "total_precipitation")
@@ -951,11 +1131,33 @@ server <- function(input, output, session) {
     # Check display mode
     show_proj <- isTRUE(input$show_projections == "1")
     use_anomaly_legend <- (show_proj && isTRUE(input$display_mode == "anomaly"))
+    use_period <- isTRUE(view_mode == "period")
     sel_year <- as.integer(input$selected_year)
-    is_projection_year <- (sel_year > 2023)
 
-    # Get the current data range
-    clim_data <- filtered_climate_data()
+    # Determine if the current view shows projected data
+    # For period mode: check the period end year (not just "period mode is on")
+    # For year mode: check if the selected year is beyond historical range
+    if (use_period && !is.null(proj_period) && nchar(proj_period) > 0) {
+      period_end_year <- as.integer(strsplit(proj_period, "-")[[1]][2])
+      is_projection_data <- (period_end_year > 2023)
+    } else {
+      period_end_year <- NA
+      is_projection_data <- (sel_year > 2023)
+    }
+
+    # Build the year/period label for titles
+    if (use_period) {
+      time_label <- proj_period  # e.g. "2041-2060" or "1981-2010"
+    } else {
+      time_label <- as.character(input$selected_year)
+    }
+
+    # Get the current data range (use period data when in period mode)
+    if (use_period) {
+      clim_data <- period_averaged_climate_data()
+    } else {
+      clim_data <- filtered_climate_data()
+    }
     if (is.null(clim_data) || nrow(clim_data) == 0) {
       return(div(class = "legend-no-data", "No data available for legend"))
     }
@@ -1005,9 +1207,16 @@ server <- function(input, output, session) {
       label_max <- sprintf("+%s %s", format(round(abs_max, 1), big.mark = ","), display_unit)
 
       # Build title with context
-      proj_note <- if (is_projection_year) paste0(", ", ssp_scenario_labels[input$ssp_scenario]) else ""
+      # Only show SSP label for projected periods, show "ERA5 mean" for historical
+      if (is_projection_data) {
+        proj_note <- paste0(", ", ssp_scenario_labels[input$ssp_scenario])
+      } else if (use_period) {
+        proj_note <- ", ERA5 mean"
+      } else {
+        proj_note <- ""
+      }
       legend_title <- sprintf("%s Anomaly (%s %s%s vs %s)",
-                               var_meta$label, input$temporal_mode, input$selected_year,
+                               var_meta$label, input$temporal_mode, time_label,
                                proj_note, ref_label)
 
     } else {
@@ -1020,8 +1229,14 @@ server <- function(input, output, session) {
       label_max <- sprintf("%s %s", format(round(max_val, 1), big.mark = ","), display_unit)
 
       # Build title
-      proj_note <- if (show_proj && is_projection_year) paste0(" ", ssp_scenario_labels[input$ssp_scenario], " proj.") else ""
-      legend_title <- sprintf("%s (%s %s%s)", var_meta$label, input$temporal_mode, input$selected_year, proj_note)
+      if (is_projection_data) {
+        proj_note <- paste0(" ", ssp_scenario_labels[input$ssp_scenario], " proj.")
+      } else if (use_period) {
+        proj_note <- " ERA5 mean"
+      } else {
+        proj_note <- ""
+      }
+      legend_title <- sprintf("%s (%s %s%s)", var_meta$label, input$temporal_mode, time_label, proj_note)
     }
 
     # Construct CSS linear gradient from the palette colors
@@ -1461,7 +1676,7 @@ server <- function(input, output, session) {
           x = 2023,
           y = 1.02,
           yref = "paper",
-          text = "Present",
+          text = "Observed | Projected",
           showarrow = FALSE,
           font = list(
             family = "Inter, sans-serif",

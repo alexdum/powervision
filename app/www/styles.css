@@ -120,9 +120,12 @@ body, html {
   left: 18px;
   width: 290px;
   max-height: calc(100vh - 36px);
-  overflow-y: auto;
-  overflow-x: hidden;
   z-index: 1000;
+
+  /* Flex column: scrollable controls on top, pinned legend at bottom */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 
   background: var(--glass-dark-bg);
   border: 1px solid var(--glass-dark-border);
@@ -133,12 +136,32 @@ body, html {
     0 8px 32px rgba(0, 0, 0, 0.45),
     0 0 0 1px rgba(255, 255, 255, 0.04) inset;
 
-  padding: 20px 18px 16px;
+  padding: 0;
   color: var(--text-primary);
+}
 
-  /* Smooth scroll for overflow */
+/* Scrollable controls zone — all inputs, toggles, and layer info */
+#control-panel .sidebar-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 18px 8px;
+
+  /* Thin styled scrollbar */
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+
+#control-panel .sidebar-scroll-area::-webkit-scrollbar        { width: 4px; }
+#control-panel .sidebar-scroll-area::-webkit-scrollbar-track  { background: transparent; }
+#control-panel .sidebar-scroll-area::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.18); border-radius: 2px; }
+
+/* Pinned footer — legend + attribution, always visible */
+#control-panel .sidebar-footer {
+  flex-shrink: 0;
+  padding: 10px 18px 14px;
+  border-top: 1px solid var(--glass-dark-border);
+  background: rgba(10, 15, 35, 0.4);
 }
 
 #control-panel::-webkit-scrollbar        { width: 4px; }
@@ -962,6 +985,131 @@ body, html {
 
 .display-toggle-option:hover:not(.active) {
   color: #cbd5e1;
+}
+
+/* View mode toggle — Year vs Period (same pill pattern as display mode) */
+.view-mode-wrapper {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.view-mode-wrapper.is-visible {
+  display: block;
+  opacity: 1;
+}
+
+.view-mode-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  overflow: hidden;
+  height: 32px;
+  width: 100%;
+}
+
+.view-mode-toggle .view-toggle-pill {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.30);
+  border-radius: 6px;
+  transition: transform 0.25s cubic-bezier(0.32, 0, 0.15, 1);
+  z-index: 0;
+}
+
+.view-mode-toggle.toggle-right .view-toggle-pill {
+  transform: translateX(100%);
+}
+
+.view-toggle-option {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 4px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+  min-height: 44px;
+}
+
+.view-toggle-option.active {
+  color: #e2e8f0;
+}
+
+.view-toggle-option:hover:not(.active) {
+  color: #cbd5e1;
+}
+
+/* Projection period dropdown — same show/hide pattern as scenario selector */
+.projection-period-wrapper {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.projection-period-wrapper.is-visible {
+  display: block;
+  opacity: 1;
+}
+
+/* Reuse glassmorphism selectize overrides for projection period dropdown */
+.projection-period-wrapper .form-group {
+  margin-bottom: 0;
+}
+
+.projection-period-wrapper .selectize-input {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 6px !important;
+  color: #e2e8f0 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.75rem !important;
+  padding: 4px 10px !important;
+  min-height: 32px !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(8px);
+}
+
+.projection-period-wrapper .selectize-input.focus {
+  border-color: rgba(56, 189, 248, 0.40) !important;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.15) !important;
+}
+
+.projection-period-wrapper .selectize-dropdown {
+  background: rgba(10, 15, 35, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(16px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.projection-period-wrapper .selectize-dropdown .option {
+  color: #cbd5e1 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.75rem !important;
+  padding: 8px 12px !important;
+}
+
+.projection-period-wrapper .selectize-dropdown .option.active {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #e2e8f0 !important;
 }
 
 /* Reference period dropdown — same show/hide pattern as scenario selector */
