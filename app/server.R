@@ -548,12 +548,18 @@ server <- function(input, output, session) {
 
         # Transform values to anomalies
         if (is_precip) {
-          # Precipitation: relative change (%), guard against zero baseline
+          # Precipitation: relative change (%), guard against near-zero baselines.
+          # Threshold of 1.0 mm avoids dividing by tiny baselines in arid regions
+          # (e.g., Saharan NUTS2 zones) which would produce extreme % anomalies
+          # like ±3000% and wreck the color scale for all other regions.
+          # After computing %, we clamp to ±200% to prevent outliers from
+          # stretching the legend — values beyond ±200% are climatologically
+          # implausible for meaningful regional analysis.
           joined_geom <- joined_geom %>%
             mutate(Value = ifelse(
-              is.na(baseline_value) | abs(baseline_value) < 0.001,
+              is.na(baseline_value) | abs(baseline_value) < 1.0,
               NA_real_,
-              (Value - baseline_value) / baseline_value * 100
+              pmin(pmax((Value - baseline_value) / baseline_value * 100, -200), 200)
             ))
         } else {
           # Temperature: absolute change
@@ -622,6 +628,9 @@ server <- function(input, output, session) {
       if (use_anomaly_map) {
         abs_max <- max(abs(min_val), abs(max_val))
         if (abs_max < 0.1) abs_max <- 0.1 # prevent degenerate scale
+        # Cap precipitation anomaly scale at ±200% to keep the color map
+        # meaningful — extreme outliers from arid regions are already clamped.
+        if (is_precip && abs_max > 200) abs_max <- 200
         min_val <- -abs_max
         max_val <- abs_max
       }

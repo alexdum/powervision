@@ -87,10 +87,13 @@ compute_legend_params <- function(var_meta, is_precip,
 
       if (is_precip) {
         # Precipitation: relative (%) anomaly — guard against near-zero baselines
+        # (threshold 1.0 mm) and clamp to ±200% to match the map renderer
         anomaly_vals <- ifelse(
-          is.na(df_with_baseline$baseline_value) | abs(df_with_baseline$baseline_value) < 0.001,
+          is.na(df_with_baseline$baseline_value) | abs(df_with_baseline$baseline_value) < 1.0,
           NA_real_,
-          (df_with_baseline$Value - df_with_baseline$baseline_value) / df_with_baseline$baseline_value * 100
+          pmin(pmax(
+            (df_with_baseline$Value - df_with_baseline$baseline_value) / df_with_baseline$baseline_value * 100,
+            -200), 200)
         )
       } else {
         # Temperature: absolute anomaly
