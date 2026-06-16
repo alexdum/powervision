@@ -15,6 +15,14 @@ server <- function(input, output, session) {
   # custom layers and we must redraw them once the new tiles have loaded.
   style_trigger     <- reactiveVal(0)
 
+  # Track the last min/max/value sent to the year slider so we can skip no-op
+  # updateSliderInput calls. Without this guard, toggling projections always
+  # causes updateSliderInput to round-trip through the client, re-setting
+  # input$selected_year and triggering a second map redraw.
+  last_slider_min   <- reactiveVal(NULL)
+  last_slider_max   <- reactiveVal(NULL)
+  last_slider_val   <- reactiveVal(NULL)
+
   # Track the source ID of any active satellite raster layer so we can remove it
   # cleanly before switching to a different basemap style.
   satellite_src_id  <- reactiveVal(NULL)
@@ -130,13 +138,50 @@ server <- function(input, output, session) {
       new_val <- max_year
     }
 
-    updateSliderInput(
-      session = session,
-      inputId = "selected_year",
-      min = min_year,
-      max = max_year,
-      value = new_val
-    )
+    # Guard against no-op updates that cause Shiny to round-trip the slider
+    # value through the client, which re-fires input$selected_year and
+    # triggers a redundant second polygon redraw.
+    #
+    # Key insight: updateSliderInput with a `value` argument always causes
+    # the client to emit a new input$selected_year event — even if the value
+    # is the same. So we split into two cases:
+    #   1. Value needs clamping (it fell outside new bounds) → pass value
+    #   2. Only min/max changed, value stays the same → omit value param
+    # Case 2 updates the slider visually without triggering a value round-trip.
+    prev_min <- isolate(last_slider_min())
+    prev_max <- isolate(last_slider_max())
+
+    value_needs_clamping <- (new_val != current_yr)
+    bounds_need_update   <- !identical(prev_min, min_year) ||
+                            !identical(prev_max, max_year)
+
+    if (value_needs_clamping) {
+      # The value was clamped to fit new bounds — must send value to client
+      last_slider_min(min_year)
+      last_slider_max(max_year)
+      last_slider_val(new_val)
+
+      updateSliderInput(
+        session = session,
+        inputId = "selected_year",
+        min = min_year,
+        max = max_year,
+        value = new_val
+      )
+    } else if (bounds_need_update) {
+      # Only min/max changed, value stays the same — omit value param
+      # to avoid Shiny round-tripping input$selected_year back to the server
+      last_slider_min(min_year)
+      last_slider_max(max_year)
+      last_slider_val(new_val)
+
+      updateSliderInput(
+        session = session,
+        inputId = "selected_year",
+        min = min_year,
+        max = max_year
+      )
+    }
   })
 
   # ----------------------------------------------------------------------------
@@ -419,8 +464,20 @@ server <- function(input, output, session) {
     # Explicit dependencies: ensure observer re-fires when these inputs change.
     # Reading them unconditionally registers them in Shiny's reactive graph,
     # even though we only use them conditionally below.
-    view_mode <- input$projection_view_mode        # "year" or "period"
-    proj_period <- input$projection_period          # e.g. "2041-2060"
+    #
+    # NOTE: projection_period is isolate()'d because the renderer already
+    # reacts to period changes through period_averaged_climate_data().
+    # Reading it reactively here creates a REDUNDANT dependency that causes
+    # double-fire when projections are toggled: the projections_toggled observer
+    # updates the period dropdown choices via updateSelectInput(), which causes
+    # input$projection_period to round-trip through the client, firing the
+    # renderer a second time on top of the filtered_climate_data() invalidation
+    # from input$show_projections.
+    #
+    # projection_view_mode MUST remain reactive so the renderer fires when the
+    # user switches between year and period mode.
+    view_mode <- input$projection_view_mode            # "year" or "period" (reactive — needed)
+    proj_period <- isolate(input$projection_period)     # e.g. "2041-2060" (isolated — covered by period_averaged_climate_data)
     proj_scenario <- input$ssp_scenario             # e.g. "ssp2_4_5"
     display_mode_val <- input$display_mode           # "absolute" or "anomaly"
 

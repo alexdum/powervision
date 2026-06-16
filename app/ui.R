@@ -182,69 +182,7 @@ ui <- page_fillable(
       )
     ),
 
-    hr(class = "panel-divider"),
 
-    # ── Section: Display ────────────────────────────────────────────────────────
-    sliderInput(
-      inputId = "polygon_opacity",
-      label = span(
-        "Polygon Opacity",
-        tooltip(
-          bsicons::bs_icon("info-circle", size = "0.85em"),
-          "0 = fully transparent · 1 = solid fill"
-        )
-      ),
-      min = 0.0,
-      max = 1.0,
-      value = 0.75,
-      step = 0.05,
-      ticks = FALSE
-    ),
-
-    # ── Projection Toggle — custom pill switch ──────────────────────────────────
-    # A hidden text input carries the actual Shiny value ("globe" or "mercator").
-    # The visible toggle is pure HTML; JavaScript handles click → slide → sync.
-    div(
-      class = "projection-toggle-wrapper",
-      span(
-        class = "control-label",
-        "Map Projection",
-        tooltip(
-          bsicons::bs_icon("info-circle", size = "0.85em"),
-          "Globe shows a 3D sphere · Mercator shows a flat 2D map"
-        )
-      ),
-      # Hidden Shiny input — the toggle JS writes to this
-      tags$input(
-        type = "hidden",
-        id = "map_projection",
-        value = "globe",
-        class = "shiny-bound-input"
-      ),
-      div(
-        class = "projection-toggle",
-        id = "projection-toggle",
-        # Sliding highlight pill (positioned by CSS/JS)
-        div(class = "toggle-pill"),
-        # Two clickable label segments
-        tags$button(
-          type = "button",
-          class = "toggle-option active",
-          `data-value` = "globe",
-          bsicons::bs_icon("globe2", size = "0.85em"),
-          "Globe"
-        ),
-        tags$button(
-          type = "button",
-          class = "toggle-option",
-          `data-value` = "mercator",
-          bsicons::bs_icon("map", size = "0.85em"),
-          "Flat"
-        )
-      )
-    ),
-
-    hr(class = "panel-divider"),
 
     # ── Section: Climate Projections ────────────────────────────────────────────
     # These controls allow exploring projected climate data (CMIP6 models) on
@@ -369,7 +307,70 @@ ui <- page_fillable(
     hr(class = "panel-divider"),
 
     # ── Section: Layer Info ─────────────────────────────────────────────────────
-    div(class = "layer-info-text", htmlOutput("layer_metadata_text"))
+    div(class = "layer-info-text", htmlOutput("layer_metadata_text")),
+
+    hr(class = "panel-divider"),
+
+    # ── Section: Polygon Opacity ───────────────────────────────────────────────
+    sliderInput(
+      inputId = "polygon_opacity",
+      label = span(
+        "Polygon Opacity",
+        tooltip(
+          bsicons::bs_icon("info-circle", size = "0.85em"),
+          "0 = fully transparent · 1 = solid fill"
+        )
+      ),
+      min = 0.0,
+      max = 1.0,
+      value = 0.75,
+      step = 0.05,
+      ticks = FALSE
+    ),
+
+    # ── Map Projection Toggle — custom pill switch ─────────────────────────────
+    # Placed at the bottom of the sidebar since it's a less frequently changed
+    # setting. A hidden text input carries the Shiny value ("globe" or "mercator").
+    # The visible toggle is pure HTML; JavaScript handles click → slide → sync.
+    div(
+      class = "projection-toggle-wrapper",
+      span(
+        class = "control-label",
+        "Map Projection",
+        tooltip(
+          bsicons::bs_icon("info-circle", size = "0.85em"),
+          "Globe shows a 3D sphere · Mercator shows a flat 2D map"
+        )
+      ),
+      # Hidden Shiny input — the toggle JS writes to this
+      tags$input(
+        type = "hidden",
+        id = "map_projection",
+        value = "globe",
+        class = "shiny-bound-input"
+      ),
+      div(
+        class = "projection-toggle",
+        id = "projection-toggle",
+        # Sliding highlight pill (positioned by CSS/JS)
+        div(class = "toggle-pill"),
+        # Two clickable label segments
+        tags$button(
+          type = "button",
+          class = "toggle-option active",
+          `data-value` = "globe",
+          bsicons::bs_icon("globe2", size = "0.85em"),
+          "Globe"
+        ),
+        tags$button(
+          type = "button",
+          class = "toggle-option",
+          `data-value` = "mercator",
+          bsicons::bs_icon("map", size = "0.85em"),
+          "Flat"
+        )
+      )
+    )
     ), # end sidebar-scroll-area
 
     # ── Pinned footer: legend + attribution ────────────────────────────────────
