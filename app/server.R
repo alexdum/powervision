@@ -430,7 +430,8 @@ server <- function(input, output, session) {
           "2041\u20132060 (Mid-term)"      = "2041-2060",
           "2061\u20132080 (Mid-late)"      = "2061-2080",
           "2081\u20132100 (Long-term)"     = "2081-2100"
-        )
+        ),
+        selected = "2041-2060"
       )
     } else {
       # Remove projected periods, keep only historical

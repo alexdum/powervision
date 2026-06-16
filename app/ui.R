@@ -21,8 +21,8 @@ ui <- page_fillable(
       content = "PowerClimate Vision Explorer — Copernicus PECD v4.2 Interactive Spatial Dashboard"
     ),
     tags$title("PowerClimate Vision Explorer"),
-    tags$link(rel = "stylesheet", href = "styles.css"),
-    tags$script(src = "app.js")
+    tags$link(rel = "stylesheet", href = "styles.css?v=1.1"),
+    tags$script(src = "app.js?v=1.1")
   ),
 
   # ── Full-screen MapLibre canvas (z-index 0) ──────────────────────────────────
