@@ -410,41 +410,14 @@ server <- function(input, output, session) {
     df_out
   })
 
-  # ----------------------------------------------------------------------------
-  # Dynamic Period Dropdown — add/remove projected periods when projections toggle
-  # ----------------------------------------------------------------------------
-  # When projections are toggled ON, projected period choices (2021-2100) are
-  # appended to the dropdown. When toggled OFF, they are removed so only
-  # historical periods remain.
-  # ----------------------------------------------------------------------------
-  observeEvent(input$projections_toggled, {
-    if (input$projections_toggled == "on") {
-      # Add projected periods to the dropdown
-      updateSelectInput(session, "projection_period",
-        choices = c(
-          "1961\u20131990 (WMO Classic)"   = "1961-1990",
-          "1971\u20132000 (WMO Previous)"  = "1971-2000",
-          "1981\u20132010 (WMO Current)"   = "1981-2010",
-          "2011\u20132023 (Recent)"        = "2011-2023",
-          "2021\u20132040 (Near-term)"     = "2021-2040",
-          "2041\u20132060 (Mid-term)"      = "2041-2060",
-          "2061\u20132080 (Mid-late)"      = "2061-2080",
-          "2081\u20132100 (Long-term)"     = "2081-2100"
-        ),
-        selected = "2041-2060"
-      )
-    } else {
-      # Remove projected periods, keep only historical
-      updateSelectInput(session, "projection_period",
-        choices = c(
-          "1961\u20131990 (WMO Classic)"   = "1961-1990",
-          "1971\u20132000 (WMO Previous)"  = "1971-2000",
-          "1981\u20132010 (WMO Current)"   = "1981-2010",
-          "2011\u20132023 (Recent)"        = "2011-2023"
-        )
-      )
-    }
-  })
+  # NOTE: The period dropdown (projection_period) was previously updated here
+  # via updateSelectInput() inside an observeEvent(input$projections_toggled).
+  # This caused an async R → browser → R round-trip that triggered a SECOND
+  # render of the map polygons every time projections were toggled.
+  #
+  # The dropdown is now updated entirely client-side via the selectize JS API
+  # in app.js. All input changes (show_projections + projection_period) arrive
+  # at the server in a single Shiny message batch → single render cycle.
 
   # ----------------------------------------------------------------------------
   # Central Zone Layer Renderer

@@ -218,8 +218,32 @@ $(document).ready(function () {
       if (currentView === 'period') {
         $('#projection-period-wrapper').addClass('is-visible');
       }
-      // Add projected periods to the period dropdown
-      Shiny.setInputValue('projections_toggled', 'on', {priority: 'event'});
+
+      // ── Update the period dropdown directly via selectize API ──────────────
+      // Previously this was done server-side via updateSelectInput(), which
+      // caused an async round-trip (R → browser → R) and triggered a second
+      // render cycle. By updating the dropdown client-side, all input changes
+      // (show_projections + projection_period) arrive at the server in a
+      // single Shiny message batch → single render.
+      var $periodSelect = $('#projection_period');
+      if ($periodSelect.length && $periodSelect[0].selectize) {
+        var selectize = $periodSelect[0].selectize;
+        selectize.clear(true);     // clear selection silently
+        selectize.clearOptions();  // remove all existing options
+        selectize.addOption([
+          {value: '1961-1990', label: '1961\u20131990 (WMO Classic)'},
+          {value: '1971-2000', label: '1971\u20132000 (WMO Previous)'},
+          {value: '1981-2010', label: '1981\u20132010 (WMO Current)'},
+          {value: '2011-2023', label: '2011\u20132023 (Recent)'},
+          {value: '2021-2040', label: '2021\u20132040 (Near-term)'},
+          {value: '2041-2060', label: '2041\u20132060 (Mid-term)'},
+          {value: '2061-2080', label: '2061\u20132080 (Mid-late)'},
+          {value: '2081-2100', label: '2081\u20132100 (Long-term)'}
+        ]);
+        selectize.setValue('2041-2060', true); // select silently (no change event)
+        // Push the new period value to Shiny in the same message batch
+        Shiny.setInputValue('projection_period', '2041-2060');
+      }
     } else {
       $container.removeClass('toggle-right');
       $('#scenario-selector-wrapper').removeClass('is-visible');
@@ -227,8 +251,22 @@ $(document).ready(function () {
       $('#reference-period-wrapper').removeClass('is-visible');
       // Restore year slider if it was hidden by period mode
       $('#selected_year').closest('.form-group').slideDown(200);
-      // Remove projected periods from the period dropdown
-      Shiny.setInputValue('projections_toggled', 'off', {priority: 'event'});
+
+      // ── Restore historical-only periods via selectize API ──────────────────
+      var $periodSelect = $('#projection_period');
+      if ($periodSelect.length && $periodSelect[0].selectize) {
+        var selectize = $periodSelect[0].selectize;
+        selectize.clear(true);
+        selectize.clearOptions();
+        selectize.addOption([
+          {value: '1961-1990', label: '1961\u20131990 (WMO Classic)'},
+          {value: '1971-2000', label: '1971\u20132000 (WMO Previous)'},
+          {value: '1981-2010', label: '1981\u20132010 (WMO Current)'},
+          {value: '2011-2023', label: '2011\u20132023 (Recent)'}
+        ]);
+        selectize.setValue('1981-2010', true);
+        Shiny.setInputValue('projection_period', '1981-2010');
+      }
     }
 
     // Push the value into Shiny's input binding
@@ -343,6 +381,22 @@ $(document).ready(function () {
       Shiny.setInputValue('projection_view_mode', 'year');
       // Restore year slider if it was hidden by period mode
       $('#selected_year').closest('.form-group').slideDown(200);
+
+      // Restore historical-only periods via selectize API
+      var $periodSelect = $('#projection_period');
+      if ($periodSelect.length && $periodSelect[0].selectize) {
+        var selectize = $periodSelect[0].selectize;
+        selectize.clear(true);
+        selectize.clearOptions();
+        selectize.addOption([
+          {value: '1961-1990', label: '1961\u20131990 (WMO Classic)'},
+          {value: '1971-2000', label: '1971\u20132000 (WMO Previous)'},
+          {value: '1981-2010', label: '1981\u20132010 (WMO Current)'},
+          {value: '2011-2023', label: '2011\u20132023 (Recent)'}
+        ]);
+        selectize.setValue('1981-2010', true);
+        Shiny.setInputValue('projection_period', '1981-2010');
+      }
     }
   });
 
