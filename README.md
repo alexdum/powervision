@@ -144,4 +144,4 @@ environment:
 
 ## License
 
-Code for Earth 2026 — Climate Research & Spatial Analysis Team
+Code for Earth 2026 — PowerClimate Vision Explorer  Meteo-Romania Team
