@@ -51,6 +51,34 @@ $(document).ready(function () {
   });
 
   // --------------------------------------------------------------------------
+  // Map Loading Shimmer — Shiny custom message handlers
+  // --------------------------------------------------------------------------
+  // R calls: session$sendCustomMessage("map_loading_shimmer", list(show = TRUE))
+  // Shows a subtle pulsing overlay on the map canvas while the choropleth is
+  // re-rendering. The overlay is purely visual — pointer-events: none in CSS
+  // ensures users can still interact with the map during the shimmer.
+  //
+  // When hiding, we add a brief 400ms delay to let MapLibre proxy commands
+  // finish rendering on the GPU before removing the shimmer.
+  // --------------------------------------------------------------------------
+  var shimmerHideTimer = null;
+
+  Shiny.addCustomMessageHandler('map_loading_shimmer', function (msg) {
+    var $shimmer = $('#map-loading-shimmer');
+    if (msg.show) {
+      // Cancel any pending hide — a new render cycle started
+      if (shimmerHideTimer) { clearTimeout(shimmerHideTimer); shimmerHideTimer = null; }
+      $shimmer.addClass('is-active');
+    } else {
+      // Delay removal so the map has time to finish painting after proxy commands
+      shimmerHideTimer = setTimeout(function () {
+        $shimmer.removeClass('is-active');
+        shimmerHideTimer = null;
+      }, 400);
+    }
+  });
+
+  // --------------------------------------------------------------------------
   // Projection Toggle — pill switch click handler
   // --------------------------------------------------------------------------
   // When a toggle-option button is clicked, we:

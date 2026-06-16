@@ -499,6 +499,9 @@ server <- function(input, output, session) {
 
     message(sprintf("Rendering %d polygons to MapLibre...", nrow(geom_data)))
 
+    # Show the subtle map loading shimmer while we prepare and send layers
+    session$sendCustomMessage("map_loading_shimmer", list(show = TRUE))
+
     # Get the selected variable metadata
     var_meta <- climate_variables[[input$climate_variable]]
     palette <- var_meta$palette
@@ -686,6 +689,11 @@ server <- function(input, output, session) {
           )
       }
     }
+
+    # Hide the map loading shimmer — rendering commands have been dispatched.
+    # The JS handler adds a 400ms delay before actually removing the shimmer
+    # to let MapLibre finish painting the layers on the GPU.
+    session$sendCustomMessage("map_loading_shimmer", list(show = FALSE))
   })
 
   # ----------------------------------------------------------------------------
@@ -694,6 +702,10 @@ server <- function(input, output, session) {
   observeEvent(input$spatial_level, {
     clicked_region(NULL)
     session$sendCustomMessage("toggle_stats_drawer", list(show = FALSE))
+    # NOTE: The spatial tier dropdown loading spinner is shown immediately on
+    # the client side via JS (on 'change' event), before this server observer
+    # even fires. The central zone renderer sends the 'hide' message once
+    # polygon rendering is complete.
   }, ignoreInit = TRUE)
 
   # Close drawer when user clicks ✕ button (JS fires drawer_closed input)

@@ -37,6 +37,69 @@ body, html {
 }
 
 /* ---------------------------------------------------------------------------- */
+/* Map Loading Shimmer — subtle pulsing overlay during choropleth re-render      */
+/* ---------------------------------------------------------------------------- */
+/* A faint, semi-transparent overlay with a gentle breathing animation that      */
+/* signals to the user that the map is recalculating without blocking input.     */
+/* The shimmer fades in/out smoothly and uses the app's dark navy palette.       */
+/* ---------------------------------------------------------------------------- */
+
+#map-loading-shimmer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 5;              /* above map (0), below panels (1000) */
+  pointer-events: none;    /* never block clicks — purely visual feedback */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    rgba(59, 130, 246, 0.06) 0%,
+    rgba(10, 15, 35, 0.18) 60%,
+    rgba(10, 15, 35, 0.25) 100%
+  );
+}
+
+#map-loading-shimmer.is-active {
+  opacity: 1;
+  visibility: visible;
+  animation: map-shimmer-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes map-shimmer-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1.0; }
+}
+
+/* Centered loading spinner — shown inside the shimmer overlay */
+#map-loading-shimmer .map-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.10);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: map-spinner-rotate 0.8s linear infinite;
+  /* Only visible when the parent shimmer has .is-active */
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#map-loading-shimmer.is-active .map-spinner {
+  opacity: 1;
+}
+
+@keyframes map-spinner-rotate {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ---------------------------------------------------------------------------- */
 /* MapLibre Popup (hover tooltips on map polygons)                              */
 /* ---------------------------------------------------------------------------- */
 

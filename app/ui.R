@@ -28,7 +28,14 @@ ui <- page_fillable(
   # ── Full-screen MapLibre canvas (z-index 0) ──────────────────────────────────
   maplibreOutput("map", height = "100vh", width = "100%"),
 
-
+  # ── Map Loading Shimmer ────────────────────────────────────────────────────────
+  # A faint pulsing overlay shown during choropleth re-rendering.
+  # pointer-events: none ensures it never blocks map interaction.
+  # The server sends show/hide messages; CSS handles animation.
+  tags$div(
+    id = "map-loading-shimmer",
+    tags$div(class = "map-spinner")
+  ),
 
   # ── LEFT: Glassmorphism Control Panel ────────────────────────────────────────
   absolutePanel(
