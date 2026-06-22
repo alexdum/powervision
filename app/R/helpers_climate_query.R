@@ -110,6 +110,16 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, temporal_mode,
     query <- query |> dplyr::filter(Season == !!temporal_mode)
   }
 
+  # Optional: trim to only the columns the caller actually needs.
+  # Doing this BEFORE collect() is critical for performance because it
+  # tells Arrow's Parquet reader to only load those specific columns from disk.
+  # NOTE: To prevent Arrow's lazy evaluation from breaking partition pruning,
+  # we must ensure that any partition columns used in filter() are preserved in select().
+  if (!is.null(select_cols)) {
+    safe_select <- unique(c(select_cols, "variable", "SpatialLevel", "Year", "Season", "Region", "scenario", "model"))
+    query <- query |> dplyr::select(dplyr::any_of(safe_select))
+  }
+
   # Execute the query and pull the results into a local data.frame.
   # Arrow's partition pruning means only the relevant parquet fragments
   # are read from disk — this is fast even for large datasets.
@@ -118,15 +128,9 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, temporal_mode,
   # with the base R column subsetting used throughout server.R.
   df_result <- as.data.frame(dplyr::collect(query))
 
-  # Optional: trim to only the columns the caller actually needs.
-  # This is done AFTER collect() rather than in the Arrow query because
-  # Arrow's lazy select() can interfere with partition pruning when the
-  # selected columns don't include partition keys used in filters
-  # (e.g., filtering on 'variable' but not selecting it). Trimming in R
-  # after collect is negligible overhead since the data is already small.
+  # Trim the final result to exactly what the caller requested.
+  # We included extra partition columns above to ensure Arrow partition pruning worked.
   if (!is.null(select_cols)) {
-    # Only keep columns that actually exist in the result (some partition
-    # columns like 'variable' may or may not appear depending on Arrow version).
     available_cols <- intersect(select_cols, names(df_result))
     df_result <- df_result[, available_cols, drop = FALSE]
   }
