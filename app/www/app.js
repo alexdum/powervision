@@ -232,9 +232,9 @@ $(document).ready(function () {
         selectize.clearOptions();  // remove all existing options
         selectize.addOption([
           {value: '1961-1990', label: '1961\u20131990 (WMO Classic)'},
-          {value: '1971-2000', label: '1971\u20132000 (WMO Previous)'},
-          {value: '1981-2010', label: '1981\u20132010 (WMO Current)'},
-          {value: '1991-2020', label: '1991\u20132020 (WMO New)'},
+          {value: '1971-2000', label: '1971\u20132000 (WMO Historical)'},
+          {value: '1981-2010', label: '1981\u20132010 (WMO Previous)'},
+          {value: '1991-2020', label: '1991\u20132020 (WMO Current)'},
           {value: '2011-2023', label: '2011\u20132023 (Recent)'},
           {value: '2021-2040', label: '2021\u20132040 (Near-term)'},
           {value: '2041-2060', label: '2041\u20132060 (Mid-term)'},
@@ -261,9 +261,9 @@ $(document).ready(function () {
         selectize.clearOptions();
         selectize.addOption([
           {value: '1961-1990', label: '1961\u20131990 (WMO Classic)'},
-          {value: '1971-2000', label: '1971\u20132000 (WMO Previous)'},
-          {value: '1981-2010', label: '1981\u20132010 (WMO Current)'},
-          {value: '1991-2020', label: '1991\u20132020 (WMO New)'},
+          {value: '1971-2000', label: '1971\u20132000 (WMO Historical)'},
+          {value: '1981-2010', label: '1981\u20132010 (WMO Previous)'},
+          {value: '1991-2020', label: '1991\u20132020 (WMO Current)'},
           {value: '2011-2023', label: '2011\u20132023 (Recent)'}
         ]);
         selectize.setValue('1981-2010', true);
@@ -392,9 +392,9 @@ $(document).ready(function () {
         selectize.clearOptions();
         selectize.addOption([
           {value: '1961-1990', label: '1961\u20131990 (WMO Classic)'},
-          {value: '1971-2000', label: '1971\u20132000 (WMO Previous)'},
-          {value: '1981-2010', label: '1981\u20132010 (WMO Current)'},
-          {value: '1991-2020', label: '1991\u20132020 (WMO New)'},
+          {value: '1971-2000', label: '1971\u20132000 (WMO Historical)'},
+          {value: '1981-2010', label: '1981\u20132010 (WMO Previous)'},
+          {value: '1991-2020', label: '1991\u20132020 (WMO Current)'},
           {value: '2011-2023', label: '2011\u20132023 (Recent)'}
         ]);
         selectize.setValue('1981-2010', true);

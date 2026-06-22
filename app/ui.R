@@ -180,9 +180,9 @@ ui <- page_fillable(
         label = NULL,
         choices = c(
           "1961\u20131990 (WMO Classic)"   = "1961-1990",
-          "1971\u20132000 (WMO Previous)"  = "1971-2000",
-          "1981\u20132010 (WMO Current)"   = "1981-2010",
-          "1991\u20132020 (WMO New)"       = "1991-2020",
+          "1971\u20132000 (WMO Historical)"= "1971-2000",
+          "1981\u20132010 (WMO Previous)"  = "1981-2010",
+          "1991\u20132020 (WMO Current)"   = "1991-2020",
           "2011\u20132023 (Recent)"        = "2011-2023"
         ),
         selected = "1981-2010",
@@ -302,9 +302,9 @@ ui <- page_fillable(
           inputId = "reference_period",
           label = NULL,
           choices = c(
-            "Baseline: 1991\u20132020 (WMO New)"      = "1991-2020",
-            "Baseline: 1981\u20132010 (WMO Current)"  = "1981-2010",
-            "Baseline: 1971\u20132000 (WMO Previous)" = "1971-2000",
+            "Baseline: 1991\u20132020 (WMO Current)"  = "1991-2020",
+            "Baseline: 1981\u20132010 (WMO Previous)" = "1981-2010",
+            "Baseline: 1971\u20132000 (WMO Historical)"= "1971-2000",
             "Baseline: 1961\u20131990 (WMO Classic)"  = "1961-1990"
           ),
           selected = "1981-2010",
