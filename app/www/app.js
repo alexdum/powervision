@@ -493,8 +493,6 @@ $(document).ready(function () {
       $('#scenario-selector-wrapper').removeClass('is-visible');
       $('#display-mode-wrapper').removeClass('is-visible');
       $('#reference-period-wrapper').removeClass('is-visible');
-      // Restore year slider if it was hidden by period mode
-      $('#selected_year').closest('.form-group').slideDown(200);
 
       // ── Restore historical-only periods via selectize API ──────────────────
       var $periodSelect = $('#projection_period');
