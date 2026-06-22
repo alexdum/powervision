@@ -9,6 +9,7 @@ server <- function(input, output, session) {
   # Reactive state variables
   clicked_region    <- reactiveVal(NULL)
   map_loaded        <- reactiveVal(FALSE)
+  geom_ready        <- reactiveVal(FALSE)
 
   # Incrementing trigger used to force a re-render of zone layers after a basemap
   # style switch. Needed because set_style(..., preserve_layers = FALSE) wipes all
@@ -420,48 +421,88 @@ server <- function(input, output, session) {
   # at the server in a single Shiny message batch → single render cycle.
 
   # ----------------------------------------------------------------------------
-  # Central Zone Layer Renderer
+  # Geometry Observer — GeoJSON URL Source Swap
   # ----------------------------------------------------------------------------
-  # This single observe() block is responsible for ALL polygon drawing.
-  # It fires when: (a) the spatial level changes, (b) the map first loads,
-  # or (c) style_trigger is incremented after a basemap switch.
-  # When projections are ON, it also applies anomaly transformations and
-  # swaps to diverging color palettes based on the display mode.
+  # This observer fires when the spatial tier or basemap style changes.
+  # Instead of serializing sf objects and sending them over the websocket
+  # (~2.5 MB), we send a GeoJSON file URL (~50 bytes). MapLibre fetches
+  # the file directly from the static server — no R serialization needed.
   # ----------------------------------------------------------------------------
   observe({
     req(map_loaded())
-    style_trigger()                   # take the dependency so we re-fire on style change
+    style_trigger()                   # re-fire on style change
 
     geom_data <- current_boundaries()
     req(geom_data)
 
-    # Explicit dependencies: ensure observer re-fires when these inputs change.
-    # Reading them unconditionally registers them in Shiny's reactive graph,
-    # even though we only use them conditionally below.
-    #
-    # NOTE: projection_period is isolate()'d because the renderer already
-    # reacts to period changes through period_averaged_climate_data().
-    # Reading it reactively here creates a REDUNDANT dependency that causes
-    # double-fire when projections are toggled: the projections_toggled observer
-    # updates the period dropdown choices via updateSelectInput(), which causes
-    # input$projection_period to round-trip through the client, firing the
-    # renderer a second time on top of the filtered_climate_data() invalidation
-    # from input$show_projections.
-    #
-    # projection_view_mode MUST remain reactive so the renderer fires when the
-    # user switches between year and period mode.
-    view_mode <- input$projection_view_mode            # "year" or "period" (reactive — needed)
-    proj_period <- isolate(input$projection_period)     # e.g. "2041-2060" (isolated — covered by period_averaged_climate_data)
-    proj_scenario <- input$ssp_scenario             # e.g. "ssp2_4_5"
-    display_mode_val <- input$display_mode           # "absolute" or "anomaly"
+    # Disable data painting while geometry is refreshing
+    geom_ready(FALSE)
 
-    # Reactive climate data — choose between single-year and period-averaged.
-    # Period mode works for both historical and projected periods.
-    # NOTE: use isolate() for show_projections to prevent double-fire.
-    # This observer already re-fires via filtered_climate_data() and
-    # period_averaged_climate_data() which depend on input$show_projections.
-    # Reading it directly (without isolate) would create a second reactive
-    # dependency on the same input, causing two renders per toggle.
+    # Show loading shimmer while the new geometry loads
+    session$sendCustomMessage("map_loading_shimmer", list(show = TRUE))
+
+    # Get the GeoJSON file URL for the current spatial tier.
+    # Shiny serves www/ contents at the app root, so "data/geo/pecd_NUT0.geojson"
+    # is accessible at http://host:port/data/geo/pecd_NUT0.geojson.
+    # MapLibre loads this directly via HTTP — no R serialization needed.
+    current_level <- input$spatial_level
+    geojson_file  <- spatial_levels[[current_level]]$file
+    geojson_url   <- paste0("data/geo/", geojson_file)
+
+    message(sprintf("Geometry Observer: Swapping to GeoJSON URL for %s (%s)...",
+                    current_level, geojson_url))
+
+    # Send the swap command to JavaScript — this is ~50 bytes (just the URL string)
+    # instead of serializing the full sf object over the websocket (~2.5 MB).
+    session$sendCustomMessage("swap_tile_source", list(
+      url          = geojson_url,
+      border_color = "darkslateblue",
+      border_width = 1.0
+    ))
+
+    # Restore the crimson highlight if a region was selected before the style switch.
+    # We use isolate() so this doesn't create a reactive dependency on clicked_region.
+    # This is the only place we still use sf geometry — for a single polygon, not the
+    # entire tier. This is negligible payload.
+    selected <- isolate(clicked_region())
+    if (!is.null(selected)) {
+      highlight_geom <- geom_data %>% dplyr::filter(zone_id == selected$zone_id)
+      if (nrow(highlight_geom) > 0) {
+        message(sprintf("Restoring highlight for: %s after tile swap...", selected$name))
+        maplibre_proxy("map") %>%
+          add_line_layer(
+            id           = "zone-highlight",
+            source       = highlight_geom,
+            line_color   = "#d9534f",
+            line_width   = 3.0,
+            line_opacity = 0.95
+          )
+      }
+    }
+
+    # Hide the loading shimmer — geometry swap has been dispatched
+    session$sendCustomMessage("map_loading_shimmer", list(show = FALSE))
+
+    # Signal the Data/Color Observer that the fill layer now exists on the map
+    geom_ready(TRUE)
+  })
+
+  # ----------------------------------------------------------------------------
+  # Data & Color Observer
+  # ----------------------------------------------------------------------------
+  # This observer fires on climate data changes (year, variable, period, etc).
+  # It calculates colors and tooltips in R, then sends lightweight JS commands 
+  # to recolor the polygons and update the custom tooltips instantly.
+  # ----------------------------------------------------------------------------
+  observe({
+    req(geom_ready())
+    geom_data <- isolate(current_boundaries())
+    req(geom_data)
+
+    view_mode <- input$projection_view_mode            # "year" or "period"
+    proj_period <- isolate(input$projection_period)
+    proj_scenario <- input$ssp_scenario
+    display_mode_val <- input$display_mode
     show_proj <- isolate(isTRUE(input$show_projections == "1"))
     use_period <- isTRUE(view_mode == "period")
 
@@ -471,31 +512,27 @@ server <- function(input, output, session) {
       clim_data <- filtered_climate_data()
     }
 
-    message(sprintf("Rendering %d polygons to MapLibre...", nrow(geom_data)))
-
-    # Show the subtle map loading shimmer while we prepare and send layers
-    session$sendCustomMessage("map_loading_shimmer", list(show = TRUE))
-
-    # Get the selected variable metadata
     var_meta <- climate_variables[[input$climate_variable]]
     palette <- var_meta$palette
     var_label <- var_meta$label
     var_unit <- var_meta$unit
 
-    # Left join the climate data onto the boundary geometries
+    # Use a lightweight dataframe for tooltip/color building
+    # Use sf::st_drop_geometry to avoid expensive sf operations
+    df_build <- sf::st_drop_geometry(geom_data)
+    
     if (!is.null(clim_data) && nrow(clim_data) > 0) {
-      joined_geom <- geom_data %>%
-        left_join(clim_data, by = c("zone_id" = "Region"))
+      df_build <- df_build %>%
+        dplyr::left_join(clim_data, by = c("zone_id" = "Region"))
     } else {
-      joined_geom <- geom_data
-      joined_geom$Value <- NA_real_
+      df_build$Value <- NA_real_
     }
 
-    # ── Check whether anomaly mode is active for the map ──────────────────────
+    # ── Check whether anomaly mode is active ────────────────────────────────────
     use_anomaly_map <- (show_proj && isTRUE(input$display_mode == "anomaly"))
     is_precip <- (input$climate_variable == "total_precipitation")
     sel_year <- as.integer(input$selected_year)
-    # Determine if current data is from projections based on actual period/year
+
     if (use_period && !is.null(proj_period) && nchar(proj_period) > 0) {
       period_end_year <- as.integer(strsplit(proj_period, "-")[[1]][2])
       is_projection_year <- (period_end_year > 2023)
@@ -503,57 +540,37 @@ server <- function(input, output, session) {
       is_projection_year <- (sel_year > 2023)
     }
 
-    # Determine the display unit for tooltips
-    if (use_anomaly_map) {
-      display_unit <- if (is_precip) "%" else var_unit
-    } else {
-      display_unit <- var_unit
-    }
+    display_unit <- if (use_anomaly_map && is_precip) "%" else var_unit
 
-    # ── Apply anomaly transformation if active ────────────────────────────────
+    # ── Apply anomaly transformation if active ──────────────────────────────────
     if (use_anomaly_map) {
       baseline_df <- baseline_map_data()
-
       if (!is.null(baseline_df) && nrow(baseline_df) > 0) {
-        # Join baseline values onto the geometry
-        joined_geom <- joined_geom %>%
-          left_join(baseline_df, by = c("zone_id" = "Region"))
+        df_build <- df_build %>%
+          dplyr::left_join(baseline_df, by = c("zone_id" = "Region"))
 
-        # Transform values to anomalies
         if (is_precip) {
-          # Precipitation: relative change (%), guard against near-zero baselines.
-          # Threshold of 1.0 mm avoids dividing by tiny baselines in arid regions
-          # (e.g., Saharan NUTS2 zones) which would produce extreme % anomalies
-          # like ±3000% and wreck the color scale for all other regions.
-          # After computing %, we clamp to ±200% to prevent outliers from
-          # stretching the legend — values beyond ±200% are climatologically
-          # implausible for meaningful regional analysis.
-          joined_geom <- joined_geom %>%
-            mutate(Value = ifelse(
+          df_build <- df_build %>%
+            dplyr::mutate(Value = ifelse(
               is.na(baseline_value) | abs(baseline_value) < 1.0,
               NA_real_,
               pmin(pmax((Value - baseline_value) / baseline_value * 100, -200), 200)
             ))
         } else {
-          # Temperature: absolute change
-          joined_geom <- joined_geom %>%
-            mutate(Value = Value - baseline_value)
+          df_build <- df_build %>%
+            dplyr::mutate(Value = Value - baseline_value)
         }
       }
-
-      # Swap to diverging anomaly palette
       palette <- if (is_precip) anomaly_palette_precipitation else anomaly_palette_temperature
     }
 
-    # ── Build tooltips ────────────────────────────────────────────────────────
-    # Determine the projection annotation for tooltips
+    # ── Build tooltips ──────────────────────────────────────────────────────────
     period_label <- if (use_period) paste0(input$projection_period, " period mean") else ""
     if (use_anomaly_map) {
-      # Anomaly tooltips with sign prefix and reference period
       ref_label <- input$reference_period
       proj_note <- if (use_period) paste0(" (", period_label, ")") else if (is_projection_year) " (projection median)" else ""
-      joined_geom <- joined_geom %>%
-        mutate(
+      df_build <- df_build %>%
+        dplyr::mutate(
           tooltip_html = paste0(
             "<div class='map-tooltip-content' style='font-family: Inter, sans-serif; padding: 4px;'>",
             "  <div class='tooltip-title' style='font-weight: 600; color: #f8fafc; font-size: 0.85rem;'>", name, " (", zone_id, ")</div>",
@@ -570,10 +587,9 @@ server <- function(input, output, session) {
           )
         )
     } else {
-      # Standard absolute tooltips
       proj_note <- if (use_period) paste0(" (", period_label, ")") else if (show_proj && is_projection_year) " (projection median)" else ""
-      joined_geom <- joined_geom %>%
-        mutate(
+      df_build <- df_build %>%
+        dplyr::mutate(
           tooltip_html = paste0(
             "<div class='map-tooltip-content' style='font-family: Inter, sans-serif; padding: 4px;'>",
             "  <div class='tooltip-title' style='font-weight: 600; color: #f8fafc; font-size: 0.85rem;'>", name, " (", zone_id, ")</div>",
@@ -589,20 +605,18 @@ server <- function(input, output, session) {
         )
     }
 
-    # Calculate min and max values for interpolation stops, ignoring NAs
-    vals <- joined_geom$Value
-    vals <- vals[is.finite(vals)]
+    # ── Color Mapping in R ──────────────────────────────────────────────────────
+    vals <- df_build$Value
+    finite_mask <- is.finite(vals)
+    colors <- rep("#33415533", nrow(df_build))
 
-    if (length(vals) > 0) {
-      min_val <- min(vals)
-      max_val <- max(vals)
+    if (any(finite_mask)) {
+      min_val <- min(vals[finite_mask])
+      max_val <- max(vals[finite_mask])
 
-      # For anomaly mode, force symmetric scale around 0
       if (use_anomaly_map) {
         abs_max <- max(abs(min_val), abs(max_val))
-        if (abs_max < 0.1) abs_max <- 0.1 # prevent degenerate scale
-        # Cap precipitation anomaly scale at ±200% to keep the color map
-        # meaningful — extreme outliers from arid regions are already clamped.
+        if (abs_max < 0.1) abs_max <- 0.1
         if (is_precip && abs_max > 200) abs_max <- 200
         min_val <- -abs_max
         max_val <- abs_max
@@ -612,71 +626,51 @@ server <- function(input, output, session) {
         min_val <- min_val - 0.1
         max_val <- max_val + 0.1
       }
-      interpolation_values <- seq(min_val, max_val, length.out = length(palette))
 
-      fill_expr <- mapgl::interpolate(
-        column = "Value",
-        type = "linear",
-        values = interpolation_values,
-        stops = palette,
-        na_color = "#33415533" # Subtle semi-transparent slate for areas with no data
-      )
-    } else {
-      fill_expr <- "steelblue"
+      color_fn <- grDevices::colorRampPalette(palette)
+      n_colors <- 256
+      color_lut <- color_fn(n_colors)
+
+      indices <- round((vals[finite_mask] - min_val) / (max_val - min_val) * (n_colors - 1)) + 1
+      indices <- pmax(1, pmin(n_colors, indices))
+      colors[finite_mask] <- color_lut[indices]
     }
 
-    # NOTE: do NOT reset clicked_region() here — the user's selection must survive
-    # a basemap style switch. We only clear it when the spatial tier itself changes
-    # (handled by a separate observer below).
+    # ── Apply Updates ───────────────────────────────────────────────────────────
+    # 1. Update Tooltips via Custom Message
+    tooltip_list <- as.list(df_build$tooltip_html)
+    names(tooltip_list) <- df_build$zone_id
+    session$sendCustomMessage("update_zone_tooltips", tooltip_list)
 
-    proxy <- maplibre_proxy("map") %>%
-      clear_layer("zone-highlight") %>%
-      clear_layer("zone-borders") %>%
-      clear_layer("zone-fills") %>%
-      add_fill_layer(
-        id                 = "zone-fills",
-        source             = joined_geom,
-        fill_color         = fill_expr,
-        fill_opacity       = isolate(input$polygon_opacity),
-        fill_outline_color = "#ffffff00",   # suppress the default hairline so our border layer controls it
-        tooltip            = "tooltip_html",
-        before_id          = target_before_id()
-      ) %>%
-      add_line_layer(
-        id           = "zone-borders",
-        source       = geom_data,
-        line_color   = "darkslateblue",
-        line_width   = 1.0,
-        line_opacity = 0.8,
-        before_id    = target_before_id()
-      )
+    # 2. Recolor Polygons — build a MapLibre "match" expression
+    # We build the expression as a JSON string manually to avoid Shiny's
+    # automatic serialization converting unnamed R lists into JSON objects
+    # (which MapLibre can't parse as a style expression).
+    # Format: ["match", ["get", "zone_id"], "AT", "#ff0000", "DE", "#00ff00", ..., "#default"]
+    zone_ids <- df_build$zone_id
+    interleaved <- character(length(zone_ids) * 2)
+    interleaved[seq(1, length(zone_ids) * 2, by = 2)] <- paste0('"', zone_ids, '"')
+    interleaved[seq(2, length(zone_ids) * 2, by = 2)] <- paste0('"', colors, '"')
+    fill_expr_json <- paste0(
+      '["match",["get","zone_id"],',
+      paste(interleaved, collapse = ","),
+      ',"#33415533"]'
+    )
 
-    # Custom study zone borders always remain visible to preserve shape definitions
-    proxy %>% set_layout_property("zone-borders", "visibility", "visible")
+    # Apply colors and then fade in the layer to avoid the grey placeholder flash.
+    # The Geometry Observer starts fill_opacity at 0 (invisible). After painting
+    # the correct colors, we restore opacity to the user's chosen value.
+    # We use our custom JS handler instead of mapgl's set_paint_property because
+    # the zone-fills layer was created by our JS handler, not by mapgl.
+    current_opacity <- isolate(input$polygon_opacity)
+    if (is.null(current_opacity)) current_opacity <- 0.65
 
-    # Restore the crimson highlight if a region was selected before the style switch.
-    # We use isolate() so this doesn't create a reactive dependency on clicked_region.
-    selected <- isolate(clicked_region())
-    if (!is.null(selected)) {
-      highlight_geom <- geom_data %>% filter(zone_id == selected$zone_id)
-      if (nrow(highlight_geom) > 0) {
-        message(sprintf("Restoring highlight for: %s after basemap switch...", selected$name))
-        maplibre_proxy("map") %>%
-          add_line_layer(
-            id           = "zone-highlight",
-            source       = highlight_geom,
-            line_color   = "#d9534f",
-            line_width   = 3.0,
-            line_opacity = 0.95,
-            before_id    = target_before_id()
-          )
-      }
-    }
+    session$sendCustomMessage("paint_zone_fills", list(
+      fill_expr_json = fill_expr_json,
+      opacity        = current_opacity
+    ))
 
-    # Hide the map loading shimmer — rendering commands have been dispatched.
-    # The JS handler adds a 400ms delay before actually removing the shimmer
-    # to let MapLibre finish painting the layers on the GPU.
-    session$sendCustomMessage("map_loading_shimmer", list(show = FALSE))
+    message(sprintf("Data Observer: Recolored %d zones via match_expr (no geometry re-send)", nrow(df_build)))
   })
 
   # ----------------------------------------------------------------------------

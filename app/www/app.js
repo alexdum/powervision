@@ -7,6 +7,160 @@
 
 $(document).ready(function () {
 
+  // --------------------------------------------------------------------------
+  // PMTiles Protocol Registration
+  // --------------------------------------------------------------------------
+  // Register the pmtiles:// protocol so MapLibre can read .pmtiles files
+  // directly as vector tile sources. This must run before any map loads.
+  // --------------------------------------------------------------------------
+  if (typeof pmtiles !== 'undefined') {
+    var protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol('pmtiles', protocol.tile);
+  }
+
+  // --------------------------------------------------------------------------
+  // PMTiles Source Swap Handler
+  // --------------------------------------------------------------------------
+  // R sends: session$sendCustomMessage("swap_tile_source", list(url = "...", ...))
+  // This handler:
+  //   1. Removes old zone layers (fills, borders, highlight)
+  //   2. Removes the old tile source
+  //   3. Adds a new vector tile source pointing to the new .pmtiles URL
+  //   4. Adds fresh fill and border layers from the new source
+  //
+  // The Data/Color Observer then paints the correct colors via set_paint_property.
+  // --------------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // Shared Helper — Find the MapLibre map instance
+  // --------------------------------------------------------------------------
+  // mapgl stores the map instance on the widget's DOM element. We check
+  // several known patterns to locate it reliably.
+  // --------------------------------------------------------------------------
+  function _getMapInstance() {
+    var mapEl = document.getElementById('map');
+    if (!mapEl) return null;
+
+    // mapgl stores the instance as .map on the widget element
+    if (mapEl.map) return mapEl.map;
+
+    // Fallback: via HTMLWidgets binding
+    if (typeof HTMLWidgets !== 'undefined') {
+      var widget = HTMLWidgets.find('#map');
+      if (widget && widget.getMap) return widget.getMap();
+    }
+
+    return null;
+  }
+
+  // --------------------------------------------------------------------------
+  // GeoJSON Source Swap Handler
+  // --------------------------------------------------------------------------
+  // R sends: session$sendCustomMessage("swap_tile_source", list(url = "...", ...))
+  // Instead of PMTiles (which needs HTTP Range Requests that Shiny doesn't
+  // support), we load the GeoJSON files directly as static URLs. MapLibre
+  // fetches the file from the Shiny static server — no R serialization needed.
+  // --------------------------------------------------------------------------
+  Shiny.addCustomMessageHandler('swap_tile_source', function (msg) {
+    var map = _getMapInstance();
+    if (!map) {
+      console.warn('[GeoJSON] Could not find MapLibre map instance');
+      return;
+    }
+
+    var sourceId     = 'zone-tiles';
+    var fillLayerId  = 'zone-fills';
+    var borderLayerId = 'zone-borders';
+    var highlightLayerId = 'zone-highlight';
+    var geojsonUrl   = msg.url;
+    var borderColor  = msg.border_color || 'darkslateblue';
+    var borderWidth  = msg.border_width || 1.0;
+
+    // Step 1: Remove old layers (if they exist)
+    if (map.getLayer(highlightLayerId)) map.removeLayer(highlightLayerId);
+    if (map.getLayer(borderLayerId))    map.removeLayer(borderLayerId);
+    if (map.getLayer(fillLayerId))      map.removeLayer(fillLayerId);
+
+    // Step 2: Remove old source
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+    // Step 3: Add GeoJSON source directly from URL.
+    // MapLibre fetches the file via HTTP — no websocket, no R serialization.
+    map.addSource(sourceId, {
+      type: 'geojson',
+      data: geojsonUrl,
+      promoteId: 'zone_id'    // use zone_id as feature ID for queryRenderedFeatures
+    });
+
+    // Step 4: Add fill layer — starts fully transparent
+    map.addLayer({
+      id: fillLayerId,
+      type: 'fill',
+      source: sourceId,
+      paint: {
+        'fill-color': '#00000000',
+        'fill-opacity': 0,
+        'fill-outline-color': '#ffffff00'
+      }
+    });
+
+    // Step 5: Add border layer
+    map.addLayer({
+      id: borderLayerId,
+      type: 'line',
+      source: sourceId,
+      paint: {
+        'line-color': borderColor,
+        'line-width': borderWidth,
+        'line-opacity': 0.8
+      }
+    });
+
+    console.log('[GeoJSON] Swapped source to:', geojsonUrl);
+  });
+
+  // --------------------------------------------------------------------------
+  // Paint Zone Fills Handler
+  // --------------------------------------------------------------------------
+  // R sends: session$sendCustomMessage("paint_zone_fills", list(
+  //   fill_expr = <match_expr result>,
+  //   opacity   = 0.65
+  // ))
+  // This applies the fill-color expression and fill-opacity directly via
+  // MapLibre's native setPaintProperty — bypassing mapgl's set_paint_property
+  // which only works on layers it created itself.
+  // --------------------------------------------------------------------------
+  Shiny.addCustomMessageHandler('paint_zone_fills', function (msg) {
+    var map = _getMapInstance();
+    if (!map) {
+      console.warn('[Paint] Map instance not found');
+      return;
+    }
+
+    if (!map.getLayer('zone-fills')) {
+      console.warn('[Paint] zone-fills layer not found, skipping paint');
+      return;
+    }
+
+    // Parse the fill-color expression from the JSON string sent by R.
+    // We use a JSON string to avoid Shiny's automatic serialization converting
+    // R unnamed lists into JSON objects instead of arrays.
+    if (msg.fill_expr_json) {
+      try {
+        var fillExpr = JSON.parse(msg.fill_expr_json);
+        map.setPaintProperty('zone-fills', 'fill-color', fillExpr);
+      } catch (e) {
+        console.error('[Paint] Failed to parse fill expression:', e);
+      }
+    }
+
+    // Apply the fill-opacity
+    if (typeof msg.opacity === 'number') {
+      map.setPaintProperty('zone-fills', 'fill-opacity', msg.opacity);
+    }
+
+    console.log('[Paint] Applied fill colors and opacity:', msg.opacity);
+  });
+
 
   // --------------------------------------------------------------------------
   // Floating Layer Control — hover-expand / auto-collapse
@@ -77,6 +231,82 @@ $(document).ready(function () {
       }, 400);
     }
   });
+
+  // --------------------------------------------------------------------------
+  // Custom Tooltip Engine — zone_id → tooltip HTML
+  // --------------------------------------------------------------------------
+  // The server sends a named list { zone_id: tooltip_html } via the
+  // 'update_zone_tooltips' custom message. We store this in a global object
+  // and use native MapLibre mousemove/mouseleave events to look up and display
+  // the appropriate tooltip HTML in a Popup.
+  //
+  // This replaces mapgl's built-in tooltip which required the tooltip HTML to
+  // be baked into the GeoJSON feature properties. Since we now decouple
+  // geometry from data, the GeoJSON has no data columns — only zone_id.
+  // --------------------------------------------------------------------------
+  var _tooltipMap = {};       // { zone_id: "<div>...</div>" }
+  var _tooltipPopup = null;   // Reusable maplibregl.Popup instance
+  var _hoveredZoneId = null;  // Track last hovered zone to avoid redundant updates
+
+  // Receive tooltip data from R
+  Shiny.addCustomMessageHandler('update_zone_tooltips', function (msg) {
+    _tooltipMap = msg;
+  });
+
+  // Attach native MapLibre listeners once the map instance is available
+  function attachCustomTooltip() {
+    var mapEl = document.getElementById('map');
+    if (!mapEl || !mapEl.map) {
+      // Map not ready yet — retry shortly
+      setTimeout(attachCustomTooltip, 300);
+      return;
+    }
+    var map = mapEl.map;
+
+    // Create a single reusable popup (no close button, follows cursor)
+    _tooltipPopup = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      className: 'custom-zone-tooltip',
+      maxWidth: '320px'
+    });
+
+    // On mousemove over zone-fills, show the tooltip for that zone
+    map.on('mousemove', 'zone-fills', function (e) {
+      if (!e.features || e.features.length === 0) return;
+
+      var zoneId = e.features[0].properties.zone_id;
+      if (!zoneId) return;
+
+      // Skip redundant updates if still hovering the same zone
+      if (zoneId === _hoveredZoneId) {
+        // Just update position
+        _tooltipPopup.setLngLat(e.lngLat);
+        return;
+      }
+      _hoveredZoneId = zoneId;
+
+      var html = _tooltipMap[zoneId];
+      if (html) {
+        _tooltipPopup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+      } else {
+        _tooltipPopup.remove();
+      }
+
+      // Change cursor to pointer
+      map.getCanvas().style.cursor = 'pointer';
+    });
+
+    // When the mouse leaves the zone-fills layer, hide the tooltip
+    map.on('mouseleave', 'zone-fills', function () {
+      _hoveredZoneId = null;
+      _tooltipPopup.remove();
+      map.getCanvas().style.cursor = '';
+    });
+  }
+
+  // Start checking for the map instance
+  attachCustomTooltip();
 
   // --------------------------------------------------------------------------
   // Projection Toggle — pill switch click handler

@@ -134,6 +134,12 @@ body, html {
   background: transparent !important;
 }
 
+/* Custom zone tooltip (from our decoupled tooltip engine) — slightly offset
+   from the cursor so it doesn't flicker as the mouse moves between zones. */
+.custom-zone-tooltip .maplibregl-popup-content {
+  pointer-events: none;  /* never intercept mouse events */
+}
+
 /* bslib page_fillable root container */
 .bslib-page-fill {
   position: fixed !important;

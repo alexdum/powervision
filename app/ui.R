@@ -22,7 +22,7 @@ ui <- page_fillable(
     ),
     tags$title("PowerClimate Vision Explorer"),
     tags$link(rel = "stylesheet", href = "styles.css?v=1.2"),
-    tags$script(src = "app.js?v=1.2")
+    tags$script(src = "app.js?v=1.3")
   ),
 
   # ── Full-screen MapLibre canvas (z-index 0) ──────────────────────────────────

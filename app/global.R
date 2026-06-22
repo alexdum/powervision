@@ -56,11 +56,20 @@ geojson_dir <- "www/data/geo"
 #
 # NUTS 0 and NUTS 2 are Eurostat boundaries, so they are not affected by this
 # PECD shapefile-version setting.
-raw_pecd_geojson_version <- tolower(Sys.getenv("PECD_GEOJSON_VERSION", unset = "mixed"))
+raw_pecd_geojson_version <- tolower(Sys.getenv(
+  "PECD_GEOJSON_VERSION",
+  unset = "mixed"
+))
 
-if (raw_pecd_geojson_version %in% c("42", "4.2", "v42", "v4.2", "pecd42", "pecd4.2")) {
+if (
+  raw_pecd_geojson_version %in%
+    c("42", "4.2", "v42", "v4.2", "pecd42", "pecd4.2")
+) {
   pecd_geojson_mode <- "42"
-} else if (raw_pecd_geojson_version %in% c("40", "4.0", "v40", "v4.0", "pecd40", "pecd4.0")) {
+} else if (
+  raw_pecd_geojson_version %in%
+    c("40", "4.0", "v40", "v4.0", "pecd40", "pecd4.0")
+) {
   pecd_geojson_mode <- "40"
 } else if (raw_pecd_geojson_version %in% c("mixed", "auto", "best")) {
   pecd_geojson_mode <- "mixed"
@@ -98,10 +107,26 @@ pecd_boundary_label <- c(
 )
 
 pecd_boundary_files <- c(
-  "PEON" = paste0("pecd_PEON", pecd_boundary_suffix[pecd_boundary_source["PEON"]], ".geojson"),
-  "PEOF" = paste0("pecd_PEOF", pecd_boundary_suffix[pecd_boundary_source["PEOF"]], ".geojson"),
-  "SZON" = paste0("pecd_SZON", pecd_boundary_suffix[pecd_boundary_source["SZON"]], ".geojson"),
-  "SZOF" = paste0("pecd_SZOF", pecd_boundary_suffix[pecd_boundary_source["SZOF"]], ".geojson")
+  "PEON" = paste0(
+    "pecd_PEON",
+    pecd_boundary_suffix[pecd_boundary_source["PEON"]],
+    ".geojson"
+  ),
+  "PEOF" = paste0(
+    "pecd_PEOF",
+    pecd_boundary_suffix[pecd_boundary_source["PEOF"]],
+    ".geojson"
+  ),
+  "SZON" = paste0(
+    "pecd_SZON",
+    pecd_boundary_suffix[pecd_boundary_source["SZON"]],
+    ".geojson"
+  ),
+  "SZOF" = paste0(
+    "pecd_SZOF",
+    pecd_boundary_suffix[pecd_boundary_source["SZOF"]],
+    ".geojson"
+  )
 )
 
 message(sprintf("Using PECD GeoJSON boundary mode: %s", pecd_geojson_mode))
@@ -136,7 +161,9 @@ spatial_levels <- list(
     name = "PEON (Pan-European Onshore Nodes)",
     description = paste0(
       "Pan-European onshore sub-zones — fine-grained resolution. ",
-      "Boundary source: ", pecd_boundary_label[pecd_boundary_source["PEON"]], "."
+      "Boundary source: ",
+      pecd_boundary_label[pecd_boundary_source["PEON"]],
+      "."
     )
   ),
   "PEOF" = list(
@@ -144,7 +171,9 @@ spatial_levels <- list(
     name = "PEOF (Pan-European Offshore Nodes)",
     description = paste0(
       "Pan-European offshore sub-zones — fine-grained resolution. ",
-      "Boundary source: ", pecd_boundary_label[pecd_boundary_source["PEOF"]], "."
+      "Boundary source: ",
+      pecd_boundary_label[pecd_boundary_source["PEOF"]],
+      "."
     )
   ),
   "SZON" = list(
@@ -152,7 +181,9 @@ spatial_levels <- list(
     name = "SZON (Onshore Study Zones)",
     description = paste0(
       "ENTSO-E onshore study zones — dissolved bidding zones. ",
-      "Boundary source: ", pecd_boundary_label[pecd_boundary_source["SZON"]], "."
+      "Boundary source: ",
+      pecd_boundary_label[pecd_boundary_source["SZON"]],
+      "."
     )
   ),
   "SZOF" = list(
@@ -160,7 +191,9 @@ spatial_levels <- list(
     name = "SZOF (Offshore Study Zones)",
     description = paste0(
       "ENTSO-E offshore study zones — dissolved bidding zones. ",
-      "Boundary source: ", pecd_boundary_label[pecd_boundary_source["SZOF"]], "."
+      "Boundary source: ",
+      pecd_boundary_label[pecd_boundary_source["SZOF"]],
+      "."
     )
   )
 )
@@ -177,7 +210,11 @@ for (level_code in names(spatial_levels)) {
   if (file.exists(file_path)) {
     message(sprintf("  [OK] Found %s layer: %s", level_code, file_path))
   } else {
-    warning(sprintf("  [MISSING] Could not find file for %s at: %s", level_code, file_path))
+    warning(sprintf(
+      "  [MISSING] Could not find file for %s at: %s",
+      level_code,
+      file_path
+    ))
   }
 }
 
@@ -204,7 +241,14 @@ climate_variables <- list(
   "2m_temperature" = list(
     label = "2m Temperature",
     unit = "°C",
-    palette = c("#2166ac", "#67a9cf", "#d1e5f0", "#fddbc7", "#ef8a62", "#b2182b") # Diverging Blue-to-Red
+    palette = c(
+      "#2166ac",
+      "#67a9cf",
+      "#d1e5f0",
+      "#fddbc7",
+      "#ef8a62",
+      "#b2182b"
+    ) # Diverging Blue-to-Red
   ),
   "total_precipitation" = list(
     label = "Total Precipitation",
@@ -232,9 +276,9 @@ climate_variables <- list(
 # No data is read into RAM at startup — Arrow only scans the folder structure.
 # When the app filters by variable/spatial level/year, Arrow uses partition
 # pruning to read only the exact parquet fragment needed (millisecond queries).
-hist_annual_ds   <- NULL
+hist_annual_ds <- NULL
 hist_seasonal_ds <- NULL
-proj_annual_ds   <- NULL
+proj_annual_ds <- NULL
 proj_seasonal_ds <- NULL
 
 message("Connecting to PECD climate datasets (lazy Arrow connections)...")
@@ -242,33 +286,55 @@ message("Connecting to PECD climate datasets (lazy Arrow connections)...")
 hist_annual_path <- "www/data/pecd/historical/annual"
 if (dir.exists(hist_annual_path)) {
   hist_annual_ds <- arrow::open_dataset(hist_annual_path)
-  message(sprintf("  [OK] Historical annual dataset connected (%d columns)", ncol(hist_annual_ds)))
+  message(sprintf(
+    "  [OK] Historical annual dataset connected (%d columns)",
+    ncol(hist_annual_ds)
+  ))
 } else {
-  warning(sprintf("  [MISSING] Historical annual dataset not found at: %s", hist_annual_path))
+  warning(sprintf(
+    "  [MISSING] Historical annual dataset not found at: %s",
+    hist_annual_path
+  ))
 }
 
 hist_seasonal_path <- "www/data/pecd/historical/seasonal"
 if (dir.exists(hist_seasonal_path)) {
   hist_seasonal_ds <- arrow::open_dataset(hist_seasonal_path)
-  message(sprintf("  [OK] Historical seasonal dataset connected (%d columns)", ncol(hist_seasonal_ds)))
+  message(sprintf(
+    "  [OK] Historical seasonal dataset connected (%d columns)",
+    ncol(hist_seasonal_ds)
+  ))
 } else {
-  warning(sprintf("  [MISSING] Historical seasonal dataset not found at: %s", hist_seasonal_path))
+  warning(sprintf(
+    "  [MISSING] Historical seasonal dataset not found at: %s",
+    hist_seasonal_path
+  ))
 }
 
 proj_annual_path <- "www/data/pecd/projections/annual"
 if (dir.exists(proj_annual_path)) {
   proj_annual_ds <- arrow::open_dataset(proj_annual_path)
-  message(sprintf("  [OK] Projection annual dataset connected (%d columns)", ncol(proj_annual_ds)))
+  message(sprintf(
+    "  [OK] Projection annual dataset connected (%d columns)",
+    ncol(proj_annual_ds)
+  ))
 } else {
-  message("  [INFO] Projection annual dataset not yet available (will be created by process_pecd_projections.R)")
+  message(
+    "  [INFO] Projection annual dataset not yet available (will be created by process_pecd_projections.R)"
+  )
 }
 
 proj_seasonal_path <- "www/data/pecd/projections/seasonal"
 if (dir.exists(proj_seasonal_path)) {
   proj_seasonal_ds <- arrow::open_dataset(proj_seasonal_path)
-  message(sprintf("  [OK] Projection seasonal dataset connected (%d columns)", ncol(proj_seasonal_ds)))
+  message(sprintf(
+    "  [OK] Projection seasonal dataset connected (%d columns)",
+    ncol(proj_seasonal_ds)
+  ))
 } else {
-  message("  [INFO] Projection seasonal dataset not yet available (will be created by process_pecd_projections.R)")
+  message(
+    "  [INFO] Projection seasonal dataset not yet available (will be created by process_pecd_projections.R)"
+  )
 }
 
 # Pre-load all spatial boundary layers into a global list at startup to prevent disk I/O lag
@@ -280,15 +346,19 @@ for (level_code in names(spatial_levels)) {
     sf_data <- sf::st_read(file_path, quiet = TRUE)
     # Safety check for correct coordinate reference system
     if (!is.na(sf::st_crs(sf_data)$epsg) && sf::st_crs(sf_data)$epsg != 4326) {
-      message(sprintf("  [Warning] CRS for %s is not WGS84 — reprojecting to EPSG:4326...", level_code))
+      message(sprintf(
+        "  [Warning] CRS for %s is not WGS84 — reprojecting to EPSG:4326...",
+        level_code
+      ))
       sf_data <- sf::st_transform(sf_data, crs = 4326)
     }
+
     spatial_boundary_cache[[level_code]] <- sf_data
-    message(sprintf("  [OK] Cached %s spatial layer: %s", level_code, file_path))
-  } else {
-    warning(sprintf("  [MISSING] Spatial layer file not found for %s at: %s", level_code, file_path))
+    message(sprintf("  [OK] Cached %s: %d features", level_code, nrow(sf_data)))
   }
 }
+
+
 
 # ==============================================================================
 # Projection Data Configuration
@@ -339,11 +409,11 @@ ssp_colors <- list(
 # CMIP6 model display names (for potential future individual-model toggle)
 climate_model_labels <- c(
   "awi_cm_1_1_mr" = "AWI-CM-1.1-MR",
-  "bcc_csm2_mr"   = "BCC-CSM2-MR",
-  "cmcc_cm2_sr5"  = "CMCC-CM2-SR5",
-  "ec_earth3"     = "EC-Earth3",
+  "bcc_csm2_mr" = "BCC-CSM2-MR",
+  "cmcc_cm2_sr5" = "CMCC-CM2-SR5",
+  "ec_earth3" = "EC-Earth3",
   "mpi_esm1_2_hr" = "MPI-ESM1-2-HR",
-  "mri_esm2_0"    = "MRI-ESM2-0"
+  "mri_esm2_0" = "MRI-ESM2-0"
 )
 
 # ==============================================================================
@@ -355,9 +425,23 @@ climate_model_labels <- c(
 # ==============================================================================
 
 # Temperature anomaly: blue (cooler) → white (no change) → red (warmer)
-anomaly_palette_temperature <- c("#2166ac", "#67a9cf", "#d1e5f0", "#f7f7f7",
-                                  "#fddbc7", "#ef8a62", "#b2182b")
+anomaly_palette_temperature <- c(
+  "#2166ac",
+  "#67a9cf",
+  "#d1e5f0",
+  "#f7f7f7",
+  "#fddbc7",
+  "#ef8a62",
+  "#b2182b"
+)
 
 # Precipitation anomaly: brown (drier) → white (no change) → teal (wetter)
-anomaly_palette_precipitation <- c("#8c510a", "#d8b365", "#f6e8c3", "#f5f5f5",
-                                    "#c7eae5", "#5ab4ac", "#01665e")
+anomaly_palette_precipitation <- c(
+  "#8c510a",
+  "#d8b365",
+  "#f6e8c3",
+  "#f5f5f5",
+  "#c7eae5",
+  "#5ab4ac",
+  "#01665e"
+)
