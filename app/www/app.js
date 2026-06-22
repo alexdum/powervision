@@ -72,8 +72,9 @@ $(document).ready(function () {
     var borderLayerId = 'zone-borders';
     var highlightLayerId = 'zone-highlight';
     var geojsonUrl   = msg.url;
-    var borderColor  = msg.border_color || 'darkslateblue';
-    var borderWidth  = msg.border_width || 1.0;
+    var borderColor  = msg.border_color || '#ffffff';
+    var borderWidth  = msg.border_width || 0.5;
+    var borderOpacity= msg.border_opacity || 0.8;
 
     // Step 1: Remove old layers (if they exist)
     if (map.getLayer(highlightLayerId)) map.removeLayer(highlightLayerId);
@@ -91,7 +92,19 @@ $(document).ready(function () {
       promoteId: 'zone_id'    // use zone_id as feature ID for queryRenderedFeatures
     });
 
-    // Step 4: Add fill layer — starts fully transparent
+    // Step 4: Find the first symbol layer to insert our polygons underneath.
+    // This ensures that city names, borders, and labels always render ON TOP
+    // of the choropleth data.
+    var layers = map.getStyle().layers;
+    var firstSymbolId = null;
+    for (var i = 0; i < layers.length; i++) {
+      if (layers[i].type === 'symbol') {
+        firstSymbolId = layers[i].id;
+        break;
+      }
+    }
+
+    // Step 5: Add fill layer — starts fully transparent
     map.addLayer({
       id: fillLayerId,
       type: 'fill',
@@ -101,9 +114,9 @@ $(document).ready(function () {
         'fill-opacity': 0,
         'fill-outline-color': '#ffffff00'
       }
-    });
+    }, firstSymbolId);
 
-    // Step 5: Add border layer
+    // Step 6: Add border layer
     map.addLayer({
       id: borderLayerId,
       type: 'line',
@@ -111,9 +124,9 @@ $(document).ready(function () {
       paint: {
         'line-color': borderColor,
         'line-width': borderWidth,
-        'line-opacity': 0.8
+        'line-opacity': borderOpacity
       }
-    });
+    }, firstSymbolId);
 
     console.log('[GeoJSON] Swapped source to:', geojsonUrl);
   });

@@ -454,10 +454,13 @@ server <- function(input, output, session) {
 
     # Send the swap command to JavaScript — this is ~50 bytes (just the URL string)
     # instead of serializing the full sf object over the websocket (~2.5 MB).
+    # We use a semi-transparent thin white outline — it's neutral and looks
+    # premium over any color palette (temp reds, hydro blues, solar yellows).
     session$sendCustomMessage("swap_tile_source", list(
-      url          = geojson_url,
-      border_color = "darkslateblue",
-      border_width = 1.0
+      url            = geojson_url,
+      border_color   = "#ffffff",
+      border_width   = 0.5,
+      border_opacity = 0.6
     ))
 
     # Restore the crimson highlight if a region was selected before the style switch.
