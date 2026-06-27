@@ -102,8 +102,8 @@ server <- function(input, output, session) {
   # ----------------------------------------------------------------------------
   # Dynamic Year Slider Bounds based on Spatial Tier + Projection State
   # ----------------------------------------------------------------------------
-  # Onshore PECD spatial tiers (NUT0, NUT2, PEON, SZON) only contain historical
-  # data up to 2021. Offshore tiers (PEOF, SZOF) go up to 2023.
+  # Onshore PECD spatial tiers (NUT0, NUT2, P2ON, SZON) only contain historical
+  # data up to 2021. Offshore tiers (P2OF, SZOF) go up to 2023.
   # When projections are toggled ON and the selected variable has projection
   # data, the slider extends to 2100 to allow browsing projected values.
   # ----------------------------------------------------------------------------
@@ -111,7 +111,7 @@ server <- function(input, output, session) {
     req(input$spatial_level, input$temporal_mode, input$climate_variable)
 
     # Determine the historical maximum year based on Onshore/Offshore tier
-    is_offshore <- input$spatial_level %in% c("PEOF", "SZOF")
+    is_offshore <- input$spatial_level %in% c("P2OF", "SZOF")
     hist_max_year <- if (is_offshore) 2023 else 2021
 
     # Check if projections should extend the slider

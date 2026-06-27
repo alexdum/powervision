@@ -58,8 +58,8 @@ The app works with six spatial aggregation tiers. Each one maps to a GeoJSON bou
 |---|---|---|---|
 | NUT0 | `pecd_NUT0.geojson` | `nuts_0` | Eurostat GISCO NUTS 2021 |
 | NUT2 | `pecd_NUT2.geojson` | `nuts_2` | Eurostat GISCO NUTS 2021 |
-| PEON | `pecd_PEON.geojson` | `p2on` | Copernicus PECD v4.2 |
-| PEOF | `pecd_PEOF.geojson` | `p2of` | Copernicus PECD v4.2 |
+| P2ON | `pecd_P2ON.geojson` | `p2on` | Copernicus PECD v4.2 |
+| P2OF | `pecd_P2OF.geojson` | `p2of` | Copernicus PECD v4.2 |
 | SZON | `pecd_SZON40.geojson` | `szon` | Copernicus PECD v4.0 |
 | SZOF | `pecd_SZOF40.geojson` | `szof` | Copernicus PECD v4.0 |
 
@@ -67,15 +67,15 @@ The app works with six spatial aggregation tiers. Each one maps to a GeoJSON bou
 
 There are two vintages of PECD shapefiles and they use different zone ID schemes. This matters because the GeoJSON zone IDs have to match the `Region` column in the Parquet files exactly — if they don't, you'll get `NA` values and polygons showing "No Data."
 
-The v4.2 files (`pecd_PEON.geojson`, `pecd_PEOF.geojson`) have finer subdivisions (e.g. `FR021_OFF`, `FR081_OFF` for France offshore), while the v4.0 files use coarser zones (`FR02_OFF`, `FR08_OFF`).
+The v4.2 files (`pecd_P2ON.geojson`, `pecd_P2OF.geojson`) have finer subdivisions (e.g. `FR021_OFF`, `FR081_OFF` for France offshore), while the v4.0 files use coarser zones (`FR02_OFF`, `FR08_OFF`).
 
-Our processing pipeline reads from the CDS API `p2on`/`p2of` CSV files which use v4.2 zone IDs. So PEON/PEOF tiers need the v4.2 GeoJSON. For SZON/SZOF, the CSV files use v4.0-style IDs, so those tiers use the v4.0 GeoJSON files.
+Our processing pipeline reads from the CDS API `p2on`/`p2of` CSV files which use v4.2 zone IDs. So P2ON/P2OF tiers need the v4.2 GeoJSON. For SZON/SZOF, the CSV files use v4.0-style IDs, so those tiers use the v4.0 GeoJSON files.
 
 ### Boundary version config
 
 The `PECD_GEOJSON_VERSION` env variable controls which GeoJSON vintage gets loaded:
 
-- `mixed` (default, used in production) — v4.2 for PEON/PEOF, v4.0 for SZON/SZOF. This matches the processed Parquet data.
+- `mixed` (default, used in production) — v4.2 for P2ON/P2OF, v4.0 for SZON/SZOF. This matches the processed Parquet data.
 - `42` — all v4.2 boundaries (for testing)
 - `40` — all v4.0 boundaries (for testing)
 

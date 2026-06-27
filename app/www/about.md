@@ -3,7 +3,7 @@ An interactive spatial dashboard produced during the ECMWF Code for Earth 2026 <
 ### Data Sources
 * **Copernicus PECD v4.2** — Climate and energy variables from ERA5 reanalysis and CMIP6 projections (6 models, 4 SSP scenarios)
 * **Eurostat GISCO** — NUTS 2021 administrative boundaries (Level 0 & Level 2)
-* **ENTSO-E** — Bidding zone boundaries (PEON, PEOF)
+* **ENTSO-E** — Bidding zone boundaries (P2ON, P2OF)
 * **Study Zones** — Fine-grained onshore and offshore zones (SZON, SZOF)
 
 ### Climate Variables

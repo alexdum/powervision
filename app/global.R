@@ -35,22 +35,22 @@ geojson_dir <- "www/data/geo"
 # two PECD shapefile vintages:
 #
 #   PECD v4.2 shapefile outputs:
-#     pecd_PEON.geojson, pecd_PEOF.geojson, pecd_SZON.geojson, pecd_SZOF.geojson
+#     pecd_P2ON.geojson, pecd_P2OF.geojson, pecd_SZON.geojson, pecd_SZOF.geojson
 #
 #   PECD v4.0 shapefile outputs:
-#     pecd_PEON40.geojson, pecd_PEOF40.geojson, pecd_SZON40.geojson,
+#     pecd_P2ON40.geojson, pecd_P2OF40.geojson, pecd_SZON40.geojson,
 #     pecd_SZOF40.geojson
 #
 # The April 2026 CSV files in new_csv match the boundary vintages differently by
 # spatial tier:
 #
-#   PEON / PEOF -> PECD v4.2 boundaries are the exact match
+#   P2ON / P2OF -> PECD v4.2 boundaries are the exact match
 #   SZON / SZOF -> PECD v4.0 boundaries are the exact match
 #
 # For normal app use, keep the default "mixed" mode. For testing, set the
 # PECD_GEOJSON_VERSION environment variable before starting Shiny:
 #
-#   PECD_GEOJSON_VERSION=mixed  -> PEON/PEOF v4.2, SZON/SZOF v4.0
+#   PECD_GEOJSON_VERSION=mixed  -> P2ON/P2OF v4.2, SZON/SZOF v4.0
 #   PECD_GEOJSON_VERSION=42     -> all PECD map layers from v4.2 shapefile output
 #   PECD_GEOJSON_VERSION=40     -> all PECD map layers from v4.0 shapefile output
 #
@@ -83,8 +83,8 @@ if (
 
 # Start with the best-matching setup for the new CSV files.
 pecd_boundary_source <- c(
-  "PEON" = "42",
-  "PEOF" = "42",
+  "P2ON" = "42",
+  "P2OF" = "42",
   "SZON" = "40",
   "SZOF" = "40"
 )
@@ -107,14 +107,14 @@ pecd_boundary_label <- c(
 )
 
 pecd_boundary_files <- c(
-  "PEON" = paste0(
-    "pecd_PEON",
-    pecd_boundary_suffix[pecd_boundary_source["PEON"]],
+  "P2ON" = paste0(
+    "pecd_P2ON",
+    pecd_boundary_suffix[pecd_boundary_source["P2ON"]],
     ".geojson"
   ),
-  "PEOF" = paste0(
-    "pecd_PEOF",
-    pecd_boundary_suffix[pecd_boundary_source["PEOF"]],
+  "P2OF" = paste0(
+    "pecd_P2OF",
+    pecd_boundary_suffix[pecd_boundary_source["P2OF"]],
     ".geojson"
   ),
   "SZON" = paste0(
@@ -131,9 +131,9 @@ pecd_boundary_files <- c(
 
 message(sprintf("Using PECD GeoJSON boundary mode: %s", pecd_geojson_mode))
 message(sprintf(
-  "  PEON/PEOF source: %s / %s",
-  pecd_boundary_label[pecd_boundary_source["PEON"]],
-  pecd_boundary_label[pecd_boundary_source["PEOF"]]
+  "  P2ON/P2OF source: %s / %s",
+  pecd_boundary_label[pecd_boundary_source["P2ON"]],
+  pecd_boundary_label[pecd_boundary_source["P2OF"]]
 ))
 message(sprintf(
   "  SZON/SZOF source: %s / %s",
@@ -143,7 +143,7 @@ message(sprintf(
 
 # Spatial files metadata mapping
 # Zone names follow the official PECD Product User Guide terminology:
-#   - PEON/PEOF = Pan-European Onshore/Offshore Nodes (finer, sub-divided zones)
+#   - P2ON/P2OF = Pan-European Onshore/Offshore Nodes (finer, sub-divided zones)
 #   - SZON/SZOF = Onshore/Offshore Study Zones (coarser, unified bidding zones)
 spatial_levels <- list(
   "NUT0" = list(
@@ -156,23 +156,23 @@ spatial_levels <- list(
     name = "NUTS 2 (Provincial Boundaries)",
     description = "Official Eurostat 2021 province-level divisions (~334 regions)."
   ),
-  "PEON" = list(
-    file = pecd_boundary_files["PEON"],
-    name = "PEON (Pan-European Onshore Nodes)",
+  "P2ON" = list(
+    file = pecd_boundary_files["P2ON"],
+    name = "P2ON (Pan-European Onshore Nodes)",
     description = paste0(
       "Pan-European onshore sub-zones — fine-grained resolution. ",
       "Boundary source: ",
-      pecd_boundary_label[pecd_boundary_source["PEON"]],
+      pecd_boundary_label[pecd_boundary_source["P2ON"]],
       "."
     )
   ),
-  "PEOF" = list(
-    file = pecd_boundary_files["PEOF"],
-    name = "PEOF (Pan-European Offshore Nodes)",
+  "P2OF" = list(
+    file = pecd_boundary_files["P2OF"],
+    name = "P2OF (Pan-European Offshore Nodes)",
     description = paste0(
       "Pan-European offshore sub-zones — fine-grained resolution. ",
       "Boundary source: ",
-      pecd_boundary_label[pecd_boundary_source["PEOF"]],
+      pecd_boundary_label[pecd_boundary_source["P2OF"]],
       "."
     )
   ),
@@ -228,8 +228,8 @@ for (level_code in names(spatial_levels)) {
 spatial_level_to_parquet <- c(
   "NUT0" = "nuts_0",
   "NUT2" = "nuts_2",
-  "PEON" = "p2on",
-  "PEOF" = "p2of",
+  "P2ON" = "p2on",
+  "P2OF" = "p2of",
   "SZON" = "szon",
   "SZOF" = "szof"
 )

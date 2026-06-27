@@ -76,8 +76,8 @@ ui <- page_fillable(
         "SZON — Onshore Zones"      = "SZON",
         "SZOF — Offshore Zones"     = "SZOF",
         "NUTS 2 — Provinces"        = "NUT2",
-        "PEON — Onshore Sub-zones"  = "PEON",
-        "PEOF — Offshore Sub-zones" = "PEOF"
+        "P2ON — Onshore Sub-zones"  = "P2ON",
+        "P2OF — Offshore Sub-zones" = "P2OF"
       ),
       selected = "NUT0"
     ),
