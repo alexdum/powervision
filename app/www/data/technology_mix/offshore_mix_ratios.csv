@@ -1,0 +1,5 @@
+ResourceGroup,TechCode,TechName,Y2025,Y2030,Y2040,Y2050
+Offshore_high,21,SP316 HH155,0.50,0.92,1.00,1.00
+Offshore_high,22,SP370 HH155,0.50,0.08,0.00,0.00
+Offshore_low,21,SP316 HH155,1.00,1.00,1.00,1.00
+Offshore_low,22,SP370 HH155,0.00,0.00,0.00,0.00

@@ -1,0 +1,14 @@
+Technology_Code,Environment,Description,Specific_Power_W_m2,Hub_Height_m,Acronym
+20,Offshore,Existing technologies,Mixed,Mixed,Existing
+21,Offshore,Future technology,316,155,SP316 HH155
+22,Offshore,Future technology,370,155,SP370 HH155
+30,Onshore,Existing technologies,Mixed,Mixed,Existing
+31,Onshore,Future technology,199,100,SP199 HH100
+32,Onshore,Future technology,199,150,SP199 HH150
+33,Onshore,Future technology,199,200,SP199 HH200
+34,Onshore,Future technology,277,100,SP277 HH100
+35,Onshore,Future technology,277,150,SP277 HH150
+36,Onshore,Future technology,277,200,SP277 HH200
+37,Onshore,Future technology,335,100,SP335 HH100
+38,Onshore,Future technology,335,150,SP335 HH150
+39,Onshore,Future technology,335,200,SP335 HH200
