@@ -505,7 +505,7 @@ ui <- page_fillable(
       div(
         class = "about-body",
 
-        includeMarkdown("www/about.md"),
+        includeMarkdown("text/about.md"),
 
         tags$div(
           class = "about-footer",
