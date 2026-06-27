@@ -24,7 +24,7 @@ Thumbs.db
 .idea/
 
 # Documentation
-AGENTS.md
+.agents/
 DEVELOPMENT_GUIDELINES.md
 DEPLOYMENT.md
 misc
