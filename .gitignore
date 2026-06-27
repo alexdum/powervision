@@ -25,6 +25,5 @@ Thumbs.db
 
 # Documentation
 .agents/
-DEVELOPMENT_GUIDELINES.md
 DEPLOYMENT.md
 misc
