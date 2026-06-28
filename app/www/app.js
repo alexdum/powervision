@@ -700,4 +700,38 @@ $(document).ready(function () {
     }
   });
 
+  // --------------------------------------------------------------------------
+  // Reset Custom JS Toggles (from Reset Button)
+  // --------------------------------------------------------------------------
+  Shiny.addCustomMessageHandler('reset_custom_toggles', function(msg) {
+    // Reset view mode to 'year'
+    var $viewToggle = $('#view-mode-toggle');
+    $viewToggle.find('.view-toggle-option').removeClass('active');
+    $viewToggle.find('.view-toggle-option[data-value="year"]').addClass('active');
+    $viewToggle.removeClass('toggle-right');
+    $('#projection_view_mode').val('year').trigger('change');
+    
+    // Reset projection show to '0'
+    var $projToggle = $('#projection-show-toggle');
+    $projToggle.find('.proj-toggle-option').removeClass('active');
+    $projToggle.find('.proj-toggle-option[data-value="0"]').addClass('active');
+    $projToggle.removeClass('toggle-right');
+    $('#show_projections').val('0').trigger('change');
+
+    // Reset display mode to 'absolute'
+    var $modeToggle = $('#display-mode-toggle');
+    $modeToggle.find('.display-toggle-option').removeClass('active');
+    $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active');
+    $modeToggle.removeClass('toggle-right');
+    $('#display_mode').val('absolute').trigger('change');
+
+    // Reset map projection to 'globe'
+    var $mapProjToggle = $('#projection-toggle');
+    $mapProjToggle.find('.toggle-option').removeClass('active');
+    $mapProjToggle.find('.toggle-option[data-value="globe"]').addClass('active');
+    $mapProjToggle.removeClass('toggle-right');
+    $('#map_projection').val('globe').trigger('change');
+  });
+
 });
+

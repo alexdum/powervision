@@ -132,6 +132,22 @@ server <- function(input, output, session) {
   })
 
   # ----------------------------------------------------------------------------
+  # Reset Filters Button
+  # ----------------------------------------------------------------------------
+  observeEvent(input$reset_filters, {
+    updateSelectInput(session, "spatial_level", selected = "NUT0")
+    updateSelectInput(session, "climate_variable", selected = "2m_temperature")
+    updateSelectInput(session, "technology_mix", selected = "dynamic")
+    updateSelectInput(session, "temporal_mode", selected = "Annual")
+    updateSliderInput(session, "selected_year", value = 2021)
+    updateSelectInput(session, "projection_period", selected = "1981-2010")
+    updateSelectInput(session, "ssp_scenario", selected = "ssp2_4_5")
+    updateSelectInput(session, "reference_period", selected = "1981-2010")
+    updateSliderInput(session, "polygon_opacity", value = 0.75)
+    session$sendCustomMessage("reset_custom_toggles", list())
+  })
+
+  # ----------------------------------------------------------------------------
   # Wind Power UI Observers
   # ----------------------------------------------------------------------------
   observeEvent(input$climate_variable, {

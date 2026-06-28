@@ -58,8 +58,20 @@ ui <- page_fillable(
         class = "brand-text",
         div(class = "brand-title", "PowerClimate Vision"),
         div(class = "brand-subtitle", "PECD v4.2 · Code for Earth 2026")
+      ),
+      actionButton(
+        "reset_filters",
+        label = NULL,
+        icon = bsicons::bs_icon("arrow-counterclockwise"),
+        class = "btn-reset-filters",
+        title = "Reset to Defaults"
       )
     ),
+
+    # ── CARD 1: Core Data ──────────────────────────────────────────────────────
+    div(
+      class = "filter-card",
+      div(class = "filter-card-header", bsicons::bs_icon("database-fill"), " Core Data"),
 
     # ── Section: Geographical Tier ─────────────────────────────────────────────
     selectInput(
@@ -81,8 +93,6 @@ ui <- page_fillable(
       ),
       selected = "NUT0"
     ),
-
-    hr(class = "panel-divider"),
 
     # ── Section: Climate Variable ──────────────────────────────────────────────
     selectInput(
@@ -136,6 +146,12 @@ ui <- page_fillable(
         width = "100%"
       )
     ),
+    ), # End Card 1
+
+    # ── CARD 2: Time & Projections ─────────────────────────────────────────────
+    div(
+      class = "filter-card",
+      div(class = "filter-card-header", bsicons::bs_icon("clock-history"), " Time & Scenarios"),
 
     selectInput(
       inputId = "temporal_mode",
@@ -345,13 +361,15 @@ ui <- page_fillable(
         )
       )
     ),
+    ), # End Card 2
 
-    hr(class = "panel-divider"),
+    # ── CARD 3: Display Settings ───────────────────────────────────────────────
+    div(
+      class = "filter-card",
+      div(class = "filter-card-header", bsicons::bs_icon("palette-fill"), " Display Settings"),
 
     # ── Section: Layer Info ─────────────────────────────────────────────────────
     div(class = "layer-info-text", htmlOutput("layer_metadata_text")),
-
-    hr(class = "panel-divider"),
 
     # ── Section: Polygon Opacity ───────────────────────────────────────────────
     sliderInput(
@@ -413,6 +431,7 @@ ui <- page_fillable(
         )
       )
     )
+    ), # End Card 3
     ), # end sidebar-scroll-area
 
     # ── Pinned footer: legend + attribution ────────────────────────────────────

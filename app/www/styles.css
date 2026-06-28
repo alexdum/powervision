@@ -1557,10 +1557,51 @@ code {
 }
 
 .about-footer p {
-  font-size: 0.78em;
+  font-size: 0.70em;
   color: var(--text-muted);
-  margin: 0 0 4px;
+  letter-spacing: 0.1px;
 }
+
+/* --- Filter Cards (Logical Grouping) --- */
+.filter-card {
+  background: rgba(10, 15, 35, 0.4);
+  border: 1px solid var(--glass-dark-border);
+  border-radius: 8px;
+  padding: 14px 14px 2px 14px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.filter-card-header {
+  font-size: 0.75em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* --- Reset Filters Button --- */
+.btn-reset-filters {
+  background: transparent !important;
+  border: 1px solid var(--border-dark) !important;
+  color: var(--text-muted) !important;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.btn-reset-filters:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--text-muted) !important;
+}
+
 
 .about-footer a {
   color: var(--accent);
