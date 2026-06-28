@@ -234,15 +234,20 @@ ui <- page_fillable(
       )
     ),
 
-    # Period dropdown — visible when Period mode selected
-    # Includes both historical WMO baselines and IPCC projection windows.
-    # Projected periods are added dynamically by server when projections are ON.
+    # Historical Period (Visible if Period mode OR Anomaly mode active)
     div(
-      id = "projection-period-wrapper",
-      class = "projection-period-wrapper",
+      id = "historical-period-wrapper",
+      class = "period-wrapper",
+      style = "display: none;",
       selectInput(
-        inputId = "projection_period",
-        label = NULL,
+        inputId = "historical_period",
+        label = span(
+          "Historical Period",
+          tooltip(
+            bsicons::bs_icon("info-circle", size = "0.85em"),
+            "Used for map period view, anomalies, and seasonality baseline."
+          )
+        ),
         choices = c(
           "1961\u20131990 (WMO Classic)"   = "1961-1990",
           "1971\u20132000 (WMO Historical)"= "1971-2000",
@@ -251,6 +256,31 @@ ui <- page_fillable(
           "2011\u20132023 (Recent)"        = "2011-2023"
         ),
         selected = "1981-2010",
+        width = "100%"
+      )
+    ),
+
+    # Projection Period (Visible only when projections are ON)
+    div(
+      id = "projection-period-wrapper",
+      class = "period-wrapper",
+      style = "display: none;", 
+      selectInput(
+        inputId = "projection_period",
+        label = span(
+          "Projection Period",
+          tooltip(
+            bsicons::bs_icon("info-circle", size = "0.85em"),
+            "Used for map period view and projected seasonality."
+          )
+        ),
+        choices = c(
+          "2021\u20132040 (Near-term)" = "2021-2040",
+          "2041\u20132060 (Mid-term)"  = "2041-2060",
+          "2061\u20132080 (Mid-late)"  = "2061-2080",
+          "2081\u20132100 (Long-term)" = "2081-2100"
+        ),
+        selected = "2021-2040",
         width = "100%"
       )
     ),
@@ -359,23 +389,7 @@ ui <- page_fillable(
         )
       ),
 
-      # Reference period dropdown — visible when Anomaly mode selected
-      div(
-        id = "reference-period-wrapper",
-        class = "reference-period-wrapper",
-        selectInput(
-          inputId = "reference_period",
-          label = NULL,
-          choices = c(
-            "Baseline: 1991\u20132020 (WMO Current)"  = "1991-2020",
-            "Baseline: 1981\u20132010 (WMO Previous)" = "1981-2010",
-            "Baseline: 1971\u20132000 (WMO Historical)"= "1971-2000",
-            "Baseline: 1961\u20131990 (WMO Classic)"  = "1961-1990"
-          ),
-          selected = "1981-2010",
-          width = "100%"
-        )
-      )
+      # Reference period has been removed and replaced by historical_period
     ),
     ), # End Card 2
 
@@ -641,7 +655,20 @@ ui <- page_fillable(
       ),
       div(
         class = "drawer-chart-column",
-        plotlyOutput("region_timeseries", height = "100%", width = "100%")
+        tabsetPanel(
+          id = "drawer_tabs",
+          type = "pills",
+          tabPanel(
+            title = "Long-term Trends",
+            value = "trends",
+            plotlyOutput("region_timeseries", height = "100%", width = "100%")
+          ),
+          tabPanel(
+            title = "Seasonality Profile",
+            value = "seasonality",
+            plotlyOutput("region_seasonality", height = "100%", width = "100%")
+          )
+        )
       )
     )
   )

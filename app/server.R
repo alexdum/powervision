@@ -142,9 +142,9 @@ server <- function(input, output, session) {
     updateSelectInput(session, "technology_mix", selected = "dynamic")
     updateSelectInput(session, "temporal_mode", selected = "Annual")
     updateSliderInput(session, "selected_year", value = 2021)
-    updateSelectInput(session, "projection_period", selected = "1981-2010")
+    updateSelectInput(session, "historical_period", selected = "1981-2010")
     updateSelectInput(session, "ssp_scenario", selected = "ssp2_4_5")
-    updateSelectInput(session, "reference_period", selected = "1981-2010")
+    updateSelectInput(session, "projection_period", selected = "2021-2040")
     updateSliderInput(session, "polygon_opacity", value = 0.75)
     session$sendCustomMessage("reset_custom_toggles", list())
   })
@@ -425,10 +425,10 @@ server <- function(input, output, session) {
   # ----------------------------------------------------------------------------
   baseline_map_data <- reactive({
     req(input$show_projections == "1", input$display_mode == "anomaly")
-    req(input$reference_period, input$climate_variable, input$temporal_mode, input$spatial_level)
+    req(input$historical_period, input$climate_variable, input$temporal_mode, input$spatial_level)
 
     # Parse reference period
-    ref_years <- as.integer(strsplit(input$reference_period, "-")[[1]])
+    ref_years <- as.integer(strsplit(input$historical_period, "-")[[1]])
     ref_start <- ref_years[1]
     ref_end   <- ref_years[2]
 
@@ -491,11 +491,13 @@ server <- function(input, output, session) {
   # ----------------------------------------------------------------------------
   period_averaged_climate_data <- reactive({
     req(input$projection_view_mode == "period")
-    req(input$projection_period)
+    show_proj <- isTRUE(input$show_projections == "1")
+    map_period <- if (show_proj) input$projection_period else input$historical_period
+    req(map_period)
     req(input$climate_variable, input$temporal_mode, input$spatial_level)
 
     # Parse period (e.g., "2041-2060" or "1981-2010")
-    period_years <- as.integer(strsplit(input$projection_period, "-")[[1]])
+    period_years <- as.integer(strsplit(map_period, "-")[[1]])
     period_start <- period_years[1]
     period_end   <- period_years[2]
 
@@ -693,10 +695,10 @@ server <- function(input, output, session) {
     req(geom_data)
 
     view_mode <- input$projection_view_mode            # "year" or "period"
-    proj_period <- isolate(input$projection_period)
+    show_proj <- isolate(isTRUE(input$show_projections == "1"))
+    proj_period <- if (show_proj) isolate(input$projection_period) else isolate(input$historical_period)
     proj_scenario <- input$ssp_scenario
     display_mode_val <- input$display_mode
-    show_proj <- isolate(isTRUE(input$show_projections == "1"))
     use_period <- isTRUE(view_mode == "period")
 
     if (use_period) {
@@ -758,7 +760,7 @@ server <- function(input, output, session) {
     }
 
     # ── Build tooltips ──────────────────────────────────────────────────────────
-    period_label <- if (use_period) paste0(input$projection_period, " period mean") else ""
+    period_label <- if (use_period) paste0(proj_period, " period mean") else ""
     
     # Pre-calculate wind mix HTML if we are looking at Wind Power
     is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
@@ -783,14 +785,18 @@ server <- function(input, output, session) {
       df_build$wind_mix_html <- ""
     }
     
+    time_title <- if (use_period) proj_period else as.character(sel_year)
+    if (show_proj && is_projection_year) {
+      time_title <- paste0(time_title, " (Proj)")
+    }
+
     if (use_anomaly_map) {
-      ref_label <- input$reference_period
-      proj_note <- if (use_period) paste0(" (", period_label, ")") else if (is_projection_year) " (projection median)" else ""
+      ref_label <- input$historical_period
       df_build <- df_build %>%
         dplyr::mutate(
           tooltip_html = paste0(
             "<div class='map-tooltip-content' style='font-family: Inter, sans-serif; padding: 4px;'>",
-            "  <div class='tooltip-title' style='font-weight: 600; color: #f8fafc; font-size: 0.85rem;'>", name, " (", zone_id, ")</div>",
+            "  <div class='tooltip-title' style='font-weight: 600; color: #f8fafc; font-size: 0.85rem;'>", name, " (", zone_id, ") &bull; <span style='color: #cbd5e1; font-weight: 500;'>", time_title, "</span></div>",
             "  <div class='tooltip-metric' style='margin-top: 4px; font-size: 0.8rem;'>",
             "    <span class='tooltip-metric-label' style='color: #94a3b8;'>", var_label, " anomaly:</span> ",
             "    <span class='tooltip-metric-value' style='font-weight: 500; color: #38bdf8;'>",
@@ -799,24 +805,22 @@ server <- function(input, output, session) {
                                  format(round(Value, 2), big.mark = ","), " ", display_unit)),
             "    </span>",
             "  </div>",
-            "  <div style='margin-top: 2px; font-size: 0.7rem; color: #64748b;'>vs ", ref_label, proj_note, "</div>",
+            "  <div style='margin-top: 2px; font-size: 0.7rem; color: #64748b;'>vs ", ref_label, " baseline</div>",
             wind_mix_html,
             "</div>"
           )
         )
     } else {
-      proj_note <- if (use_period) paste0(" (", period_label, ")") else if (show_proj && is_projection_year) " (projection median)" else ""
       df_build <- df_build %>%
         dplyr::mutate(
           tooltip_html = paste0(
             "<div class='map-tooltip-content' style='font-family: Inter, sans-serif; padding: 4px;'>",
-            "  <div class='tooltip-title' style='font-weight: 600; color: #f8fafc; font-size: 0.85rem;'>", name, " (", zone_id, ")</div>",
+            "  <div class='tooltip-title' style='font-weight: 600; color: #f8fafc; font-size: 0.85rem;'>", name, " (", zone_id, ") &bull; <span style='color: #cbd5e1; font-weight: 500;'>", time_title, "</span></div>",
             "  <div class='tooltip-metric' style='margin-top: 4px; font-size: 0.8rem;'>",
             "    <span class='tooltip-metric-label' style='color: #94a3b8;'>", var_label, ":</span> ",
             "    <span class='tooltip-metric-value' style='font-weight: 500; color: #38bdf8;'>",
                    ifelse(is.na(Value), "No Data", paste0(format(round(Value, 2), big.mark = ","), " ", var_unit)),
             "    </span>",
-            ifelse(proj_note != "", paste0("<br><span style='font-size: 0.7rem; color: #64748b;'>", proj_note, "</span>"), ""),
             "  </div>",
             wind_mix_html,
             "</div>"
@@ -1339,7 +1343,8 @@ server <- function(input, output, session) {
     req(input$climate_variable, input$temporal_mode, input$selected_year)
     # Explicit dependencies for period mode
     view_mode <- input$projection_view_mode
-    proj_period <- input$projection_period
+    show_proj <- isTRUE(input$show_projections == "1")
+    proj_period <- if (show_proj) input$projection_period else input$historical_period
 
     var_meta <- climate_variables[[input$climate_variable]]
     is_precip <- (input$climate_variable == "total_precipitation")
@@ -1385,7 +1390,7 @@ server <- function(input, output, session) {
       is_projection_data = is_projection_data,
       use_period         = use_period,
       ssp_scenario       = input$ssp_scenario,
-      reference_period   = input$reference_period,
+      reference_period   = input$historical_period,
       clim_data          = clim_data,
       baseline_df        = baseline_df
     )
@@ -1601,8 +1606,8 @@ server <- function(input, output, session) {
       # We just subset to the reference period and compute the mean. This
       # eliminates the old baseline_mean_value() reactive which used to fire
       # a separate Arrow query for the same data.
-      if (!is.null(input$reference_period) && nchar(input$reference_period) > 0) {
-        ref_years <- as.integer(strsplit(input$reference_period, "-")[[1]])
+      if (!is.null(input$historical_period) && nchar(input$historical_period) > 0) {
+        ref_years <- as.integer(strsplit(input$historical_period, "-")[[1]])
         ref_start <- ref_years[1]
         ref_end   <- ref_years[2]
 
@@ -1635,7 +1640,7 @@ server <- function(input, output, session) {
       baseline         = baseline,
       display_mode     = input$display_mode,
       ssp_scenario     = input$ssp_scenario,
-      reference_period = input$reference_period,
+      reference_period = input$historical_period,
       hide_historical_line = hide_hist
     )
 
@@ -1649,6 +1654,130 @@ server <- function(input, output, session) {
         )
     })
   })
+
+  observeEvent(input$climate_variable, {
+    if (grepl("wind", input$climate_variable)) {
+      showTab(inputId = "drawer_tabs", target = "tech")
+    } else {
+      hideTab(inputId = "drawer_tabs", target = "tech")
+    }
+  }, ignoreInit = FALSE)
+
+  # -------------------------------------------------------------------------
+  # Seasonality Profile (Monthly) Plotly Chart
+  # -------------------------------------------------------------------------
+  output$region_seasonality <- renderPlotly({
+    # Lazy loading
+    req(input$drawer_tabs == "seasonality")
+    region_data <- clicked_region()
+    req(region_data)
+    region_id <- region_data[["zone_id"]]
+    region_name <- region_data[["name"]]
+    
+    var_name <- input$climate_variable
+    var_meta <- climate_variables[[var_name]]
+    ssp <- input$ssp_scenario
+    # ref_period is set below depending on view_mode
+    
+    # For Wind Power, we need a single proxy technology to plot the seasonal shape.
+    # Non-EU/Study zones lack "Existing" (2020) technology data (yielding 0 rows).
+    # We respect the user's fixed technology choice, or default to 2025 tech for dynamic mode.
+    query_var <- var_name
+    if (grepl("wind_power", var_name)) {
+      wind_type <- ifelse(grepl("onshore", var_name), "onshore", "offshore")
+      tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
+      
+      if (wind_type == "onshore") {
+        if (tech_mix_mode == "fixed_2020") query_var <- "wind_onshore_30"
+        else if (tech_mix_mode == "fixed_2030") query_var <- "wind_onshore_34"
+        else if (tech_mix_mode == "fixed_2040") query_var <- "wind_onshore_34"
+        else if (tech_mix_mode == "fixed_2050") query_var <- "wind_onshore_34"
+        else query_var <- "wind_onshore_34" # fixed_2025 or dynamic proxy
+      } else {
+        if (tech_mix_mode == "fixed_2020") query_var <- "wind_offshore_20"
+        else if (tech_mix_mode == "fixed_2030") query_var <- "wind_offshore_21"
+        else if (tech_mix_mode == "fixed_2040") query_var <- "wind_offshore_21"
+        else if (tech_mix_mode == "fixed_2050") query_var <- "wind_offshore_21"
+        else query_var <- "wind_offshore_21" # fixed_2025 or dynamic proxy
+      }
+    }
+    
+    view_mode <- if (!is.null(input$projection_view_mode)) input$projection_view_mode else "year"
+    
+    # User requested: if no period selected, the anualcycle plot must use the most recent period 1991-2020
+    ref_period <- if (view_mode == "period") input$historical_period else "1991-2020"
+    
+    if (view_mode == "period") {
+      req(input$projection_period)
+      target_period <- input$projection_period
+      period_years <- as.integer(strsplit(target_period, "-")[[1]])
+      proj_start <- period_years[1]
+      proj_end   <- period_years[2]
+    } else {
+      map_year <- if (is.null(input$selected_year)) 2040 else as.numeric(input$selected_year)
+      if (map_year <= 2020) {
+        proj_start <- 2021
+        proj_end   <- 2040
+      } else {
+        proj_start <- max(2021, map_year - 10)
+        proj_end   <- min(2050, map_year + 10)
+      }
+      target_period <- paste0(proj_start, "-", proj_end)
+    }
+    
+    sp_level_pq <- spatial_level_to_parquet[input$spatial_level]
+    
+    # Query Historical Monthly — we want ALL 12 months back, so we pass
+    # the monthly dataset as ds_annual and use temporal_mode = "Annual".
+    # This tricks query_arrow_dataset into skipping the Month/Season filter
+    # while still reading from the monthly partitions.
+    df_hist <- query_arrow_dataset(
+      ds_annual = hist_monthly_ds, ds_seasonal = hist_seasonal_ds, ds_monthly = hist_monthly_ds,
+      temporal_mode = "Annual",
+      var_name = query_var,
+      sp_level = sp_level_pq,
+      year_start = as.numeric(substr(ref_period, 1, 4)), 
+      year_end = as.numeric(substr(ref_period, 6, 9)),
+      target_region = region_id
+    )
+    if (!is.null(df_hist) && nrow(df_hist) > 0) {
+      df_hist <- df_hist %>%
+        group_by(Month) %>%
+        summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop")
+    }
+      
+    # Query Projected Monthly
+    show_proj <- isTRUE(input$show_projections == "1")
+    df_proj <- NULL
+    if (show_proj) {
+      df_proj <- query_arrow_dataset(
+        ds_annual = proj_monthly_ds, ds_seasonal = proj_seasonal_ds, ds_monthly = proj_monthly_ds,
+        temporal_mode = "Annual",
+        var_name = query_var,
+        sp_level = sp_level_pq,
+        year_start = proj_start, year_end = proj_end,
+        target_region = region_id,
+        scenario_val = ssp
+      )
+      if (!is.null(df_proj) && nrow(df_proj) > 0) {
+        df_proj <- df_proj %>%
+          group_by(Month) %>%
+          summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop")
+      }
+    }
+    
+    build_seasonality_plotly(
+      df_hist = df_hist,
+      df_proj = df_proj,
+      var_name = var_name,
+      region_name = region_name,
+      ssp_scenario = ssp,
+      reference_period = ref_period,
+      target_period = target_period,
+      accent_color = tail(var_meta$palette, 1)
+    )
+  })
+
 
   # ----------------------------------------------------------------------------
   # CSV Download Handler — export chart data for the selected region

@@ -258,7 +258,6 @@ $(document).ready(function () {
         $modeToggle.find('.display-toggle-option').removeClass('active');
         $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active');
         $modeToggle.removeClass('toggle-right');
-        $('#reference-period-wrapper').removeClass('is-visible');
         Shiny.setInputValue('display_mode', 'absolute');
       }
     } else {
@@ -276,20 +275,13 @@ $(document).ready(function () {
     if (msg.force_on) {
       $projToggle.addClass('disabled-interaction');
       $projToggle.attr('title', 'Dynamic mix is exclusively a projection feature');
-      // If currently off, force it on. The click handler will call rebuildPeriodDropdown.
+      // If currently off, force it on.
       if (!isProjOn) {
         $projToggle.find('.proj-toggle-option[data-value="1"]').click();
-      } else {
-        // Already on, but we must purge historical periods if they are there
-        if (window.rebuildPeriodDropdown) window.rebuildPeriodDropdown(true, true);
       }
     } else {
       $projToggle.removeClass('disabled-interaction');
       $projToggle.removeAttr('title');
-      // Restore historical periods if we are still in projection mode
-      if (isProjOn) {
-         if (window.rebuildPeriodDropdown) window.rebuildPeriodDropdown(false, true);
-      }
     }
   });
 
@@ -476,6 +468,33 @@ $(document).ready(function () {
     }
   });
   // --------------------------------------------------------------------------
+  // Update Historical Period Visibility Helper
+  // --------------------------------------------------------------------------
+  // The historical period selector is visible ONLY if:
+  // 1) View mode is "period", OR
+  // 2) Display mode is "anomaly"
+  // --------------------------------------------------------------------------
+  function updateHistoricalPeriodVisibility() {
+    var viewMode = $('#view-mode-toggle .view-toggle-option.active').data('value');
+    var displayMode = $('#display-mode-toggle .display-toggle-option.active').data('value');
+    var showProj = $('.projection-show-toggle .proj-toggle-option.active').data('value');
+    
+    // Historical Period is shown if we are in Period mode OR Anomaly mode
+    if (viewMode === 'period' || displayMode === 'anomaly') {
+      $('#historical-period-wrapper').slideDown(200);
+    } else {
+      $('#historical-period-wrapper').slideUp(200);
+    }
+    
+    // Projection Period is shown ONLY if Projections are ON AND we are in Period mode
+    if ((showProj === '1' || showProj === 1) && viewMode === 'period') {
+      $('#projection-period-wrapper').slideDown(200);
+    } else {
+      $('#projection-period-wrapper').slideUp(200);
+    }
+  }
+
+  // --------------------------------------------------------------------------
   // Projection Toggle — Show/Hide projections on time-series chart
   // --------------------------------------------------------------------------
   // When toggled ON ("1"), the scenario selector, display mode toggle, and
@@ -499,39 +518,15 @@ $(document).ready(function () {
       $container.addClass('toggle-right');
       $('#scenario-selector-wrapper').addClass('is-visible');
       $('#display-mode-wrapper').addClass('is-visible');
-      // Only show reference period if display mode is "anomaly"
-      var currentMode = $('#display-mode-toggle .display-toggle-option.active').data('value');
-      if (currentMode === 'anomaly') {
-        $('#reference-period-wrapper').addClass('is-visible');
-      }
-      // Only show projection period if view mode is "period"
-      var currentView = $('#view-mode-toggle .view-toggle-option.active').data('value');
-      if (currentView === 'period') {
-        $('#projection-period-wrapper').addClass('is-visible');
-      }
-
-      // ── Update the period dropdown directly via selectize API ──────────────
-      if (window.rebuildPeriodDropdown) {
-        var isDynamicWind = ($('#climate_variable').val().indexOf('wind_power') >= 0) && ($('#technology_mix').val() === 'dynamic');
-        window.rebuildPeriodDropdown(isDynamicWind, true);
-      }
-      
-      // Push the new period value to Shiny in the same message batch
-      Shiny.setInputValue('projection_period', '2041-2060');
     } else {
       $container.removeClass('toggle-right');
       $('#scenario-selector-wrapper').removeClass('is-visible');
       $('#display-mode-wrapper').removeClass('is-visible');
-      $('#reference-period-wrapper').removeClass('is-visible');
-
-      // ── Restore historical-only periods via selectize API ──────────────────
-      if (window.rebuildPeriodDropdown) {
-        window.rebuildPeriodDropdown(false, false);
-      }
     }
 
     // Push the value into Shiny's input binding
     Shiny.setInputValue('show_projections', String(newValue));
+    updateHistoricalPeriodVisibility();
   });
 
   // --------------------------------------------------------------------------
@@ -557,14 +552,13 @@ $(document).ready(function () {
     // Slide the pill: "anomaly" = toggle-right, "absolute" = default left
     if (newValue === 'anomaly') {
       $container.addClass('toggle-right');
-      $('#reference-period-wrapper').addClass('is-visible');
     } else {
       $container.removeClass('toggle-right');
-      $('#reference-period-wrapper').removeClass('is-visible');
     }
 
     // Push the value into Shiny's input binding
     Shiny.setInputValue('display_mode', newValue);
+    updateHistoricalPeriodVisibility();
   });
 
   // --------------------------------------------------------------------------
@@ -589,18 +583,17 @@ $(document).ready(function () {
     // Slide the pill: "period" = toggle-right, "year" = default left
     if (newValue === 'period') {
       $container.addClass('toggle-right');
-      $('#projection-period-wrapper').addClass('is-visible');
       // Hide the year slider — it's replaced by the period dropdown
       $('#selected_year').closest('.form-group').slideUp(200);
     } else {
       $container.removeClass('toggle-right');
-      $('#projection-period-wrapper').removeClass('is-visible');
       // Show the year slider again
       $('#selected_year').closest('.form-group').slideDown(200);
     }
 
     // Push the value into Shiny's input binding
     Shiny.setInputValue('projection_view_mode', newValue);
+    updateHistoricalPeriodVisibility();
   });
 
   // --------------------------------------------------------------------------
@@ -625,7 +618,8 @@ $(document).ready(function () {
       // Hide all sub-controls
       $('#scenario-selector-wrapper').removeClass('is-visible');
       $('#display-mode-wrapper').removeClass('is-visible');
-      $('#reference-period-wrapper').removeClass('is-visible');
+      $('#projection-period-wrapper').hide();
+      
       // Reset display mode to absolute (default)
       var $modeToggle = $('#display-mode-toggle');
       $modeToggle.find('.display-toggle-option').removeClass('active');
@@ -640,54 +634,12 @@ $(document).ready(function () {
       Shiny.setInputValue('show_projections', '0');
       Shiny.setInputValue('display_mode', 'absolute');
       Shiny.setInputValue('projection_view_mode', 'year');
+      updateHistoricalPeriodVisibility();
+      
       // Restore year slider if it was hidden by period mode
       $('#selected_year').closest('.form-group').slideDown(200);
-
-      // Restore historical-only periods via selectize API
-      if (window.rebuildPeriodDropdown) {
-        window.rebuildPeriodDropdown(false, false);
-      }
     }
   });
-
-  // Helper to dynamically rebuild the Period dropdown options
-  window.rebuildPeriodDropdown = function(excludeHistorical, isProjectionOn) {
-    var $periodSelect = $('#projection_period');
-    if ($periodSelect.length && $periodSelect[0].selectize) {
-      var selectize = $periodSelect[0].selectize;
-      var currentVal = selectize.getValue();
-      selectize.clear(true);
-      selectize.clearOptions();
-      
-      var options = [];
-      if (!excludeHistorical) {
-        options.push(
-          {value: '1961-1990', label: '1961\u20131990 (WMO Classic)'},
-          {value: '1971-2000', label: '1971\u20132000 (WMO Historical)'},
-          {value: '1981-2010', label: '1981\u20132010 (WMO Previous)'},
-          {value: '1991-2020', label: '1991\u20132020 (WMO Current)'},
-          {value: '2011-2023', label: '2011\u20132023 (Recent)'}
-        );
-      }
-      if (isProjectionOn) {
-        options.push(
-          {value: '2021-2040', label: '2021\u20132040 (Near-term)'},
-          {value: '2041-2060', label: '2041\u20132060 (Mid-term)'},
-          {value: '2061-2080', label: '2061\u20132080 (Mid-late)'},
-          {value: '2081-2100', label: '2081\u20132100 (Long-term)'}
-        );
-      }
-      selectize.addOption(options);
-      
-      var validVals = options.map(function(o) { return o.value; });
-      var nextVal = currentVal;
-      if (validVals.indexOf(currentVal) === -1) {
-        nextVal = isProjectionOn ? '2041-2060' : '1981-2010';
-      }
-      selectize.setValue(nextVal, true);
-      Shiny.setInputValue('projection_period', nextVal);
-    }
-  };
 
   // --------------------------------------------------------------------------
   // Tech Mix Controls — Toggle visibility
@@ -724,6 +676,7 @@ $(document).ready(function () {
     $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active');
     $modeToggle.removeClass('toggle-right');
     $('#display_mode').val('absolute').trigger('change');
+    updateHistoricalPeriodVisibility();
 
     // Reset map projection to 'globe'
     var $mapProjToggle = $('#projection-toggle');

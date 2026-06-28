@@ -420,3 +420,130 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
     ) %>%
     config(displayModeBar = FALSE)
 }
+
+#' Build Seasonality Profile (Monthly Cycle) Chart
+#' @param df_hist DataFrame with historical monthly data (Month, Value)
+#' @param df_proj DataFrame with projected monthly data (Month, Value)
+#' @param var_name The climate variable (for label)
+#' @param region_name The selected region name
+#' @param ssp_scenario The selected scenario string
+#' @param reference_period Historical reference period string
+#' @param target_period Projection target period string
+#' @param accent_color Main color for the variable
+build_seasonality_plotly <- function(
+  df_hist, df_proj, var_name, region_name, 
+  ssp_scenario, reference_period, target_period, accent_color
+) {
+  # Get axis label for variable from the global climate_variables list
+  var_meta <- climate_variables[[var_name]]
+  var_label <- var_meta$label
+  hover_unit <- var_meta$unit
+  
+  # Title format matching the timeseries chart style
+  if (!is.null(df_proj) && nrow(df_proj) > 0) {
+    ssp_label <- ssp_scenario_labels[ssp_scenario]
+    chart_title <- sprintf("%s Seasonal Profile: %s \u2014 %s vs %s", 
+                           var_label, region_name, ssp_label, reference_period)
+  } else {
+    chart_title <- sprintf("%s Seasonal Profile: %s \u2014 Historical (%s)", 
+                           var_label, region_name, reference_period)
+  }
+  
+  month_labels <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+  
+  # Guard: If no data is available, return a clean empty plot to avoid Plotly warnings
+  if ((is.null(df_hist) || nrow(df_hist) == 0) && (is.null(df_proj) || nrow(df_proj) == 0)) {
+    return(
+      plot_ly() %>% 
+        layout(
+          title = list(
+            text = paste("No data available for", region_name),
+            font = list(family = "Inter, sans-serif", size = 12, color = "#94a3b8"),
+            x = 0.05
+          ),
+          paper_bgcolor = "rgba(0,0,0,0)",
+          plot_bgcolor = "rgba(0,0,0,0)",
+          margin = list(t = 50, r = 20, b = 40, l = 50)
+        )
+    )
+  }
+  
+  p <- plot_ly()
+  
+  # Historical Trace
+  if (!is.null(df_hist) && nrow(df_hist) > 0) {
+    p <- p %>% add_trace(
+      data = df_hist,
+      x = ~Month,
+      y = ~Value,
+      type = "scatter", mode = "lines+markers",
+      name = paste("Historical", reference_period),
+      line = list(color = accent_color, width = 2),
+      marker = list(color = accent_color, size = 4),
+      hovertemplate = paste0("<b>Historical</b><br>%{x}: %{y:.2f} ", hover_unit, "<extra></extra>")
+    )
+  }
+  
+  # Projection Trace
+  if (!is.null(df_proj) && nrow(df_proj) > 0) {
+    ssp_key <- ssp_scenario
+    proj_line_color <- ssp_colors[[ssp_key]]$line
+    ssp_label <- ssp_scenario_labels[ssp_scenario]
+    
+    p <- p %>% add_trace(
+      data = df_proj,
+      x = ~Month,
+      y = ~Value,
+      type = "scatter", mode = "lines+markers",
+      name = paste(ssp_label, target_period),
+      line = list(color = proj_line_color, width = 2.5, dash = "dash"),
+      marker = list(color = proj_line_color, size = 4),
+      hovertemplate = paste0("<b>Projection</b><br>%{x}: %{y:.2f} ", hover_unit, "<extra></extra>")
+    )
+  }
+  
+  p <- p %>% layout(
+    title = list(
+      text = chart_title,
+      font = list(family = "Inter, sans-serif", size = 14, color = "#e2e8f0"),
+      x = 0.05
+    ),
+    xaxis = list(
+      title = "",
+      tickmode = "array",
+      tickvals = 1:12,
+      ticktext = month_labels,
+      tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
+      gridcolor = "rgba(255, 255, 255, 0.05)",
+      zeroline = FALSE
+    ),
+    yaxis = list(
+      title = list(text = paste0(var_label, " [", hover_unit, "]"), font = list(family = "Inter, sans-serif", color = "#94a3b8")),
+      tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
+      gridcolor = "rgba(255, 255, 255, 0.05)",
+      zeroline = FALSE
+    ),
+    plot_bgcolor = "rgba(0,0,0,0)",
+    paper_bgcolor = "rgba(0,0,0,0)",
+    margin = list(t = 50, r = 20, b = 40, l = 50),
+    legend = list(
+      orientation = "h", x = 0.5, y = -0.15, xanchor = "center",
+      font = list(family = "Inter, sans-serif", size = 11, color = "#94a3b8"),
+      bgcolor = "rgba(0,0,0,0)"
+    ),
+    hovermode = "x unified",
+    hoverlabel = list(
+      bgcolor = "rgba(15, 23, 42, 0.90)",
+      bordercolor = "rgba(255, 255, 255, 0.15)",
+      font = list(
+        family = "Inter, sans-serif",
+        size = 12,
+        color = "#e2e8f0"
+      )
+    )
+  ) %>%
+  config(displayModeBar = FALSE)
+  
+  return(p)
+}
