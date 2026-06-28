@@ -58,7 +58,7 @@ build_export_csv <- function(var_name, temp_mode, target_region, region_name,
 
   # ── Collect historical data using the centralized query helper ─────────────
   df_hist <- query_arrow_dataset(
-    hist_annual_ds, hist_seasonal_ds, temp_mode,
+    hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
     var_name, sp_level,
     target_region = target_region
   )
@@ -83,6 +83,7 @@ build_export_csv <- function(var_name, temp_mode, target_region, region_name,
     # Keep only the columns scientists need — drop internal partition keys
     export_cols <- c("Year", "Value", "Source", "variable", "Region", "Region_Name")
     if ("Season" %in% names(df_hist)) export_cols <- c(export_cols, "Season")
+    if ("Month" %in% names(df_hist)) export_cols <- c(export_cols, "Month")
     df_hist <- df_hist[, intersect(export_cols, names(df_hist))]
   }
 
@@ -97,7 +98,7 @@ build_export_csv <- function(var_name, temp_mode, target_region, region_name,
   if (include_proj && proj_data_exists) {
 
     df_proj_raw <- query_arrow_dataset(
-      proj_annual_ds, proj_seasonal_ds, temp_mode,
+      proj_annual_ds, proj_seasonal_ds, proj_monthly_ds, temp_mode,
       var_name, sp_level,
       target_region = target_region, scenario_val = scenario_val
     )
@@ -108,16 +109,13 @@ build_export_csv <- function(var_name, temp_mode, target_region, region_name,
       if (nrow(df_proj_raw) > 0) {
         # Include all 6 individual model runs (not just ensemble median)
         # so scientists can do their own statistical analysis
-        df_proj_raw$Source <- paste0("CMIP6 Projection (", scenario_val, ")")
+        df_proj_raw$Source <- sprintf("CMIP6 Projection (%s)", scenario_val)
         df_proj_raw$Region_Name <- region_name
 
-        # Select export columns — includes "model" for individual model runs
-        export_cols_proj <- c("Year", "Value", "Source", "variable",
-                              "Region", "Region_Name", "model")
-        if ("Season" %in% names(df_proj_raw)) {
-          export_cols_proj <- c(export_cols_proj, "Season")
-        }
-        df_proj_export <- df_proj_raw[, intersect(export_cols_proj, names(df_proj_raw))]
+        proj_export_cols <- c("Year", "Value", "Source", "model", "variable", "Region", "Region_Name")
+        if ("Season" %in% names(df_proj_raw)) proj_export_cols <- c(proj_export_cols, "Season")
+        if ("Month" %in% names(df_proj_raw)) proj_export_cols <- c(proj_export_cols, "Month")
+        df_proj_export <- df_proj_raw[, intersect(proj_export_cols, names(df_proj_raw))]
       }
     }
   }

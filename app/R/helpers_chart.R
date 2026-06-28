@@ -252,38 +252,40 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
 
   if (show_proj) {
 
-    # Vertical "Present Day" divider line at 2023 — marks the boundary
-    # between observed ERA5 data and projected CMIP6 model data
-    chart_shapes <- c(chart_shapes, list(
-      list(
-        type = "line",
-        x0 = 2023, x1 = 2023,
-        y0 = 0, y1 = 1,
-        yref = "paper",
-        line = list(
-          color = "rgba(255, 255, 255, 0.35)",
-          width = 1.5,
-          dash = "dot"
+    if (!hide_historical_line) {
+      # Vertical "Present Day" divider line at 2023 — marks the boundary
+      # between observed ERA5 data and projected CMIP6 model data
+      chart_shapes <- c(chart_shapes, list(
+        list(
+          type = "line",
+          x0 = 2023, x1 = 2023,
+          y0 = 0, y1 = 1,
+          yref = "paper",
+          line = list(
+            color = "rgba(255, 255, 255, 0.35)",
+            width = 1.5,
+            dash = "dot"
+          )
         )
-      )
-    ))
+      ))
 
-    # "Observed | Projected" label above the divider line
-    chart_annotations <- c(chart_annotations, list(
-      list(
-        x = 2023,
-        y = 1.02,
-        yref = "paper",
-        text = "Observed | Projected",
-        showarrow = FALSE,
-        font = list(
-          family = "Inter, sans-serif",
-          size = 10,
-          color = "rgba(255, 255, 255, 0.50)"
-        ),
-        xanchor = "center"
-      )
-    ))
+      # "Observed | Projected" label above the divider line
+      chart_annotations <- c(chart_annotations, list(
+        list(
+          x = 2023,
+          y = 1.02,
+          yref = "paper",
+          text = "Observed | Projected",
+          showarrow = FALSE,
+          font = list(
+            family = "Inter, sans-serif",
+            size = 10,
+            color = "rgba(255, 255, 255, 0.50)"
+          ),
+          xanchor = "center"
+        )
+      ))
+    }
 
     # Anomaly-specific visual elements: baseline line, reference period band
     if (use_anomaly) {

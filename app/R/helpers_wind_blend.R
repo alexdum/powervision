@@ -178,10 +178,9 @@ get_all_group_weights <- function(target_year, wind_type) {
 #' Core blending function for all regions (for map choropleth).
 #' Automatically handles NUT0 aggregation if sp_level == "nuts_0".
 blend_wind_power_all_regions <- function(
-  tech_mix_mode, wind_type, ds_annual, ds_seasonal,
-  temporal_mode, sp_level,
-  year = NULL, year_start = NULL, year_end = NULL,
-  scenario_val = NULL, target_region = NULL
+  tech_mix_mode, wind_type, ds_annual, ds_seasonal, ds_monthly,
+  temporal_mode, sp_level, year = NULL, year_start = NULL, year_end = NULL,
+  target_year = NULL, scenario_val = NULL, target_region = NULL
 ) {
   
   valid_levels <- if (wind_type == "onshore") c("nuts_0", "p2on", "szon") else c("nuts_0", "p2of", "szof")
@@ -221,6 +220,7 @@ blend_wind_power_all_regions <- function(
     tech_data <- query_arrow_dataset(
       ds_annual = ds_annual,
       ds_seasonal = ds_seasonal,
+      ds_monthly = ds_monthly,
       temporal_mode = temporal_mode,
       var_name = var_name,
       sp_level = query_sp_level,
@@ -320,8 +320,9 @@ blend_wind_power_all_regions <- function(
 }
 
 #' Time-series blending for a single region (handles dynamic year-by-year weights).
-blend_wind_power_timeseries <- function(region_id, tech_mix_mode, wind_type, ds_annual, ds_seasonal,
-                                        temporal_mode, sp_level, scenario_val = NULL) {
+blend_wind_power_timeseries <- function(region_id, tech_mix_mode, wind_type, ds_annual, ds_seasonal, ds_monthly,
+                                        temporal_mode, sp_level,
+                                        scenario_val = NULL) {
   
   valid_levels <- if (wind_type == "onshore") c("nuts_0", "p2on", "szon") else c("nuts_0", "p2of", "szof")
   if (!(sp_level %in% valid_levels)) return(NULL)
@@ -364,6 +365,7 @@ blend_wind_power_timeseries <- function(region_id, tech_mix_mode, wind_type, ds_
     tech_data <- query_arrow_dataset(
       ds_annual = ds_annual,
       ds_seasonal = ds_seasonal,
+      ds_monthly = ds_monthly,
       temporal_mode = temporal_mode,
       var_name = var_name,
       sp_level = query_sp_level,

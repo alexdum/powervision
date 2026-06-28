@@ -292,8 +292,10 @@ climate_variables <- list(
 # pruning to read only the exact parquet fragment needed (millisecond queries).
 hist_annual_ds <- NULL
 hist_seasonal_ds <- NULL
+hist_monthly_ds <- NULL
 proj_annual_ds <- NULL
 proj_seasonal_ds <- NULL
+proj_monthly_ds <- NULL
 
 message("Connecting to PECD climate datasets (lazy Arrow connections)...")
 
@@ -325,6 +327,20 @@ if (dir.exists(hist_seasonal_path)) {
   ))
 }
 
+hist_monthly_path <- "www/data/pecd/historical/monthly"
+if (dir.exists(hist_monthly_path)) {
+  hist_monthly_ds <- arrow::open_dataset(hist_monthly_path)
+  message(sprintf(
+    "  [OK] Historical monthly dataset connected (%d columns)",
+    ncol(hist_monthly_ds)
+  ))
+} else {
+  warning(sprintf(
+    "  [MISSING] Historical monthly dataset not found at: %s",
+    hist_monthly_path
+  ))
+}
+
 proj_annual_path <- "www/data/pecd/projections/annual"
 if (dir.exists(proj_annual_path)) {
   proj_annual_ds <- arrow::open_dataset(proj_annual_path)
@@ -348,6 +364,19 @@ if (dir.exists(proj_seasonal_path)) {
 } else {
   message(
     "  [INFO] Projection seasonal dataset not yet available (will be created by process_pecd_projections.R)"
+  )
+}
+
+proj_monthly_path <- "www/data/pecd/projections/monthly"
+if (dir.exists(proj_monthly_path)) {
+  proj_monthly_ds <- arrow::open_dataset(proj_monthly_path)
+  message(sprintf(
+    "  [OK] Projection monthly dataset connected (%d columns)",
+    ncol(proj_monthly_ds)
+  ))
+} else {
+  message(
+    "  [INFO] Projection monthly dataset not yet available (will be created by process_pecd_projections.R)"
   )
 }
 

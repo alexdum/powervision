@@ -74,6 +74,7 @@ server <- function(input, output, session) {
           tech_mix_mode = tech_mix_mode,
           wind_type = wind_type,
           ds_annual = proj_annual_ds,
+          ds_monthly = proj_monthly_ds,
           ds_seasonal = proj_seasonal_ds,
           temporal_mode = temp_mode,
           sp_level = sp_level,
@@ -84,7 +85,7 @@ server <- function(input, output, session) {
         # Query all 6 models for the selected scenario + year.
         # Only read Region + Value — we only need these for the per-region median.
         df_raw <- query_arrow_dataset(
-          proj_annual_ds, proj_seasonal_ds, temp_mode,
+          proj_annual_ds, proj_seasonal_ds, proj_monthly_ds, temp_mode,
           var_name, sp_level,
           year = sel_year, scenario_val = input$ssp_scenario,
           select_cols = c("Region", "Value")
@@ -112,6 +113,7 @@ server <- function(input, output, session) {
           tech_mix_mode = tech_mix_mode,
           wind_type = wind_type,
           ds_annual = hist_annual_ds,
+          ds_monthly = hist_monthly_ds,
           ds_seasonal = hist_seasonal_ds,
           temporal_mode = temp_mode,
           sp_level = sp_level,
@@ -122,7 +124,7 @@ server <- function(input, output, session) {
       } else {
         # Only read Region + Value — that's all the map choropleth needs.
         query_arrow_dataset(
-          hist_annual_ds, hist_seasonal_ds, temp_mode,
+          hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
           var_name, sp_level,
           year = sel_year,
           select_cols = c("Region", "Value")
@@ -443,6 +445,7 @@ server <- function(input, output, session) {
         tech_mix_mode = tech_mix_mode,
         wind_type = wind_type,
         ds_annual = hist_annual_ds,
+          ds_monthly = hist_monthly_ds,
         ds_seasonal = hist_seasonal_ds,
         temporal_mode = temp_mode,
         sp_level = sp_level,
@@ -453,7 +456,7 @@ server <- function(input, output, session) {
       # Query ALL regions for the reference period using centralized helper
       # Only read Region + Value — we just need per-region means.
       df_ref <- query_arrow_dataset(
-        hist_annual_ds, hist_seasonal_ds, temp_mode,
+        hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
         var_name, sp_level,
         year_start = ref_start, year_end = ref_end,
         select_cols = c("Region", "Value")
@@ -514,6 +517,7 @@ server <- function(input, output, session) {
           tech_mix_mode = tech_mix_mode,
           wind_type = wind_type,
           ds_annual = hist_annual_ds,
+          ds_monthly = hist_monthly_ds,
           ds_seasonal = hist_seasonal_ds,
           temporal_mode = temp_mode,
           sp_level = sp_level,
@@ -523,7 +527,7 @@ server <- function(input, output, session) {
       } else {
         # Only read Region + Value — we compute per-region mean over the period.
         df_raw <- query_arrow_dataset(
-          hist_annual_ds, hist_seasonal_ds, temp_mode,
+          hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
           var_name, sp_level,
           year_start = period_start, year_end = period_end,
           select_cols = c("Region", "Value")
@@ -554,6 +558,7 @@ server <- function(input, output, session) {
           tech_mix_mode = tech_mix_mode,
           wind_type = wind_type,
           ds_annual = proj_annual_ds,
+          ds_monthly = proj_monthly_ds,
           ds_seasonal = proj_seasonal_ds,
           temporal_mode = temp_mode,
           sp_level = sp_level,
@@ -564,7 +569,7 @@ server <- function(input, output, session) {
       } else {
         # Need Region + Value + model — we group by model first, then take median.
         df_raw <- query_arrow_dataset(
-          proj_annual_ds, proj_seasonal_ds, temp_mode,
+          proj_annual_ds, proj_seasonal_ds, proj_monthly_ds, temp_mode,
           var_name, sp_level,
           year_start = period_start, year_end = period_end,
           scenario_val = scenario_val,
@@ -1452,6 +1457,7 @@ server <- function(input, output, session) {
         tech_mix_mode = tech_mix_mode,
         wind_type = wind_type,
         ds_annual = proj_annual_ds,
+          ds_monthly = proj_monthly_ds,
         ds_seasonal = proj_seasonal_ds,
         temporal_mode = temp_mode,
         sp_level = sp_level,
@@ -1461,7 +1467,7 @@ server <- function(input, output, session) {
       # Query all 6 models for the chosen scenario using centralized helper.
       # Only read Year + Value — that's all we need for ensemble stats.
       df_proj <- query_arrow_dataset(
-        proj_annual_ds, proj_seasonal_ds, temp_mode,
+        proj_annual_ds, proj_seasonal_ds, proj_monthly_ds, temp_mode,
         var_name, sp_level,
         target_region = target_region, scenario_val = scenario,
         select_cols = c("Year", "Value")
@@ -1535,6 +1541,7 @@ server <- function(input, output, session) {
         tech_mix_mode = tech_mix_mode,
         wind_type = wind_type,
         ds_annual = hist_annual_ds,
+          ds_monthly = hist_monthly_ds,
         ds_seasonal = hist_seasonal_ds,
         temporal_mode = temp_mode,
         sp_level = sp_level
@@ -1546,7 +1553,7 @@ server <- function(input, output, session) {
       # Load the full historical record using the centralized query helper.
       # Only read Year + Value — that's all the chart needs.
       df_region <- query_arrow_dataset(
-        hist_annual_ds, hist_seasonal_ds, temp_mode,
+        hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
         var_name, sp_level,
         target_region = target_region,
         select_cols = c("Year", "Value")

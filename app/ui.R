@@ -159,15 +159,31 @@ ui <- page_fillable(
         "Temporal Filter",
         tooltip(
           bsicons::bs_icon("info-circle", size = "0.85em"),
-          "Select 'Annual' for full-year sum/mean, or choose a specific season."
+          "Select 'Annual' for full-year sum/mean, or choose a specific season or month."
         )
       ),
-      choices = c(
-        "Annual" = "Annual",
-        "Winter" = "Winter",
-        "Spring" = "Spring",
-        "Summer" = "Summer",
-        "Autumn" = "Autumn"
+      choices = list(
+        "Annual" = c("Annual" = "Annual"),
+        "Seasons" = c(
+          "Winter" = "Winter",
+          "Spring" = "Spring",
+          "Summer" = "Summer",
+          "Autumn" = "Autumn"
+        ),
+        "Months" = c(
+          "January" = "1",
+          "February" = "2",
+          "March" = "3",
+          "April" = "4",
+          "May" = "5",
+          "June" = "6",
+          "July" = "7",
+          "August" = "8",
+          "September" = "9",
+          "October" = "10",
+          "November" = "11",
+          "December" = "12"
+        )
       ),
       selected = "Annual"
     ),

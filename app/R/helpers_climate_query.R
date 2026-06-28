@@ -60,16 +60,20 @@
 #   A data.frame with the collected query results, or NULL if the dataset is
 #   not available or the query matched zero rows.
 # ------------------------------------------------------------------------------
-query_arrow_dataset <- function(ds_annual, ds_seasonal, temporal_mode,
+query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mode,
                                 var_name, sp_level,
                                 year = NULL, year_start = NULL, year_end = NULL,
                                 target_region = NULL, scenario_val = NULL,
                                 select_cols = NULL) {
 
   # Pick the correct dataset based on temporal mode.
-  # Annual mode reads from the annual aggregate; any season reads from
-  # the seasonal dataset which has an additional "Season" column.
-  ds <- if (temporal_mode == "Annual") ds_annual else ds_seasonal
+  ds <- if (temporal_mode == "Annual") {
+    ds_annual
+  } else if (temporal_mode %in% c("Winter", "Spring", "Summer", "Autumn")) {
+    ds_seasonal
+  } else {
+    ds_monthly
+  }
 
   # Guard: exit early if the dataset is not available (e.g., projections
   # haven't been downloaded yet, or the parquet directory is missing)
@@ -103,11 +107,12 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, temporal_mode,
     query <- query |> dplyr::filter(scenario == !!scenario_val)
   }
 
-  # For seasonal modes, also filter by the active season name.
-  # This is automatic: if we chose ds_seasonal above, we must also narrow
-  # to the specific season the user selected.
-  if (temporal_mode != "Annual") {
+  # For seasonal/monthly modes, also filter by the active season/month.
+  if (temporal_mode %in% c("Winter", "Spring", "Summer", "Autumn")) {
     query <- query |> dplyr::filter(Season == !!temporal_mode)
+  } else if (temporal_mode != "Annual") {
+    month_int <- as.integer(temporal_mode)
+    query <- query |> dplyr::filter(Month == !!month_int)
   }
 
   # Optional: trim to only the columns the caller actually needs.
@@ -116,7 +121,7 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, temporal_mode,
   # NOTE: To prevent Arrow's lazy evaluation from breaking partition pruning,
   # we must ensure that any partition columns used in filter() are preserved in select().
   if (!is.null(select_cols)) {
-    safe_select <- unique(c(select_cols, "variable", "SpatialLevel", "Year", "Season", "Region", "scenario", "model"))
+    safe_select <- unique(c(select_cols, "variable", "SpatialLevel", "Year", "Season", "Month", "Region", "scenario", "model"))
     query <- query |> dplyr::select(dplyr::any_of(safe_select))
   }
 
