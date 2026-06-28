@@ -54,6 +54,11 @@ server <- function(input, output, session) {
     sel_year  <- as.integer(input$selected_year)
     sp_level  <- spatial_level_to_parquet[input$spatial_level]
 
+    is_wind_power <- var_name %in% c("wind_power_onshore", "wind_power_offshore")
+    wind_type <- if(var_name == "wind_power_onshore") "onshore" else "offshore"
+    # Provide a default value for tech mix since it might not be initialized immediately
+    tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
+
     # Determine whether to use projection data (year > 2023 with projections ON)
     show_proj <- isTRUE(input$show_projections == "1")
     proj_data_exists <- (var_name %in% projection_available_variables &&
@@ -64,14 +69,27 @@ server <- function(input, output, session) {
       # ── Read from projection dataset ─────────────────────────────────────────
       req(input$ssp_scenario)
 
-      # Query all 6 models for the selected scenario + year.
-      # Only read Region + Value — we only need these for the per-region median.
-      df_raw <- query_arrow_dataset(
-        proj_annual_ds, proj_seasonal_ds, temp_mode,
-        var_name, sp_level,
-        year = sel_year, scenario_val = input$ssp_scenario,
-        select_cols = c("Region", "Value")
-      )
+      if (is_wind_power) {
+        df_raw <- blend_wind_power_all_regions(
+          tech_mix_mode = tech_mix_mode,
+          wind_type = wind_type,
+          ds_annual = proj_annual_ds,
+          ds_seasonal = proj_seasonal_ds,
+          temporal_mode = temp_mode,
+          sp_level = sp_level,
+          year = sel_year,
+          scenario_val = input$ssp_scenario
+        )
+      } else {
+        # Query all 6 models for the selected scenario + year.
+        # Only read Region + Value — we only need these for the per-region median.
+        df_raw <- query_arrow_dataset(
+          proj_annual_ds, proj_seasonal_ds, temp_mode,
+          var_name, sp_level,
+          year = sel_year, scenario_val = input$ssp_scenario,
+          select_cols = c("Region", "Value")
+        )
+      }
 
       if (is.null(df_raw)) return(NULL)
 
@@ -89,14 +107,110 @@ server <- function(input, output, session) {
 
     } else {
       # ── Read from historical dataset ─────────────────────────────────────────
-      # Only read Region + Value — that's all the map choropleth needs.
-      query_arrow_dataset(
-        hist_annual_ds, hist_seasonal_ds, temp_mode,
-        var_name, sp_level,
-        year = sel_year,
-        select_cols = c("Region", "Value")
+      if (is_wind_power) {
+        df_raw <- blend_wind_power_all_regions(
+          tech_mix_mode = tech_mix_mode,
+          wind_type = wind_type,
+          ds_annual = hist_annual_ds,
+          ds_seasonal = hist_seasonal_ds,
+          temporal_mode = temp_mode,
+          sp_level = sp_level,
+          year = sel_year
+        )
+        if (is.null(df_raw)) return(NULL)
+        return(df_raw |> dplyr::select(Region, Value))
+      } else {
+        # Only read Region + Value — that's all the map choropleth needs.
+        query_arrow_dataset(
+          hist_annual_ds, hist_seasonal_ds, temp_mode,
+          var_name, sp_level,
+          year = sel_year,
+          select_cols = c("Region", "Value")
+        )
+      }
+    }
+  })
+
+  # ----------------------------------------------------------------------------
+  # Wind Power UI Observers
+  # ----------------------------------------------------------------------------
+  observeEvent(input$climate_variable, {
+    is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
+    session$sendCustomMessage("toggle_tech_mix_controls", list(show = is_wind))
+    
+    # NUTS 0 deprecation warning
+    if (is_wind && !is.null(input$spatial_level) && input$spatial_level == "NUT0") {
+      showNotification(
+        "NUTS 0 wind power capacity factors are synthesized dynamically using area-weighting from granular spatial tiers. Use with caution for national capacity planning.",
+        type = "warning", duration = 8, id = "nut0_wind_warning"
       )
     }
+  }, ignoreInit = FALSE)
+  
+  # ----------------------------------------------------------------------------
+  # Dynamic UI Updates for Climate Variable
+  # ----------------------------------------------------------------------------
+  # Wind power data is not available at the NUT2 level.
+  # This observer updates the PECD Variable dropdown to hide Energy Indicators
+  # when an incompatible spatial tier is selected.
+  observeEvent(input$spatial_level, {
+    sp <- input$spatial_level
+    
+    # Base choices available everywhere
+    base_choices <- c(
+      "2m Temperature" = "2m_temperature",
+      "Total Precipitation" = "total_precipitation",
+      "Solar Radiation" = "surface_solar_radiation_downwards",
+      "10m Wind Speed" = "10m_wind_speed",
+      "100m Wind Speed" = "100m_wind_speed"
+    )
+    
+    # PECD v4.2 deprecates NUT0 aggregation for energy variables due to inaccuracy.
+    # We also hide them for SZON/SZOF because the raw parquet data maps those regions into P2ON/P2OF.
+    # Therefore, wind power is ONLY officially supported and shown on P2ON and P2OF.
+    show_energy <- (sp %in% c("P2ON", "P2OF"))
+    
+    choices_list <- list("Climate Variables" = base_choices)
+    if (show_energy) {
+      energy_choices <- c(
+        "Wind Power Onshore (CF)" = "wind_power_onshore",
+        "Wind Power Offshore (CF)" = "wind_power_offshore"
+      )
+      
+      # Optional polish: Only show onshore for onshore zones, offshore for offshore zones
+      if (sp == "P2ON") {
+        energy_choices <- energy_choices["Wind Power Onshore (CF)"]
+      } else if (sp == "P2OF") {
+        energy_choices <- energy_choices["Wind Power Offshore (CF)"]
+      }
+      
+      choices_list[["Energy Indicators"]] <- energy_choices
+    }
+    
+    # Preserve current selection if it's still available, else default to 2m temp
+    curr_sel <- input$climate_variable
+    all_valid_vals <- unname(unlist(choices_list))
+    if (!(curr_sel %in% all_valid_vals)) {
+      curr_sel <- "2m_temperature"
+    }
+    
+    updateSelectInput(session, "climate_variable", choices = choices_list, selected = curr_sel)
+  })
+
+  # ----------------------------------------------------------------------------
+  # Dynamic UI Updates for Anomaly Mode
+  # ----------------------------------------------------------------------------
+  # Anomalies are scientifically misleading for Wind Power when "Dynamic" is active,
+  # because the projection uses different turbine heights/technologies than the baseline.
+  observe({
+    req(input$climate_variable)
+    is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
+    tech_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
+    
+    # Disable anomaly if Wind Power + Dynamic
+    is_dynamic_wind <- is_wind && (tech_mode == "dynamic")
+    session$sendCustomMessage("set_anomaly_disabled", list(disable = is_dynamic_wind))
+    session$sendCustomMessage("set_projection_forced", list(force_on = is_dynamic_wind))
   })
 
   # ----------------------------------------------------------------------------
@@ -125,6 +239,13 @@ server <- function(input, output, session) {
 
     # Winter season has incomplete 1950 data, so min year is 1951 for seasonal mode
     min_year <- if (input$temporal_mode == "Annual") 1950 else 1951
+    
+    # If Wind Power + Dynamic Tech Mix is active, never show historical "Existing Fleet"
+    is_wind <- var_name %in% c("wind_power_onshore", "wind_power_offshore")
+    tech_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
+    if (is_wind && tech_mode == "dynamic") {
+      min_year <- 2021
+    }
 
     # Adjust current year selection if it lies outside the valid range
     current_yr <- input$selected_year
@@ -296,15 +417,32 @@ server <- function(input, output, session) {
     var_name  <- input$climate_variable
     temp_mode <- input$temporal_mode
     sp_level  <- spatial_level_to_parquet[input$spatial_level]
+    
+    is_wind_power <- var_name %in% c("wind_power_onshore", "wind_power_offshore")
+    wind_type <- if(var_name == "wind_power_onshore") "onshore" else "offshore"
+    tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
 
-    # Query ALL regions for the reference period using centralized helper
-    # Only read Region + Value — we just need per-region means.
-    df_ref <- query_arrow_dataset(
-      hist_annual_ds, hist_seasonal_ds, temp_mode,
-      var_name, sp_level,
-      year_start = ref_start, year_end = ref_end,
-      select_cols = c("Region", "Value")
-    )
+    if (is_wind_power) {
+      df_ref <- blend_wind_power_all_regions(
+        tech_mix_mode = tech_mix_mode,
+        wind_type = wind_type,
+        ds_annual = hist_annual_ds,
+        ds_seasonal = hist_seasonal_ds,
+        temporal_mode = temp_mode,
+        sp_level = sp_level,
+        year_start = ref_start,
+        year_end = ref_end
+      )
+    } else {
+      # Query ALL regions for the reference period using centralized helper
+      # Only read Region + Value — we just need per-region means.
+      df_ref <- query_arrow_dataset(
+        hist_annual_ds, hist_seasonal_ds, temp_mode,
+        var_name, sp_level,
+        year_start = ref_start, year_end = ref_end,
+        select_cols = c("Region", "Value")
+      )
+    }
 
     if (is.null(df_ref)) return(NULL)
 
@@ -345,19 +483,36 @@ server <- function(input, output, session) {
     var_name  <- input$climate_variable
     temp_mode <- input$temporal_mode
     sp_level  <- spatial_level_to_parquet[input$spatial_level]
+    
+    is_wind_power <- var_name %in% c("wind_power_onshore", "wind_power_offshore")
+    wind_type <- if(var_name == "wind_power_onshore") "onshore" else "offshore"
+    tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
 
     # Decide whether this is a historical or projected period
     is_historical_period <- (period_end <= 2023)
 
     if (is_historical_period) {
       # ── Historical period: mean from ERA5 reanalysis ──────────────────────────
-      # Only read Region + Value — we compute per-region mean over the period.
-      df_raw <- query_arrow_dataset(
-        hist_annual_ds, hist_seasonal_ds, temp_mode,
-        var_name, sp_level,
-        year_start = period_start, year_end = period_end,
-        select_cols = c("Region", "Value")
-      )
+      if (is_wind_power) {
+        df_raw <- blend_wind_power_all_regions(
+          tech_mix_mode = tech_mix_mode,
+          wind_type = wind_type,
+          ds_annual = hist_annual_ds,
+          ds_seasonal = hist_seasonal_ds,
+          temporal_mode = temp_mode,
+          sp_level = sp_level,
+          year_start = period_start,
+          year_end = period_end
+        )
+      } else {
+        # Only read Region + Value — we compute per-region mean over the period.
+        df_raw <- query_arrow_dataset(
+          hist_annual_ds, hist_seasonal_ds, temp_mode,
+          var_name, sp_level,
+          year_start = period_start, year_end = period_end,
+          select_cols = c("Region", "Value")
+        )
+      }
 
       if (is.null(df_raw)) return(NULL)
 
@@ -378,14 +533,28 @@ server <- function(input, output, session) {
       if (!(var_name %in% projection_available_variables)) return(NULL)
       if (!(sp_level %in% projection_available_spatial_levels)) return(NULL)
 
-      # Need Region + Value + model — we group by model first, then take median.
-      df_raw <- query_arrow_dataset(
-        proj_annual_ds, proj_seasonal_ds, temp_mode,
-        var_name, sp_level,
-        year_start = period_start, year_end = period_end,
-        scenario_val = scenario_val,
-        select_cols = c("Region", "Value", "model")
-      )
+      if (is_wind_power) {
+        df_raw <- blend_wind_power_all_regions(
+          tech_mix_mode = tech_mix_mode,
+          wind_type = wind_type,
+          ds_annual = proj_annual_ds,
+          ds_seasonal = proj_seasonal_ds,
+          temporal_mode = temp_mode,
+          sp_level = sp_level,
+          year_start = period_start,
+          year_end = period_end,
+          scenario_val = scenario_val
+        )
+      } else {
+        # Need Region + Value + model — we group by model first, then take median.
+        df_raw <- query_arrow_dataset(
+          proj_annual_ds, proj_seasonal_ds, temp_mode,
+          var_name, sp_level,
+          year_start = period_start, year_end = period_end,
+          scenario_val = scenario_val,
+          select_cols = c("Region", "Value", "model")
+        )
+      }
 
       if (is.null(df_raw)) return(NULL)
 
@@ -569,6 +738,30 @@ server <- function(input, output, session) {
 
     # ── Build tooltips ──────────────────────────────────────────────────────────
     period_label <- if (use_period) paste0(input$projection_period, " period mean") else ""
+    
+    # Pre-calculate wind mix HTML if we are looking at Wind Power
+    is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
+    if (is_wind) {
+      wind_type <- if (input$climate_variable == "wind_power_onshore") "onshore" else "offshore"
+      tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
+      
+      target_data_year <- sel_year
+      if (use_period && !is.null(proj_period) && nchar(proj_period) > 0) {
+        pts <- as.integer(strsplit(proj_period, "-")[[1]])
+        target_data_year <- floor((pts[1] + pts[2]) / 2)
+      }
+      tech_year <- resolve_tech_year(tech_mix_mode, target_data_year)
+      
+      df_build$wind_mix_html <- vapply(
+        df_build$zone_id, 
+        function(zid) get_wind_mix_tooltip(zid, wind_type, tech_year),
+        FUN.VALUE = character(1), 
+        USE.NAMES = FALSE
+      )
+    } else {
+      df_build$wind_mix_html <- ""
+    }
+    
     if (use_anomaly_map) {
       ref_label <- input$reference_period
       proj_note <- if (use_period) paste0(" (", period_label, ")") else if (is_projection_year) " (projection median)" else ""
@@ -586,6 +779,7 @@ server <- function(input, output, session) {
             "    </span>",
             "  </div>",
             "  <div style='margin-top: 2px; font-size: 0.7rem; color: #64748b;'>vs ", ref_label, proj_note, "</div>",
+            wind_mix_html,
             "</div>"
           )
         )
@@ -601,8 +795,9 @@ server <- function(input, output, session) {
             "    <span class='tooltip-metric-value' style='font-weight: 500; color: #38bdf8;'>",
                    ifelse(is.na(Value), "No Data", paste0(format(round(Value, 2), big.mark = ","), " ", var_unit)),
             "    </span>",
-            ifelse(proj_note != "", paste0("<span style='font-size: 0.7rem; color: #64748b;'>", proj_note, "</span>"), ""),
+            ifelse(proj_note != "", paste0("<br><span style='font-size: 0.7rem; color: #64748b;'>", proj_note, "</span>"), ""),
             "  </div>",
+            wind_mix_html,
             "</div>"
           )
         )
@@ -1092,11 +1287,19 @@ server <- function(input, output, session) {
       )
     }
 
+    # Translate Study Zones for UI clarity if they are bundled inside Bidding Zone maps
+    display_level <- region$level
+    if (input$spatial_level == "P2ON" && region$level == "SZON") {
+      display_level <- "P2ON (Study Zone)"
+    } else if (input$spatial_level == "P2OF" && region$level == "SZOF") {
+      display_level <- "P2OF (Study Zone)"
+    }
+
     tagList(
       metric_card("Region Name",    region$name),
       metric_card("Zone ID",        sprintf("<code>%s</code>", region$zone_id), "accent-danger"),
       metric_card("Parent Zone",    sprintf("<code>%s</code>", parent_txt)),
-      metric_card("Spatial Tier",   region$level),
+      metric_card("Spatial Tier",   display_level),
       metric_card("Area",           area_txt, "accent-success")
     )
   })
@@ -1219,18 +1422,35 @@ server <- function(input, output, session) {
     sp_level <- spatial_level_to_parquet[input$spatial_level]
     scenario <- input$ssp_scenario
 
+    is_wind_power <- var_name %in% c("wind_power_onshore", "wind_power_offshore")
+    wind_type <- if(var_name == "wind_power_onshore") "onshore" else "offshore"
+    tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
+
     # Guard: exit early if this combination has no projection data
     if (!(var_name %in% projection_available_variables)) return(NULL)
     if (!(sp_level %in% projection_available_spatial_levels)) return(NULL)
 
-    # Query all 6 models for the chosen scenario using centralized helper.
-    # Only read Year + Value — that's all we need for ensemble stats.
-    df_proj <- query_arrow_dataset(
-      proj_annual_ds, proj_seasonal_ds, temp_mode,
-      var_name, sp_level,
-      target_region = target_region, scenario_val = scenario,
-      select_cols = c("Year", "Value")
-    )
+    if (is_wind_power) {
+      df_proj <- blend_wind_power_timeseries(
+        region_id = target_region,
+        tech_mix_mode = tech_mix_mode,
+        wind_type = wind_type,
+        ds_annual = proj_annual_ds,
+        ds_seasonal = proj_seasonal_ds,
+        temporal_mode = temp_mode,
+        sp_level = sp_level,
+        scenario_val = scenario
+      )
+    } else {
+      # Query all 6 models for the chosen scenario using centralized helper.
+      # Only read Year + Value — that's all we need for ensemble stats.
+      df_proj <- query_arrow_dataset(
+        proj_annual_ds, proj_seasonal_ds, temp_mode,
+        var_name, sp_level,
+        target_region = target_region, scenario_val = scenario,
+        select_cols = c("Year", "Value")
+      )
+    }
 
     if (is.null(df_proj)) return(NULL)
 
@@ -1287,23 +1507,45 @@ server <- function(input, output, session) {
     var_name <- input$climate_variable
     temp_mode <- input$temporal_mode
     target_region <- region$zone_id
-
-    # Load the full historical record using the centralized query helper.
-    # Only read Year + Value — that's all the chart needs.
     sp_level <- spatial_level_to_parquet[input$spatial_level]
-    df_region <- query_arrow_dataset(
-      hist_annual_ds, hist_seasonal_ds, temp_mode,
-      var_name, sp_level,
-      target_region = target_region,
-      select_cols = c("Year", "Value")
-    )
+    
+    is_wind_power <- var_name %in% c("wind_power_onshore", "wind_power_offshore")
+    wind_type <- if(var_name == "wind_power_onshore") "onshore" else "offshore"
+    tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
+
+    if (is_wind_power) {
+      df_region <- blend_wind_power_timeseries(
+        region_id = target_region,
+        tech_mix_mode = tech_mix_mode,
+        wind_type = wind_type,
+        ds_annual = hist_annual_ds,
+        ds_seasonal = hist_seasonal_ds,
+        temporal_mode = temp_mode,
+        sp_level = sp_level
+      )
+      if (!is.null(df_region)) {
+        df_region <- df_region |> dplyr::select(Year, Value)
+      }
+    } else {
+      # Load the full historical record using the centralized query helper.
+      # Only read Year + Value — that's all the chart needs.
+      df_region <- query_arrow_dataset(
+        hist_annual_ds, hist_seasonal_ds, temp_mode,
+        var_name, sp_level,
+        target_region = target_region,
+        select_cols = c("Year", "Value")
+      )
+    }
 
     # Order chronologically by Year (NULL-safe since helper may return NULL)
     if (!is.null(df_region)) {
       df_region <- df_region[order(df_region$Year), ]
     }
 
-    if (is.null(df_region) || nrow(df_region) == 0) {
+    # Avoid early return if we're doing dynamic wind projections (where historical might be mostly zeros or we want to hide it anyway)
+    hide_hist <- (is_wind_power && tech_mix_mode == "dynamic")
+    
+    if (!hide_hist && (is.null(df_region) || nrow(df_region) == 0)) {
       # Return an empty plotly object with a text message if no data exists
       return(
         plot_ly() %>%
@@ -1370,7 +1612,8 @@ server <- function(input, output, session) {
       baseline         = baseline,
       display_mode     = input$display_mode,
       ssp_scenario     = input$ssp_scenario,
-      reference_period = input$reference_period
+      reference_period = input$reference_period,
+      hide_historical_line = hide_hist
     )
 
     }, error = function(e) {

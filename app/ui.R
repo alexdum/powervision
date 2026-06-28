@@ -94,14 +94,47 @@ ui <- page_fillable(
           "Select the historical climate variable to visualize on the map."
         )
       ),
-      choices = c(
-        "2m Temperature" = "2m_temperature",
-        "Total Precipitation" = "total_precipitation",
-        "Solar Radiation" = "surface_solar_radiation_downwards",
-        "10m Wind Speed" = "10m_wind_speed",
-        "100m Wind Speed" = "100m_wind_speed"
+      choices = list(
+        "Climate Variables" = c(
+          "2m Temperature" = "2m_temperature",
+          "Total Precipitation" = "total_precipitation",
+          "Solar Radiation" = "surface_solar_radiation_downwards",
+          "10m Wind Speed" = "10m_wind_speed",
+          "100m Wind Speed" = "100m_wind_speed"
+        ),
+        "Energy Indicators" = c(
+          "Wind Power Onshore (CF)" = "wind_power_onshore",
+          "Wind Power Offshore (CF)" = "wind_power_offshore"
+        )
       ),
       selected = "2m_temperature"
+    ),
+
+    # ── Section: Technology Mix (Only visible for Wind Power) ──────────────────
+    div(
+      id = "tech-mix-wrapper",
+      class = "tech-mix-wrapper",
+      style = "display: none;", # Hidden by default, toggled via JS
+      selectInput(
+        inputId = "technology_mix",
+        label = span(
+          "Technology Mix",
+          tooltip(
+            bsicons::bs_icon("info-circle", size = "0.85em"),
+            "Controls which turbine technology assumptions are used for blending capacity factors."
+          )
+        ),
+        choices = c(
+          "Dynamic (Real-world progression)" = "dynamic",
+          "Fixed Existing Technology (2020)" = "fixed_2020",
+          "Fixed 2025 Technology"            = "fixed_2025",
+          "Fixed 2030 Technology"            = "fixed_2030",
+          "Fixed 2040 Technology"            = "fixed_2040",
+          "Fixed 2050 Technology"            = "fixed_2050"
+        ),
+        selected = "dynamic",
+        width = "100%"
+      )
     ),
 
     selectInput(

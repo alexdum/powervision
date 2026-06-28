@@ -269,6 +269,20 @@ climate_variables <- list(
     label = "100m Wind Speed",
     unit = "m/s",
     palette = c("#f0f9e8", "#bae4bc", "#7bccc4", "#43a2ca", "#0868ac") # Multi-hue Blue-Green
+  ),
+  "wind_power_onshore" = list(
+    label = "Wind Power Onshore (CF)",
+    unit = "CF",
+    palette = c("#f0f9e8", "#bae4bc", "#7bccc4", "#43a2ca", "#0868ac"),
+    is_wind_power = TRUE,
+    wind_type = "onshore"
+  ),
+  "wind_power_offshore" = list(
+    label = "Wind Power Offshore (CF)",
+    unit = "CF",
+    palette = c("#f0f9e8", "#bae4bc", "#7bccc4", "#43a2ca", "#0868ac"),
+    is_wind_power = TRUE,
+    wind_type = "offshore"
   )
 )
 
@@ -337,6 +351,28 @@ if (dir.exists(proj_seasonal_path)) {
   )
 }
 
+# ------------------------------------------------------------------------------
+# Technology Mix Data Loading for Wind Power Blending
+# ------------------------------------------------------------------------------
+tech_mix_dir <- "www/data/technology_mix"
+message("Loading wind power technology mix matrices...")
+
+if (dir.exists(tech_mix_dir)) {
+  onshore_resource_groups <- read.csv(file.path(tech_mix_dir, "onshore_wind_resource_groups.csv"))
+  offshore_resource_groups <- read.csv(file.path(tech_mix_dir, "offshore_wind_resource_groups.csv"))
+  
+  # The CSV has 'Wind resource group' but our code expects 'ResourceGroup'
+  names(onshore_resource_groups)[names(onshore_resource_groups) == "Wind.resource.group"] <- "ResourceGroup"
+  names(offshore_resource_groups)[names(offshore_resource_groups) == "Wind.resource.group"] <- "ResourceGroup"
+  
+  onshore_mix_ratios <- read.csv(file.path(tech_mix_dir, "onshore_mix_ratios.csv"))
+  offshore_mix_ratios <- read.csv(file.path(tech_mix_dir, "offshore_mix_ratios.csv"))
+  wind_tech_mapping <- read.csv(file.path(tech_mix_dir, "wind_technologies_mapping.csv"))
+  message("  [OK] Technology mix CSVs loaded successfully.")
+} else {
+  warning(sprintf("  [MISSING] Technology mix directory not found at: %s", tech_mix_dir))
+}
+
 # Pre-load all spatial boundary layers into a global list at startup to prevent disk I/O lag
 spatial_boundary_cache <- list()
 message("Pre-loading spatial boundary layers...")
@@ -369,7 +405,7 @@ for (level_code in names(spatial_levels)) {
 
 # Variables that have projection data available in PECD v4.2
 # (only temperature and precipitation for now — solar / wind not available)
-projection_available_variables <- c("2m_temperature", "total_precipitation")
+projection_available_variables <- c("2m_temperature", "total_precipitation", "wind_power_onshore", "wind_power_offshore")
 
 # Detect which spatial levels actually have projection data in the parquet store.
 # This is computed at startup rather than hard-coded so that newly downloaded

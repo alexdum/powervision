@@ -50,6 +50,18 @@ install.packages(c("shiny", "mapgl", "sf", "dplyr", "bslib", "bsicons", "arrow",
 - [ENTSO-E](https://www.entsoe.eu/) — European electricity bidding zones
 - [EOX Sentinel-2](https://s2maps.eu/) — cloudless satellite imagery basemap
 
+## Dynamic Wind Power Blending
+
+Wind power in this dashboard is not plotted as static pre-blended files. Copernicus PECD v4.2 provides raw capacity factors for individual, highly-specific turbine types (e.g. `SP277 HH100`). 
+
+To generate a realistic "Wind Power" metric for a given region, the app runs a **dynamic blending engine**:
+1. Assigns the region to a Resource Group (e.g., High, Medium, Low).
+2. Uses R's `approx(..., rule = 2)` to interpolate a realistic technology mix for the selected year.
+   - *Note: If a "Period" (e.g. 2021-2040) is selected instead of a single year, the app mathematically calculates the midpoint of the period (2030) to use as the interpolation anchor.*
+   - *Because our technology matrices only go up to 2050, the `rule = 2` ensures that any future midpoints (like 2070 or 2090) are safely capped out at the 2050 advanced fleet mix.*
+3. Queries the Hive Parquet dataset for only the active turbines.
+4. Safely blends them on the fly, correctly handling missing data gaps (re-normalizing weights if a climate model drops a turbine).
+
 ## Spatial tiers and data mapping
 
 The app works with six spatial aggregation tiers. Each one maps to a GeoJSON boundary file (for the polygons you see on the map) and a `SpatialLevel` value in the Parquet data:

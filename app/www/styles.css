@@ -885,6 +885,12 @@ body, html {
   gap: 0;
 }
 
+.disabled-interaction {
+  opacity: 0.4;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 /* Projection pill toggle — full-width in sidebar */
 .projection-show-toggle {
   position: relative;
@@ -1571,4 +1577,15 @@ code {
 .about-copyright {
   font-size: 0.72em !important;
   color: rgba(255,255,255,0.30) !important;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Technology Mix Dropdown                                                      */
+/* ---------------------------------------------------------------------------- */
+.tech-mix-wrapper {
+  margin-top: -8px;
+  margin-bottom: 12px;
+}
+.tech-mix-wrapper .form-group {
+  margin-bottom: 0;
 }

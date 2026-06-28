@@ -59,6 +59,10 @@
 #                      title and to look up colors in ssp_colors global.
 #   reference_period - Reference period string (e.g., "1981-2010"). Shown in
 #                      chart title and as an annotation band.
+#   reference_period - Reference period string (e.g., "1981-2010"). Shown in
+#                      chart title and as an annotation band.
+#   hide_historical_line - Logical flag to omit the historical trace entirely
+#                          (useful when baseline is mathematically zeroed out).
 #
 # Returns:
 #   A fully configured plotly object ready to render in the stats drawer.
@@ -68,7 +72,8 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
                                          accent_color, region_name,
                                          temp_mode, show_proj, proj_data,
                                          baseline, display_mode,
-                                         ssp_scenario, reference_period) {
+                                         ssp_scenario, reference_period,
+                                         hide_historical_line = FALSE) {
 
   var_label <- var_meta$label
   var_unit  <- var_meta$unit
@@ -159,20 +164,24 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
   # --------------------------------------------------------------------------
   # Build the Plotly chart — start with the historical ERA5 line trace
   # --------------------------------------------------------------------------
-  p <- plot_ly() %>%
-    add_trace(
-      data = df_region,
-      x = ~Year,
-      y = ~Value,
-      type = 'scatter',
-      mode = 'lines+markers',
-      name = 'Historical (ERA5)',
-      line = list(color = accent_color, width = 2),
-      marker = list(color = accent_color, size = 4),
-      text = ~paste0("Year: ", Year, "<br>", var_label, ": ",
-                     round(Value, 2), " ", hover_unit),
-      hoverinfo = 'text'
-    )
+  p <- plot_ly()
+
+  # --- 1. Historical Line (Solid Blue/Accent) ---
+  # We only add this trace if it hasn't been explicitly hidden (e.g. for dynamic wind mode)
+  if (!hide_historical_line && !is.null(df_region) && nrow(df_region) > 0) {
+    p <- p %>%
+      add_trace(
+        data = df_region,
+        x = ~Year,
+        y = ~Value,
+        type = "scatter",
+        mode = "lines+markers",
+        name = "Historical (ERA5)",
+        line = list(color = accent_color, width = 2),
+        marker = list(color = accent_color, size = 4),
+        hovertemplate = paste0("<b>Historical</b><br>Year: %{x}<br>Value: %{y:.2f} ", hover_unit, "<extra></extra>")
+      )
+  }
 
   # --------------------------------------------------------------------------
   # Overlay projection ensemble data if available

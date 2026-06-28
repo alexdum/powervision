@@ -246,6 +246,54 @@ $(document).ready(function () {
   });
 
   // --------------------------------------------------------------------------
+  // Disable Anomaly Toggle for Dynamic Wind Power
+  // --------------------------------------------------------------------------
+  Shiny.addCustomMessageHandler('set_anomaly_disabled', function (msg) {
+    var $modeToggle = $('#display-mode-toggle');
+    if (msg.disable) {
+      $modeToggle.addClass('disabled-interaction');
+      $modeToggle.attr('title', 'Anomalies are invalid for Dynamic Technology Mix');
+      // Force back to absolute if currently anomaly
+      if ($modeToggle.find('.display-toggle-option.active').data('value') === 'anomaly') {
+        $modeToggle.find('.display-toggle-option').removeClass('active');
+        $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active');
+        $modeToggle.removeClass('toggle-right');
+        $('#reference-period-wrapper').removeClass('is-visible');
+        Shiny.setInputValue('display_mode', 'absolute');
+      }
+    } else {
+      $modeToggle.removeClass('disabled-interaction');
+      $modeToggle.removeAttr('title');
+    }
+  });
+
+  // --------------------------------------------------------------------------
+  // Force Projection Toggle ON for Dynamic Wind Power
+  // --------------------------------------------------------------------------
+  Shiny.addCustomMessageHandler('set_projection_forced', function (msg) {
+    var $projToggle = $('#projection-show-toggle');
+    var isProjOn = ($projToggle.find('.proj-toggle-option.active').data('value') == '1');
+    if (msg.force_on) {
+      $projToggle.addClass('disabled-interaction');
+      $projToggle.attr('title', 'Dynamic mix is exclusively a projection feature');
+      // If currently off, force it on. The click handler will call rebuildPeriodDropdown.
+      if (!isProjOn) {
+        $projToggle.find('.proj-toggle-option[data-value="1"]').click();
+      } else {
+        // Already on, but we must purge historical periods if they are there
+        if (window.rebuildPeriodDropdown) window.rebuildPeriodDropdown(true, true);
+      }
+    } else {
+      $projToggle.removeClass('disabled-interaction');
+      $projToggle.removeAttr('title');
+      // Restore historical periods if we are still in projection mode
+      if (isProjOn) {
+         if (window.rebuildPeriodDropdown) window.rebuildPeriodDropdown(false, true);
+      }
+    }
+  });
+
+  // --------------------------------------------------------------------------
   // Custom Tooltip Engine — zone_id → tooltip HTML
   // --------------------------------------------------------------------------
   // The server sends a named list { zone_id: tooltip_html } via the
@@ -463,31 +511,13 @@ $(document).ready(function () {
       }
 
       // ── Update the period dropdown directly via selectize API ──────────────
-      // Previously this was done server-side via updateSelectInput(), which
-      // caused an async round-trip (R → browser → R) and triggered a second
-      // render cycle. By updating the dropdown client-side, all input changes
-      // (show_projections + projection_period) arrive at the server in a
-      // single Shiny message batch → single render.
-      var $periodSelect = $('#projection_period');
-      if ($periodSelect.length && $periodSelect[0].selectize) {
-        var selectize = $periodSelect[0].selectize;
-        selectize.clear(true);     // clear selection silently
-        selectize.clearOptions();  // remove all existing options
-        selectize.addOption([
-          {value: '1961-1990', label: '1961\u20131990 (WMO Classic)'},
-          {value: '1971-2000', label: '1971\u20132000 (WMO Historical)'},
-          {value: '1981-2010', label: '1981\u20132010 (WMO Previous)'},
-          {value: '1991-2020', label: '1991\u20132020 (WMO Current)'},
-          {value: '2011-2023', label: '2011\u20132023 (Recent)'},
-          {value: '2021-2040', label: '2021\u20132040 (Near-term)'},
-          {value: '2041-2060', label: '2041\u20132060 (Mid-term)'},
-          {value: '2061-2080', label: '2061\u20132080 (Mid-late)'},
-          {value: '2081-2100', label: '2081\u20132100 (Long-term)'}
-        ]);
-        selectize.setValue('2041-2060', true); // select silently (no change event)
-        // Push the new period value to Shiny in the same message batch
-        Shiny.setInputValue('projection_period', '2041-2060');
+      if (window.rebuildPeriodDropdown) {
+        var isDynamicWind = ($('#climate_variable').val().indexOf('wind_power') >= 0) && ($('#technology_mix').val() === 'dynamic');
+        window.rebuildPeriodDropdown(isDynamicWind, true);
       }
+      
+      // Push the new period value to Shiny in the same message batch
+      Shiny.setInputValue('projection_period', '2041-2060');
     } else {
       $container.removeClass('toggle-right');
       $('#scenario-selector-wrapper').removeClass('is-visible');
@@ -495,20 +525,8 @@ $(document).ready(function () {
       $('#reference-period-wrapper').removeClass('is-visible');
 
       // ── Restore historical-only periods via selectize API ──────────────────
-      var $periodSelect = $('#projection_period');
-      if ($periodSelect.length && $periodSelect[0].selectize) {
-        var selectize = $periodSelect[0].selectize;
-        selectize.clear(true);
-        selectize.clearOptions();
-        selectize.addOption([
-          {value: '1961-1990', label: '1961\u20131990 (WMO Classic)'},
-          {value: '1971-2000', label: '1971\u20132000 (WMO Historical)'},
-          {value: '1981-2010', label: '1981\u20132010 (WMO Previous)'},
-          {value: '1991-2020', label: '1991\u20132020 (WMO Current)'},
-          {value: '2011-2023', label: '2011\u20132023 (Recent)'}
-        ]);
-        selectize.setValue('1981-2010', true);
-        Shiny.setInputValue('projection_period', '1981-2010');
+      if (window.rebuildPeriodDropdown) {
+        window.rebuildPeriodDropdown(false, false);
       }
     }
 
@@ -626,21 +644,59 @@ $(document).ready(function () {
       $('#selected_year').closest('.form-group').slideDown(200);
 
       // Restore historical-only periods via selectize API
-      var $periodSelect = $('#projection_period');
-      if ($periodSelect.length && $periodSelect[0].selectize) {
-        var selectize = $periodSelect[0].selectize;
-        selectize.clear(true);
-        selectize.clearOptions();
-        selectize.addOption([
+      if (window.rebuildPeriodDropdown) {
+        window.rebuildPeriodDropdown(false, false);
+      }
+    }
+  });
+
+  // Helper to dynamically rebuild the Period dropdown options
+  window.rebuildPeriodDropdown = function(excludeHistorical, isProjectionOn) {
+    var $periodSelect = $('#projection_period');
+    if ($periodSelect.length && $periodSelect[0].selectize) {
+      var selectize = $periodSelect[0].selectize;
+      var currentVal = selectize.getValue();
+      selectize.clear(true);
+      selectize.clearOptions();
+      
+      var options = [];
+      if (!excludeHistorical) {
+        options.push(
           {value: '1961-1990', label: '1961\u20131990 (WMO Classic)'},
           {value: '1971-2000', label: '1971\u20132000 (WMO Historical)'},
           {value: '1981-2010', label: '1981\u20132010 (WMO Previous)'},
           {value: '1991-2020', label: '1991\u20132020 (WMO Current)'},
           {value: '2011-2023', label: '2011\u20132023 (Recent)'}
-        ]);
-        selectize.setValue('1981-2010', true);
-        Shiny.setInputValue('projection_period', '1981-2010');
+        );
       }
+      if (isProjectionOn) {
+        options.push(
+          {value: '2021-2040', label: '2021\u20132040 (Near-term)'},
+          {value: '2041-2060', label: '2041\u20132060 (Mid-term)'},
+          {value: '2061-2080', label: '2061\u20132080 (Mid-late)'},
+          {value: '2081-2100', label: '2081\u20132100 (Long-term)'}
+        );
+      }
+      selectize.addOption(options);
+      
+      var validVals = options.map(function(o) { return o.value; });
+      var nextVal = currentVal;
+      if (validVals.indexOf(currentVal) === -1) {
+        nextVal = isProjectionOn ? '2041-2060' : '1981-2010';
+      }
+      selectize.setValue(nextVal, true);
+      Shiny.setInputValue('projection_period', nextVal);
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // Tech Mix Controls — Toggle visibility
+  // --------------------------------------------------------------------------
+  Shiny.addCustomMessageHandler('toggle_tech_mix_controls', function (msg) {
+    if (msg.show) {
+      $('#tech-mix-wrapper').slideDown(200);
+    } else {
+      $('#tech-mix-wrapper').slideUp(200);
     }
   });
 
