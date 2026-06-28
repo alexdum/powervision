@@ -1765,7 +1765,20 @@ server <- function(input, output, session) {
           summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop")
       }
     }
-    
+    tech_note <- ""
+    if (grepl("wind_power", var_name)) {
+      if (!is.null(input$technology_mix) && input$technology_mix != "dynamic") {
+        # e.g., input$technology_mix == "fixed_2030" -> Extract year for label
+        if (input$technology_mix == "fixed_2020") tech_note <- "Computed with 2020 Tech"
+        else if (input$technology_mix == "fixed_2025") tech_note <- "Computed with 2025 Tech"
+        else if (input$technology_mix == "fixed_2030") tech_note <- "Computed with 2030 Tech"
+        else if (input$technology_mix == "fixed_2040") tech_note <- "Computed with 2040 Tech"
+        else if (input$technology_mix == "fixed_2050") tech_note <- "Computed with 2050 Tech"
+      } else {
+        tech_note <- "Computed with 2025 Tech Proxy"
+      }
+    }
+
     build_seasonality_plotly(
       df_hist = df_hist,
       df_proj = df_proj,
@@ -1774,7 +1787,8 @@ server <- function(input, output, session) {
       ssp_scenario = ssp,
       reference_period = ref_period,
       target_period = target_period,
-      accent_color = tail(var_meta$palette, 1)
+      accent_color = tail(var_meta$palette, 1),
+      hist_note = tech_note
     )
   })
 

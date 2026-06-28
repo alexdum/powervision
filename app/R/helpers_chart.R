@@ -430,9 +430,10 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
 #' @param reference_period Historical reference period string
 #' @param target_period Projection target period string
 #' @param accent_color Main color for the variable
+#' @param hist_note Optional text to append to the hover tooltip for context
 build_seasonality_plotly <- function(
   df_hist, df_proj, var_name, region_name, 
-  ssp_scenario, reference_period, target_period, accent_color
+  ssp_scenario, reference_period, target_period, accent_color, hist_note = ""
 ) {
   # Get axis label for variable from the global climate_variables list
   var_meta <- climate_variables[[var_name]]
@@ -481,7 +482,9 @@ build_seasonality_plotly <- function(
       name = paste("Historical", reference_period),
       line = list(color = accent_color, width = 2),
       marker = list(color = accent_color, size = 4),
-      hovertemplate = paste0("<b>Historical</b><br>%{x}: %{y:.2f} ", hover_unit, "<extra></extra>")
+      hovertemplate = paste0("<b>Historical</b><br>%{x}: %{y:.2f} ", hover_unit, 
+                             if (nchar(hist_note) > 0) paste0("<br><i>", hist_note, "</i>") else "",
+                             "<extra></extra>")
     )
   }
   
@@ -499,7 +502,9 @@ build_seasonality_plotly <- function(
       name = paste(ssp_label, target_period),
       line = list(color = proj_line_color, width = 2.5, dash = "dash"),
       marker = list(color = proj_line_color, size = 4),
-      hovertemplate = paste0("<b>Projection</b><br>%{x}: %{y:.2f} ", hover_unit, "<extra></extra>")
+      hovertemplate = paste0("<b>Projection</b><br>%{x}: %{y:.2f} ", hover_unit, 
+                             if (nchar(hist_note) > 0) paste0("<br><i>", hist_note, "</i>") else "",
+                             "<extra></extra>")
     )
   }
   
