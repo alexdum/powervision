@@ -450,6 +450,10 @@ build_seasonality_plotly <- function(
                            var_label, region_name, reference_period)
   }
   
+  if (nchar(hist_note) > 0) {
+    chart_title <- paste0(chart_title, "<br><sup style='color:#94a3b8;'><i>", hist_note, "</i></sup>")
+  }
+  
   month_labels <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", 
                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
   
@@ -478,13 +482,10 @@ build_seasonality_plotly <- function(
       data = df_hist,
       x = ~Month,
       y = ~Value,
-      type = "scatter", mode = "lines+markers",
+      type = "box",
       name = paste("Historical", reference_period),
-      line = list(color = accent_color, width = 2),
-      marker = list(color = accent_color, size = 4),
-      hovertemplate = paste0("<b>Historical</b><br>%{x}: %{y:.2f} ", hover_unit, 
-                             if (nchar(hist_note) > 0) paste0("<br><i>", hist_note, "</i>") else "",
-                             "<extra></extra>")
+      marker = list(color = accent_color),
+      line = list(color = accent_color)
     )
   }
   
@@ -498,13 +499,10 @@ build_seasonality_plotly <- function(
       data = df_proj,
       x = ~Month,
       y = ~Value,
-      type = "scatter", mode = "lines+markers",
+      type = "box",
       name = paste(ssp_label, target_period),
-      line = list(color = proj_line_color, width = 2.5, dash = "dash"),
-      marker = list(color = proj_line_color, size = 4),
-      hovertemplate = paste0("<b>Projection</b><br>%{x}: %{y:.2f} ", hover_unit, 
-                             if (nchar(hist_note) > 0) paste0("<br><i>", hist_note, "</i>") else "",
-                             "<extra></extra>")
+      marker = list(color = proj_line_color),
+      line = list(color = proj_line_color)
     )
   }
   
@@ -524,11 +522,13 @@ build_seasonality_plotly <- function(
       zeroline = FALSE
     ),
     yaxis = list(
-      title = list(text = paste0(var_label, " [", hover_unit, "]"), font = list(family = "Inter, sans-serif", color = "#94a3b8")),
+      title = paste0(var_label, " (", var_meta$unit, ")"),
+      titlefont = list(family = "Inter, sans-serif", color = "#94a3b8", size = 12),
       tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
       gridcolor = "rgba(255, 255, 255, 0.05)",
-      zeroline = FALSE
+      zerolinecolor = "rgba(255, 255, 255, 0.1)"
     ),
+    boxmode = "group",
     plot_bgcolor = "rgba(0,0,0,0)",
     paper_bgcolor = "rgba(0,0,0,0)",
     margin = list(t = 50, r = 20, b = 40, l = 50),

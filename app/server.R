@@ -1740,11 +1740,8 @@ server <- function(input, output, session) {
       year_end = as.numeric(substr(ref_period, 6, 9)),
       target_region = region_id
     )
-    if (!is.null(df_hist) && nrow(df_hist) > 0) {
-      df_hist <- df_hist %>%
-        group_by(Month) %>%
-        summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop")
-    }
+    # We no longer summarise by month here because Plotly will construct boxplots 
+    # from the full distribution of yearly values per month.
       
     # Query Projected Monthly
     show_proj <- isTRUE(input$show_projections == "1")
@@ -1759,11 +1756,8 @@ server <- function(input, output, session) {
         target_region = region_id,
         scenario_val = ssp
       )
-      if (!is.null(df_proj) && nrow(df_proj) > 0) {
-        df_proj <- df_proj %>%
-          group_by(Month) %>%
-          summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop")
-      }
+      # We no longer summarise by month here because Plotly will construct boxplots 
+      # from the full distribution of yearly values per month.
     }
     tech_note <- ""
     if (grepl("wind_power", var_name)) {
