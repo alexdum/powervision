@@ -37,6 +37,13 @@ ui <- page_fillable(
     tags$div(class = "map-spinner")
   ),
 
+  # ── Global App Loader (Shiny Busy) ───────────────────────────────────────────
+  tags$div(
+    id = "global-shiny-loader",
+    tags$div(class = "shiny-spinner"),
+    tags$span("Processing data...")
+  ),
+
   # ── LEFT: Glassmorphism Control Panel ────────────────────────────────────────
   absolutePanel(
     id = "control-panel",

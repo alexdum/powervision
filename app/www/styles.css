@@ -74,6 +74,54 @@ body, html {
   50%      { opacity: 1.0; }
 }
 
+/* ---------------------------------------------------------------------------- */
+/* Global App Loader (Shiny Busy)                                                */
+/* ---------------------------------------------------------------------------- */
+/* Native Shiny state: appears automatically when R server is busy computing.    */
+/* ---------------------------------------------------------------------------- */
+
+#global-shiny-loader {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html.shiny-busy #global-shiny-loader {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.shiny-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #38bdf8;
+  border-radius: 50%;
+  animation: spin-shiny 0.8s linear infinite;
+}
+
+@keyframes spin-shiny {
+  to { transform: rotate(360deg); }
+}
+
 /* Centered loading spinner — shown inside the shimmer overlay */
 #map-loading-shimmer .map-spinner {
   position: absolute;
