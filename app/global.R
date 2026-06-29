@@ -433,8 +433,9 @@ for (level_code in names(spatial_levels)) {
 # ==============================================================================
 
 # Variables that have projection data available in PECD v4.2
-# (only temperature and precipitation for now — solar / wind not available)
-projection_available_variables <- c("2m_temperature", "total_precipitation", "wind_power_onshore", "wind_power_offshore")
+# --- Constants for Projections ---
+# Define which variables and spatial levels actually have projection data available
+projection_available_variables <- c("2m_temperature", "total_precipitation", "wind_power_onshore", "wind_power_offshore", "surface_solar_radiation_downwards")
 
 # Detect which spatial levels actually have projection data in the parquet store.
 # This is computed at startup rather than hard-coded so that newly downloaded
