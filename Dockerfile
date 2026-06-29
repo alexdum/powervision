@@ -5,6 +5,10 @@
 # The server deployment uses docker/Dockerfile (port 3838) instead.
 # Do NOT modify docker/Dockerfile or docker-compose.yml — those are for the
 # ECMWF server deployment via SSH tunnel.
+#
+# DATA STRATEGY: The 1.5 GB Parquet data is stored in a separate HF Dataset
+# repo (adumitrescu/powervision-data) because HF Space repos are limited to
+# 1 GB. The data is downloaded during the Docker build step.
 # ==============================================================================
 FROM ghcr.io/rocker-org/r-ver:4.5.0
 
@@ -33,6 +37,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     gcc \
     g++ \
+    python3 \
+    python3-pip \
   && rm -rf /var/lib/apt/lists/*
 
 # --- Install Inter font (used by the app's glassmorphism design) ---
@@ -58,8 +64,25 @@ ENV ARROW_WITH_SNAPPY=ON
 ENV NOT_CRAN=true
 RUN R -e 'renv::restore()'
 
-# --- Copy the full app source ---
+# --- Copy the full app source (code, GeoJSON, CSVs — NOT Parquet) ---
 COPY app/ .
+
+# --- Download Parquet data from HF Dataset repo ---
+# The data is stored separately because HF Space repos are limited to 1 GB.
+# Dataset repo: https://huggingface.co/datasets/adumitrescu/powervision-data
+# Files are stored under pecd/ in the dataset repo, and snapshot_download
+# preserves that structure, so local_dir='/app/www/data' creates /app/www/data/pecd/...
+RUN pip install --no-cache-dir huggingface_hub && \
+    python3 -c " \
+from huggingface_hub import snapshot_download; \
+snapshot_download( \
+    repo_id='adumitrescu/powervision-data', \
+    repo_type='dataset', \
+    local_dir='/app/www/data', \
+    allow_patterns='pecd/**' \
+)" && \
+    pip uninstall -y huggingface_hub && \
+    echo '✅ Parquet data downloaded'
 
 # --- Environment variables ---
 ENV PECD_GEOJSON_VERSION=mixed
