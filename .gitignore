@@ -23,6 +23,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Hugging Face Spaces push temp directory
+.hf_push_tmp/
+
 # Documentation
 .agents/
 DEPLOYMENT.md
