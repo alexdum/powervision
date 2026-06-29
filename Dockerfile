@@ -73,14 +73,7 @@ COPY app/ .
 # Files are stored under pecd/ in the dataset repo, and snapshot_download
 # preserves that structure, so local_dir='/app/www/data' creates /app/www/data/pecd/...
 RUN pip install --no-cache-dir --break-system-packages huggingface_hub && \
-    python3 -c " \
-from huggingface_hub import snapshot_download; \
-snapshot_download( \
-    repo_id='adumitrescu/powervision-data', \
-    repo_type='dataset', \
-    local_dir='/app/www/data', \
-    allow_patterns='pecd/**' \
-)" && \
+    python3 -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='adumitrescu/powervision-data', repo_type='dataset', local_dir='/app/www/data', allow_patterns=['pecd/**'])" && \
     pip uninstall -y --break-system-packages huggingface_hub && \
     echo '✅ Parquet data downloaded'
 
