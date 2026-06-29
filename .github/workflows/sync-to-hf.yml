@@ -27,16 +27,18 @@ jobs:
           fetch-depth: 0
           path: github-repo
 
-      # --- Clone the HF Space repo (skip LFS to keep it fast) ---
-      # We skip LFS because the Parquet files are already on HF and we
-      # don't want to re-download 1.5 GB just to push code changes.
+      # --- Clone the HF Space repo with retry (HF can return 429 during rebuilds) ---
       - name: Clone HF Space repo
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          GIT_LFS_SKIP_SMUDGE=1 git clone \
-            https://adumitrescu:${HF_TOKEN}@huggingface.co/spaces/adumitrescu/powervision \
-            hf-repo
+          for i in 1 2 3; do
+            GIT_LFS_SKIP_SMUDGE=1 git clone \
+              https://adumitrescu:${HF_TOKEN}@huggingface.co/spaces/adumitrescu/powervision \
+              hf-repo && break
+            echo "⚠️ Clone attempt $i failed (likely 429 rate limit). Retrying in $((i * 30))s..."
+            sleep $((i * 30))
+          done
 
       # --- Sync code from GitHub checkout into HF clone ---
       # This preserves the LFS-tracked Parquet data already in the HF repo
