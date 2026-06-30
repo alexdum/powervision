@@ -1,4 +1,5 @@
 # helpers_chart.R
+
 # ==============================================================================
 # Time-Series Chart Builder for the Region Stats Drawer
 # ==============================================================================
@@ -22,7 +23,6 @@
 #   ssp_colors           - IPCC-inspired color palette per SSP scenario
 #   ssp_scenario_labels  - Human-readable SSP scenario display labels
 # ==============================================================================
-
 
 # ------------------------------------------------------------------------------
 # build_region_timeseries_chart()
@@ -68,15 +68,23 @@
 #   A fully configured plotly object ready to render in the stats drawer.
 #   The object has displayModeBar disabled for a clean interface.
 # ------------------------------------------------------------------------------
-build_region_timeseries_chart <- function(df_region, var_name, var_meta,
-                                         accent_color, region_name,
-                                         temp_mode, show_proj, proj_data,
-                                         baseline, display_mode,
-                                         ssp_scenario, reference_period,
-                                         hide_historical_line = FALSE) {
-
+build_region_timeseries_chart <- function(
+  df_region,
+  var_name,
+  var_meta,
+  accent_color,
+  region_name,
+  temp_mode,
+  show_proj,
+  proj_data,
+  baseline,
+  display_mode,
+  ssp_scenario,
+  reference_period,
+  hide_historical_line = FALSE
+) {
   var_label <- var_meta$label
-  var_unit  <- var_meta$unit
+  var_unit <- var_meta$unit
 
   # --------------------------------------------------------------------------
   # Determine whether anomaly transformation is needed
@@ -86,9 +94,9 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
   #   2. Display mode set to "anomaly" in the UI
   #   3. A valid, finite baseline value computed from the reference period
   use_anomaly <- (show_proj &&
-                  isTRUE(display_mode == "anomaly") &&
-                  !is.null(baseline) &&
-                  is.finite(baseline))
+    isTRUE(display_mode == "anomaly") &&
+    !is.null(baseline) &&
+    is.finite(baseline))
 
   # Precipitation uses relative (%) anomalies because a 10mm departure means
   # very different things in a desert vs a rainforest. Temperature and other
@@ -107,9 +115,11 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
       if (abs(baseline) > 0.001) {
         df_region$Value <- (df_region$Value - baseline) / baseline * 100
         if (!is.null(proj_data) && nrow(proj_data) > 0) {
-          proj_data$median_val <- (proj_data$median_val - baseline) / baseline * 100
-          proj_data$min_val    <- (proj_data$min_val - baseline) / baseline * 100
-          proj_data$max_val    <- (proj_data$max_val - baseline) / baseline * 100
+          proj_data$median_val <- (proj_data$median_val - baseline) /
+            baseline *
+            100
+          proj_data$min_val <- (proj_data$min_val - baseline) / baseline * 100
+          proj_data$max_val <- (proj_data$max_val - baseline) / baseline * 100
         }
         anomaly_unit <- "%"
       } else {
@@ -117,8 +127,8 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
         df_region$Value <- df_region$Value - baseline
         if (!is.null(proj_data) && nrow(proj_data) > 0) {
           proj_data$median_val <- proj_data$median_val - baseline
-          proj_data$min_val    <- proj_data$min_val - baseline
-          proj_data$max_val    <- proj_data$max_val - baseline
+          proj_data$min_val <- proj_data$min_val - baseline
+          proj_data$max_val <- proj_data$max_val - baseline
         }
         anomaly_unit <- var_unit
       }
@@ -127,16 +137,19 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
       df_region$Value <- df_region$Value - baseline
       if (!is.null(proj_data) && nrow(proj_data) > 0) {
         proj_data$median_val <- proj_data$median_val - baseline
-        proj_data$min_val    <- proj_data$min_val - baseline
-        proj_data$max_val    <- proj_data$max_val - baseline
+        proj_data$min_val <- proj_data$min_val - baseline
+        proj_data$max_val <- proj_data$max_val - baseline
       }
       anomaly_unit <- var_unit
     }
 
     # Y-axis label and hover tooltip unit for anomaly mode
-    y_axis_label <- sprintf("Change from %s (%s)", reference_period, anomaly_unit)
+    y_axis_label <- sprintf(
+      "Change from %s (%s)",
+      reference_period,
+      anomaly_unit
+    )
     hover_unit <- anomaly_unit
-
   } else {
     # Normal absolute mode — no transformation applied
     y_axis_label <- sprintf("%s (%s)", var_label, var_unit)
@@ -149,13 +162,23 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
   if (!is.null(proj_data) && nrow(proj_data) > 0) {
     # Projections overlay active: show SSP scenario and reference period
     scenario_label <- ssp_scenario_labels[ssp_scenario]
-    chart_title <- sprintf("%s: %s (%s) \u2014 %s vs %s",
-                           var_label, region_name, temp_mode,
-                           scenario_label, reference_period)
+    chart_title <- sprintf(
+      "%s: %s (%s) \u2014 %s vs %s",
+      var_label,
+      region_name,
+      temp_mode,
+      scenario_label,
+      reference_period
+    )
   } else if (use_anomaly) {
     # Anomaly mode without projection data: show reference period only
-    chart_title <- sprintf("%s Anomaly: %s (%s) vs %s",
-                           var_label, region_name, temp_mode, reference_period)
+    chart_title <- sprintf(
+      "%s Anomaly: %s (%s) vs %s",
+      var_label,
+      region_name,
+      temp_mode,
+      reference_period
+    )
   } else {
     # Standard historical view — simplest title
     chart_title <- sprintf("Historical Record: %s (%s)", region_name, temp_mode)
@@ -179,7 +202,11 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
         name = "Historical (ERA5)",
         line = list(color = accent_color, width = 2),
         marker = list(color = accent_color, size = 4),
-        hovertemplate = paste0("<b>Historical</b><br>Year: %{x}<br>Value: %{y:.2f} ", hover_unit, "<extra></extra>")
+        hovertemplate = paste0(
+          "<b>Historical</b><br>Year: %{x}<br>Value: %{y:.2f} ",
+          hover_unit,
+          "<extra></extra>"
+        )
       )
   }
 
@@ -187,7 +214,6 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
   # Overlay projection ensemble data if available
   # --------------------------------------------------------------------------
   if (!is.null(proj_data) && nrow(proj_data) > 0) {
-
     # Get the SSP-specific color palette from global config
     ssp_key <- ssp_scenario
     proj_line_color <- ssp_colors[[ssp_key]]$line
@@ -200,9 +226,24 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
 
     # Interpolate any missing years (like 2089 in ssp3_7_0) so the polygon doesn't break
     if (any(is.na(proj_data$min_val))) {
-      proj_data$min_val <- approx(proj_data$Year, proj_data$min_val, xout = proj_data$Year, rule = 2)$y
-      proj_data$max_val <- approx(proj_data$Year, proj_data$max_val, xout = proj_data$Year, rule = 2)$y
-      proj_data$median_val <- approx(proj_data$Year, proj_data$median_val, xout = proj_data$Year, rule = 2)$y
+      proj_data$min_val <- approx(
+        proj_data$Year,
+        proj_data$min_val,
+        xout = proj_data$Year,
+        rule = 2
+      )$y
+      proj_data$max_val <- approx(
+        proj_data$Year,
+        proj_data$max_val,
+        xout = proj_data$Year,
+        rule = 2
+      )$y
+      proj_data$median_val <- approx(
+        proj_data$Year,
+        proj_data$median_val,
+        xout = proj_data$Year,
+        rule = 2
+      )$y
     }
 
     # Add the model agreement envelope as a single closed polygon (fill='toself').
@@ -231,10 +272,18 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
         mode = 'lines',
         name = 'Projection Median',
         line = list(color = proj_line_color, width = 2.5, dash = 'dash'),
-        text = ~paste0("Year: ", Year,
-                       "<br>Median projection: ", round(median_val, 2),
-                       "<br>Model range: ", round(min_val, 2),
-                       " \u2013 ", round(max_val, 2), " ", hover_unit),
+        text = ~ paste0(
+          "Year: ",
+          Year,
+          "<br>Median projection: ",
+          round(median_val, 2),
+          "<br>Model range: ",
+          round(min_val, 2),
+          " \u2013 ",
+          round(max_val, 2),
+          " ",
+          hover_unit
+        ),
         hoverinfo = 'text'
       )
   }
@@ -248,118 +297,140 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
   chart_annotations <- list()
 
   if (show_proj) {
-
     if (!hide_historical_line) {
       # Vertical "Present Day" divider line at 2023 — marks the boundary
       # between observed ERA5 data and projected CMIP6 model data
-      chart_shapes <- c(chart_shapes, list(
+      chart_shapes <- c(
+        chart_shapes,
         list(
-          type = "line",
-          x0 = 2023, x1 = 2023,
-          y0 = 0, y1 = 1,
-          yref = "paper",
-          line = list(
-            color = "rgba(255, 255, 255, 0.35)",
-            width = 1.5,
-            dash = "dot"
+          list(
+            type = "line",
+            x0 = 2023,
+            x1 = 2023,
+            y0 = 0,
+            y1 = 1,
+            yref = "paper",
+            line = list(
+              color = "rgba(255, 255, 255, 0.35)",
+              width = 1.5,
+              dash = "dot"
+            )
           )
         )
-      ))
+      )
 
       # "Observed | Projected" label above the divider line
-      chart_annotations <- c(chart_annotations, list(
+      chart_annotations <- c(
+        chart_annotations,
         list(
-          x = 2023,
-          y = 1.02,
-          yref = "paper",
-          text = "Observed | Projected",
-          showarrow = FALSE,
-          font = list(
-            family = "Inter, sans-serif",
-            size = 10,
-            color = "rgba(255, 255, 255, 0.50)"
-          ),
-          xanchor = "center"
+          list(
+            x = 2023,
+            y = 1.02,
+            yref = "paper",
+            text = "Observed | Projected",
+            showarrow = FALSE,
+            font = list(
+              family = "Inter, sans-serif",
+              size = 10,
+              color = "rgba(255, 255, 255, 0.50)"
+            ),
+            xanchor = "center"
+          )
         )
-      ))
+      )
     }
 
     # Anomaly-specific visual elements: baseline line, reference period band
     if (use_anomaly) {
-
       # Parse reference period years for the shaded band position
       ref_years <- as.integer(strsplit(reference_period, "-")[[1]])
       ref_start <- ref_years[1]
-      ref_end   <- ref_years[2]
+      ref_end <- ref_years[2]
 
       # Horizontal baseline line at y=0 — the "no change" reference level.
       # Scientists expect this visual anchor when reading anomaly plots.
-      chart_shapes <- c(chart_shapes, list(
+      chart_shapes <- c(
+        chart_shapes,
         list(
-          type = "line",
-          x0 = 0, x1 = 1,
-          xref = "paper",
-          y0 = 0, y1 = 0,
-          line = list(
-            color = "rgba(255, 255, 255, 0.40)",
-            width = 1.5,
-            dash = "dash"
+          list(
+            type = "line",
+            x0 = 0,
+            x1 = 1,
+            xref = "paper",
+            y0 = 0,
+            y1 = 0,
+            line = list(
+              color = "rgba(255, 255, 255, 0.40)",
+              width = 1.5,
+              dash = "dash"
+            )
           )
         )
-      ))
+      )
 
       # Vertical shaded band highlighting the reference period on the x-axis.
       # This helps scientists see which years contributed to the baseline mean.
-      chart_shapes <- c(chart_shapes, list(
+      chart_shapes <- c(
+        chart_shapes,
         list(
-          type = "rect",
-          x0 = ref_start, x1 = ref_end,
-          y0 = 0, y1 = 1,
-          yref = "paper",
-          fillcolor = "rgba(56, 189, 248, 0.06)",
-          line = list(
-            color = "rgba(56, 189, 248, 0.20)",
-            width = 1
+          list(
+            type = "rect",
+            x0 = ref_start,
+            x1 = ref_end,
+            y0 = 0,
+            y1 = 1,
+            yref = "paper",
+            fillcolor = "rgba(56, 189, 248, 0.06)",
+            line = list(
+              color = "rgba(56, 189, 248, 0.20)",
+              width = 1
+            )
           )
         )
-      ))
+      )
 
       # "Baseline" label next to the y=0 line
-      chart_annotations <- c(chart_annotations, list(
+      chart_annotations <- c(
+        chart_annotations,
         list(
-          x = 0.01,
-          xref = "paper",
-          y = 0,
-          text = "Baseline",
-          showarrow = FALSE,
-          font = list(
-            family = "Inter, sans-serif",
-            size = 9,
-            color = "rgba(255, 255, 255, 0.45)"
-          ),
-          xanchor = "left",
-          yanchor = "bottom",
-          yshift = 4
+          list(
+            x = 0.01,
+            xref = "paper",
+            y = 0,
+            text = "Baseline",
+            showarrow = FALSE,
+            font = list(
+              family = "Inter, sans-serif",
+              size = 9,
+              color = "rgba(255, 255, 255, 0.45)"
+            ),
+            xanchor = "left",
+            yanchor = "bottom",
+            yshift = 4
+          )
         )
-      ))
+      )
 
       # Reference period label centered above the shaded band
       ref_band_midpoint <- (ref_start + ref_end) / 2
-      chart_annotations <- c(chart_annotations, list(
+      chart_annotations <- c(
+        chart_annotations,
         list(
-          x = ref_band_midpoint,
-          y = 0.98,
-          yref = "paper",
-          text = reference_period,
-          showarrow = FALSE,
-          font = list(
-            family = "Inter, sans-serif",
-            size = 9,
-            color = "rgba(56, 189, 248, 0.50)"
-          ),
-          xanchor = "center"
+          list(
+            x = ref_band_midpoint,
+            y = 0.98,
+            yref = "paper",
+            text = reference_period,
+            showarrow = FALSE,
+            font = list(
+              family = "Inter, sans-serif",
+              size = 9,
+              color = "rgba(56, 189, 248, 0.50)"
+            ),
+            xanchor = "center"
+          )
         )
-      ))
+      )
     }
   }
 
@@ -385,7 +456,10 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
         zeroline = FALSE
       ),
       yaxis = list(
-        title = list(text = y_axis_label, font = list(family = "Inter, sans-serif", color = "#94a3b8")),
+        title = list(
+          text = y_axis_label,
+          font = list(family = "Inter, sans-serif", color = "#94a3b8")
+        ),
         tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
         gridcolor = "rgba(255, 255, 255, 0.05)",
         zeroline = FALSE
@@ -429,39 +503,79 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
 #' @param accent_color Main color for the variable
 #' @param hist_note Optional text to append to the hover tooltip for context
 build_seasonality_plotly <- function(
-  df_hist, df_proj, var_name, region_name, 
-  ssp_scenario, reference_period, target_period, accent_color, hist_note = ""
+  df_hist,
+  df_proj,
+  var_name,
+  region_name,
+  ssp_scenario,
+  reference_period,
+  target_period,
+  accent_color,
+  hist_note = ""
 ) {
   # Get axis label for variable from the global climate_variables list
   var_meta <- climate_variables[[var_name]]
   var_label <- var_meta$label
   hover_unit <- var_meta$unit
-  
+
   # Title format matching the timeseries chart style
   if (!is.null(df_proj) && nrow(df_proj) > 0) {
     ssp_label <- ssp_scenario_labels[ssp_scenario]
-    chart_title <- sprintf("%s Seasonal Profile: %s \u2014 %s vs %s", 
-                           var_label, region_name, ssp_label, reference_period)
+    chart_title <- sprintf(
+      "%s Seasonal Profile: %s \u2014 %s vs %s",
+      var_label,
+      region_name,
+      ssp_label,
+      reference_period
+    )
   } else {
-    chart_title <- sprintf("%s Seasonal Profile: %s \u2014 Historical (%s)", 
-                           var_label, region_name, reference_period)
+    chart_title <- sprintf(
+      "%s Seasonal Profile: %s \u2014 Historical (%s)",
+      var_label,
+      region_name,
+      reference_period
+    )
   }
-  
+
   if (nchar(hist_note) > 0) {
-    chart_title <- paste0(chart_title, "<br><sup style='color:#94a3b8;'><i>", hist_note, "</i></sup>")
+    chart_title <- paste0(
+      chart_title,
+      "<br><sup style='color:#94a3b8;'><i>",
+      hist_note,
+      "</i></sup>"
+    )
   }
-  
-  month_labels <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-  
+
+  month_labels <- c(
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  )
+
   # Guard: If no data is available, return a clean empty plot to avoid Plotly warnings
-  if ((is.null(df_hist) || nrow(df_hist) == 0) && (is.null(df_proj) || nrow(df_proj) == 0)) {
+  if (
+    (is.null(df_hist) || nrow(df_hist) == 0) &&
+      (is.null(df_proj) || nrow(df_proj) == 0)
+  ) {
     return(
-      plot_ly() %>% 
+      plot_ly() %>%
         layout(
           title = list(
             text = paste("No data available for", region_name),
-            font = list(family = "Inter, sans-serif", size = 12, color = "#94a3b8"),
+            font = list(
+              family = "Inter, sans-serif",
+              size = 12,
+              color = "#94a3b8"
+            ),
             x = 0.05
           ),
           paper_bgcolor = "rgba(0,0,0,0)",
@@ -470,82 +584,92 @@ build_seasonality_plotly <- function(
         )
     )
   }
-  
+
   p <- plot_ly()
-  
+
   # Historical Trace
   if (!is.null(df_hist) && nrow(df_hist) > 0) {
-    p <- p %>% add_trace(
-      data = df_hist,
-      x = ~Month,
-      y = ~Value,
-      type = "box",
-      name = paste("Historical", reference_period),
-      marker = list(color = accent_color),
-      line = list(color = accent_color)
-    )
+    p <- p %>%
+      add_trace(
+        data = df_hist,
+        x = ~Month,
+        y = ~Value,
+        type = "box",
+        name = paste("Historical", reference_period),
+        marker = list(color = accent_color),
+        line = list(color = accent_color)
+      )
   }
-  
+
   # Projection Trace
   if (!is.null(df_proj) && nrow(df_proj) > 0) {
     ssp_key <- ssp_scenario
     proj_line_color <- ssp_colors[[ssp_key]]$line
     ssp_label <- ssp_scenario_labels[ssp_scenario]
-    
-    p <- p %>% add_trace(
-      data = df_proj,
-      x = ~Month,
-      y = ~Value,
-      type = "box",
-      name = paste(ssp_label, target_period),
-      marker = list(color = proj_line_color),
-      line = list(color = proj_line_color)
-    )
-  }
-  
-  p <- p %>% layout(
-    title = list(
-      text = chart_title,
-      font = list(family = "Inter, sans-serif", size = 14, color = "#e2e8f0"),
-      x = 0.05
-    ),
-    xaxis = list(
-      title = "",
-      tickmode = "array",
-      tickvals = 1:12,
-      ticktext = month_labels,
-      tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
-      gridcolor = "rgba(255, 255, 255, 0.05)",
-      zeroline = FALSE
-    ),
-    yaxis = list(
-      title = paste0(var_label, " (", var_meta$unit, ")"),
-      titlefont = list(family = "Inter, sans-serif", color = "#94a3b8", size = 12),
-      tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
-      gridcolor = "rgba(255, 255, 255, 0.05)",
-      zerolinecolor = "rgba(255, 255, 255, 0.1)"
-    ),
-    boxmode = "group",
-    plot_bgcolor = "rgba(0,0,0,0)",
-    paper_bgcolor = "rgba(0,0,0,0)",
-    margin = list(t = 50, r = 20, b = 40, l = 50),
-    legend = list(
-      orientation = "h", x = 0.5, y = -0.15, xanchor = "center",
-      font = list(family = "Inter, sans-serif", size = 11, color = "#94a3b8"),
-      bgcolor = "rgba(0,0,0,0)"
-    ),
-    hovermode = "x unified",
-    hoverlabel = list(
-      bgcolor = "rgba(15, 23, 42, 0.90)",
-      bordercolor = "rgba(255, 255, 255, 0.15)",
-      font = list(
-        family = "Inter, sans-serif",
-        size = 12,
-        color = "#e2e8f0"
+
+    p <- p %>%
+      add_trace(
+        data = df_proj,
+        x = ~Month,
+        y = ~Value,
+        type = "box",
+        name = paste(ssp_label, target_period),
+        marker = list(color = proj_line_color),
+        line = list(color = proj_line_color)
       )
-    )
-  ) %>%
-  config(displayModeBar = FALSE)
-  
+  }
+
+  p <- p %>%
+    layout(
+      title = list(
+        text = chart_title,
+        font = list(family = "Inter, sans-serif", size = 14, color = "#e2e8f0"),
+        x = 0.05
+      ),
+      xaxis = list(
+        title = "",
+        tickmode = "array",
+        tickvals = 1:12,
+        ticktext = month_labels,
+        tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
+        gridcolor = "rgba(255, 255, 255, 0.05)",
+        zeroline = FALSE
+      ),
+      yaxis = list(
+        title = paste0(var_label, " (", var_meta$unit, ")"),
+        titlefont = list(
+          family = "Inter, sans-serif",
+          color = "#94a3b8",
+          size = 12
+        ),
+        tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
+        gridcolor = "rgba(255, 255, 255, 0.05)",
+        zerolinecolor = "rgba(255, 255, 255, 0.1)"
+      ),
+      boxmode = "group",
+      plot_bgcolor = "rgba(0,0,0,0)",
+      paper_bgcolor = "rgba(0,0,0,0)",
+      margin = list(t = 50, r = 20, b = 40, l = 50),
+      legend = list(
+        orientation = "h",
+        x = 0.5,
+        y = -0.15,
+        xanchor = "center",
+        font = list(family = "Inter, sans-serif", size = 11, color = "#94a3b8"),
+        bgcolor = "rgba(0,0,0,0)"
+      ),
+      hovermode = "x unified",
+      hoverlabel = list(
+        bgcolor = "rgba(15, 23, 42, 0.90)",
+        bordercolor = "rgba(255, 255, 255, 0.15)",
+        font = list(
+          family = "Inter, sans-serif",
+          size = 12,
+          color = "#e2e8f0"
+        )
+      )
+    ) %>%
+    config(displayModeBar = FALSE)
+
   return(p)
 }
