@@ -44,7 +44,7 @@ shiny::runApp(".")
 │   ├── styles.css    # Dark glassmorphism design system
 │   ├── app.js        # Drawer toggle, layer control interactions
 │   └── data/geo/     # Pre-processed GeoJSON boundary files
-├── AGENTS.md         # AI assistant development guidelines
+
 └── DEVELOPMENT_GUIDELINES.md
 ```
 
