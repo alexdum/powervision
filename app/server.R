@@ -1753,7 +1753,7 @@ server <- function(input, output, session) {
         proj_end   <- 2040
       } else {
         proj_start <- max(2021, map_year - 10)
-        proj_end   <- min(2050, map_year + 10)
+        proj_end   <- min(2100, map_year + 10)
       }
       target_period <- paste0(proj_start, "-", proj_end)
     }
