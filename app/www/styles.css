@@ -1079,7 +1079,8 @@ html.shiny-busy #global-shiny-loader {
   margin-bottom: 0;
 }
 
-.scenario-selector-wrapper .selectize-input {
+/* Global Selectize (Dropdown) Overrides - Glassmorphism Style */
+.selectize-input {
   background: rgba(255, 255, 255, 0.06) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 6px !important;
@@ -1092,12 +1093,12 @@ html.shiny-busy #global-shiny-loader {
   backdrop-filter: blur(8px);
 }
 
-.scenario-selector-wrapper .selectize-input.focus {
+.selectize-input.focus {
   border-color: rgba(56, 189, 248, 0.40) !important;
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.15) !important;
 }
 
-.scenario-selector-wrapper .selectize-dropdown {
+.selectize-dropdown {
   background: rgba(10, 15, 35, 0.95) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 8px !important;
@@ -1105,14 +1106,15 @@ html.shiny-busy #global-shiny-loader {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
 }
 
-.scenario-selector-wrapper .selectize-dropdown .option {
+.selectize-dropdown .option {
   color: #cbd5e1 !important;
   font-family: 'Inter', sans-serif !important;
   font-size: 0.75rem !important;
   padding: 8px 12px !important;
 }
 
-.scenario-selector-wrapper .selectize-dropdown .option.active {
+.selectize-dropdown .option.active,
+.selectize-dropdown .option:hover {
   background: rgba(56, 189, 248, 0.15) !important;
   color: #e2e8f0 !important;
 }
@@ -1295,47 +1297,9 @@ html.shiny-busy #global-shiny-loader {
   opacity: 1;
 }
 
-/* Reuse glassmorphism selectize overrides for projection period dropdown */
+/* Keep margin override for projection period wrapper */
 .projection-period-wrapper .form-group {
   margin-bottom: 0;
-}
-
-.projection-period-wrapper .selectize-input {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 6px !important;
-  color: #e2e8f0 !important;
-  font-family: 'Inter', sans-serif !important;
-  font-size: 0.75rem !important;
-  padding: 4px 10px !important;
-  min-height: 32px !important;
-  box-shadow: none !important;
-  backdrop-filter: blur(8px);
-}
-
-.projection-period-wrapper .selectize-input.focus {
-  border-color: rgba(56, 189, 248, 0.40) !important;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.15) !important;
-}
-
-.projection-period-wrapper .selectize-dropdown {
-  background: rgba(10, 15, 35, 0.95) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 8px !important;
-  backdrop-filter: blur(16px) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
-}
-
-.projection-period-wrapper .selectize-dropdown .option {
-  color: #cbd5e1 !important;
-  font-family: 'Inter', sans-serif !important;
-  font-size: 0.75rem !important;
-  padding: 8px 12px !important;
-}
-
-.projection-period-wrapper .selectize-dropdown .option.active {
-  background: rgba(56, 189, 248, 0.15) !important;
-  color: #e2e8f0 !important;
 }
 
 /* Reference period dropdown — same show/hide pattern as scenario selector */
@@ -1350,47 +1314,9 @@ html.shiny-busy #global-shiny-loader {
   opacity: 1;
 }
 
-/* Reuse the same glassmorphism selectize overrides for the reference period dropdown */
+/* Keep margin override for reference period wrapper */
 .reference-period-wrapper .form-group {
   margin-bottom: 0;
-}
-
-.reference-period-wrapper .selectize-input {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 6px !important;
-  color: #e2e8f0 !important;
-  font-family: 'Inter', sans-serif !important;
-  font-size: 0.75rem !important;
-  padding: 4px 10px !important;
-  min-height: 32px !important;
-  box-shadow: none !important;
-  backdrop-filter: blur(8px);
-}
-
-.reference-period-wrapper .selectize-input.focus {
-  border-color: rgba(56, 189, 248, 0.40) !important;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.15) !important;
-}
-
-.reference-period-wrapper .selectize-dropdown {
-  background: rgba(10, 15, 35, 0.95) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 8px !important;
-  backdrop-filter: blur(16px) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
-}
-
-.reference-period-wrapper .selectize-dropdown .option {
-  color: #cbd5e1 !important;
-  font-family: 'Inter', sans-serif !important;
-  font-size: 0.75rem !important;
-  padding: 8px 12px !important;
-}
-
-.reference-period-wrapper .selectize-dropdown .option.active {
-  background: rgba(56, 189, 248, 0.15) !important;
-  color: #e2e8f0 !important;
 }
 
 /* Metric cards grid */
