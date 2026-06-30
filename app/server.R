@@ -59,11 +59,15 @@ server <- function(input, output, session) {
     # Provide a default value for tech mix since it might not be initialized immediately
     tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
 
-    # Determine whether to use projection data (year > 2023 with projections ON)
+    # Determine whether to use projection data.
+    # Standard variables: year > 2023 with projections ON.
+    # Dynamic wind: ALWAYS use projection data (ERA5 has no meaning for
+    # dynamically-interpolated future technology mixes — see AGENTS.md 9.1).
     show_proj <- isTRUE(input$show_projections == "1")
     proj_data_exists <- (var_name %in% projection_available_variables &&
                          sp_level %in% projection_available_spatial_levels)
-    use_projection <- (show_proj && sel_year > 2023 && proj_data_exists)
+    is_dynamic_wind <- (is_wind_power && tech_mix_mode == "dynamic")
+    use_projection <- (show_proj && (sel_year > 2023 || is_dynamic_wind) && proj_data_exists)
 
     if (use_projection) {
       # ── Read from projection dataset ─────────────────────────────────────────
@@ -520,8 +524,10 @@ server <- function(input, output, session) {
     wind_type <- if(var_name == "wind_power_onshore") "onshore" else "offshore"
     tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
 
-    # Decide whether this is a historical or projected period
-    is_historical_period <- (period_end <= 2023)
+    # Decide whether this is a historical or projected period.
+    # Dynamic wind is always projection-only (see AGENTS.md 9.1).
+    is_dynamic_wind <- (is_wind_power && tech_mix_mode == "dynamic")
+    is_historical_period <- (period_end <= 2023 && !is_dynamic_wind)
 
     if (is_historical_period) {
       # ── Historical period: mean from ERA5 reanalysis ──────────────────────────
@@ -1551,13 +1557,18 @@ server <- function(input, output, session) {
     wind_type <- if(var_name == "wind_power_onshore") "onshore" else "offshore"
     tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
 
-    if (is_wind_power) {
+    # Dynamic wind is projection-only — skip the historical query entirely.
+    # For fixed-tech wind, blend from ERA5 as before.
+    # For non-wind variables, query ERA5 directly. (See AGENTS.md 9.1)
+    if (is_wind_power && tech_mix_mode == "dynamic") {
+      df_region <- NULL
+    } else if (is_wind_power) {
       df_region <- blend_wind_power_timeseries(
         region_id = target_region,
         tech_mix_mode = tech_mix_mode,
         wind_type = wind_type,
         ds_annual = hist_annual_ds,
-          ds_monthly = hist_monthly_ds,
+        ds_monthly = hist_monthly_ds,
         ds_seasonal = hist_seasonal_ds,
         temporal_mode = temp_mode,
         sp_level = sp_level

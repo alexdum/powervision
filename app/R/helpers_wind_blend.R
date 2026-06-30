@@ -198,10 +198,6 @@ blend_wind_power_all_regions <- function(
   target_data_year <- ifelse(!is.null(year), year, 
                              ifelse(!is.null(year_start) && !is.null(year_end), floor((year_start + year_end) / 2), 2020))
   
-  if (tech_mix_mode == "dynamic" && target_data_year < 2021) {
-    return(NULL)
-  }
-  
   tech_year <- resolve_tech_year(tech_mix_mode, target_data_year)
   
   # Get group weights for the target tech year
@@ -450,11 +446,6 @@ blend_wind_power_timeseries <- function(region_id, tech_mix_mode, wind_type, ds_
         .groups = "drop"
       ) |>
       dplyr::mutate(Region = region_id)
-  }
-  
-  if (tech_mix_mode == "dynamic" && "Year" %in% names(final_blended)) {
-    final_blended <- final_blended[final_blended$Year >= 2021, ]
-    if (nrow(final_blended) == 0) return(NULL)
   }
   
   return(as.data.frame(final_blended))

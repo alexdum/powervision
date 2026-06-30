@@ -60,7 +60,14 @@ build_export_csv <- function(var_name, temp_mode, target_region, region_name,
   wind_type <- if(var_name == "wind_power_onshore") "onshore" else "offshore"
 
   # ── Collect historical data using the centralized query helper ─────────────
-  if (is_wind_power) {
+  # Dynamic wind is projection-only — skip the historical query entirely.
+  # Blending ERA5 with future tech mixes is scientifically meaningless
+  # (see AGENTS.md 9.1).
+  is_dynamic_wind <- (is_wind_power && tech_mix_mode == "dynamic")
+
+  if (is_dynamic_wind) {
+    df_hist <- NULL
+  } else if (is_wind_power) {
     df_hist <- blend_wind_power_timeseries(
       region_id = target_region,
       tech_mix_mode = tech_mix_mode,
