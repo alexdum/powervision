@@ -15,6 +15,10 @@ An interactive spatial dashboard produced during the ECMWF Code for Earth 2026 <
 * Surface Solar Radiation Downwards (GHI)
 * 10m & 100m Wind Speed (WS10, WS100)
 
+### Energy Variables
+* Wind Power Onshore (Capacity Factor)
+* Wind Power Offshore (Capacity Factor)
+
 ### Basemap Layers
 * **OpenFreeMap Positron & Bright** — Vector tile basemaps optimized for clean spatial visualization, powered by OpenStreetMap data.
 * **EOX Sentinel-2 Cloudless** — High-resolution global satellite imagery composite (2023) provided by EOX IT Services GmbH.
