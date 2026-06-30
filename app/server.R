@@ -745,11 +745,17 @@ server <- function(input, output, session) {
     is_precip <- (input$climate_variable == "total_precipitation")
     sel_year <- as.integer(input$selected_year)
 
+    # Dynamic wind always uses projection data, even for years 2021-2023
+    # (see AGENTS.md 9.1), so the tooltip must reflect that.
+    is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
+    tech_mix_mode_val <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
+    is_dynamic_wind <- (is_wind && tech_mix_mode_val == "dynamic")
+
     if (use_period && !is.null(proj_period) && nchar(proj_period) > 0) {
       period_end_year <- as.integer(strsplit(proj_period, "-")[[1]][2])
-      is_projection_year <- (period_end_year > 2023)
+      is_projection_year <- (period_end_year > 2023 || is_dynamic_wind)
     } else {
-      is_projection_year <- (sel_year > 2023)
+      is_projection_year <- (sel_year > 2023 || is_dynamic_wind)
     }
 
     display_unit <- if (use_anomaly_map && is_precip) "%" else var_unit
@@ -1372,12 +1378,17 @@ server <- function(input, output, session) {
     use_period <- isTRUE(view_mode == "period")
     sel_year <- as.integer(input$selected_year)
 
-    # Determine if the current view shows projected data
+    # Determine if the current view shows projected data.
+    # Dynamic wind always uses projection data (see AGENTS.md 9.1).
+    is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
+    tech_mix_val <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
+    is_dynamic_wind <- (is_wind && tech_mix_val == "dynamic")
+
     if (use_period && !is.null(proj_period) && nchar(proj_period) > 0) {
       period_end_year <- as.integer(strsplit(proj_period, "-")[[1]][2])
-      is_projection_data <- (period_end_year > 2023)
+      is_projection_data <- (period_end_year > 2023 || is_dynamic_wind)
     } else {
-      is_projection_data <- (sel_year > 2023)
+      is_projection_data <- (sel_year > 2023 || is_dynamic_wind)
     }
 
     # Build the year/period label for titles
