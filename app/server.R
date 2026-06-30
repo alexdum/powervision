@@ -1827,6 +1827,8 @@ server <- function(input, output, session) {
       # Build the combined historical + projection data.frame using the helper.
       # The helper handles Arrow queries, column selection, source tagging,
       # combining, sorting, and rounding — all in one call.
+      tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
+
       df_combined <- build_export_csv(
         var_name      = input$climate_variable,
         temp_mode     = input$temporal_mode,
@@ -1834,7 +1836,8 @@ server <- function(input, output, session) {
         region_name   = region[["name"]],
         sp_level      = spatial_level_to_parquet[input$spatial_level],
         include_proj  = show_proj,
-        scenario_val  = input$ssp_scenario
+        scenario_val  = input$ssp_scenario,
+        tech_mix_mode = tech_mix_mode
       )
 
       write.csv(df_combined, file, row.names = FALSE)

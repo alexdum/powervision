@@ -52,16 +52,32 @@
 #   Sorted by Year, Values rounded to 1 decimal place.
 # ------------------------------------------------------------------------------
 build_export_csv <- function(var_name, temp_mode, target_region, region_name,
-                             sp_level, include_proj, scenario_val) {
+                             sp_level, include_proj, scenario_val, tech_mix_mode = "dynamic") {
 
   message(sprintf("  CSV export: region=%s, var=%s, mode=%s", target_region, var_name, temp_mode))
 
+  is_wind_power <- var_name %in% c("wind_power_onshore", "wind_power_offshore")
+  wind_type <- if(var_name == "wind_power_onshore") "onshore" else "offshore"
+
   # ── Collect historical data using the centralized query helper ─────────────
-  df_hist <- query_arrow_dataset(
-    hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
-    var_name, sp_level,
-    target_region = target_region
-  )
+  if (is_wind_power) {
+    df_hist <- blend_wind_power_timeseries(
+      region_id = target_region,
+      tech_mix_mode = tech_mix_mode,
+      wind_type = wind_type,
+      ds_annual = hist_annual_ds,
+      ds_monthly = hist_monthly_ds,
+      ds_seasonal = hist_seasonal_ds,
+      temporal_mode = temp_mode,
+      sp_level = sp_level
+    )
+  } else {
+    df_hist <- query_arrow_dataset(
+      hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
+      var_name, sp_level,
+      target_region = target_region
+    )
+  }
 
   # Convert to a plain data.frame (Arrow may return tibble/ArrowTabular)
   if (!is.null(df_hist)) {
@@ -79,6 +95,7 @@ build_export_csv <- function(var_name, temp_mode, target_region, region_name,
     # Tag every historical row with its source for clarity in the CSV
     df_hist$Source <- "ERA5 Reanalysis"
     df_hist$Region_Name <- region_name
+    if (!"variable" %in% names(df_hist)) df_hist$variable <- var_name
 
     # Keep only the columns scientists need — drop internal partition keys
     export_cols <- c("Year", "Value", "Source", "variable", "Region", "Region_Name")
@@ -97,11 +114,25 @@ build_export_csv <- function(var_name, temp_mode, target_region, region_name,
 
   if (include_proj && proj_data_exists) {
 
-    df_proj_raw <- query_arrow_dataset(
-      proj_annual_ds, proj_seasonal_ds, proj_monthly_ds, temp_mode,
-      var_name, sp_level,
-      target_region = target_region, scenario_val = scenario_val
-    )
+    if (is_wind_power) {
+      df_proj_raw <- blend_wind_power_timeseries(
+        region_id = target_region,
+        tech_mix_mode = tech_mix_mode,
+        wind_type = wind_type,
+        ds_annual = proj_annual_ds,
+        ds_monthly = proj_monthly_ds,
+        ds_seasonal = proj_seasonal_ds,
+        temporal_mode = temp_mode,
+        sp_level = sp_level,
+        scenario_val = scenario_val
+      )
+    } else {
+      df_proj_raw <- query_arrow_dataset(
+        proj_annual_ds, proj_seasonal_ds, proj_monthly_ds, temp_mode,
+        var_name, sp_level,
+        target_region = target_region, scenario_val = scenario_val
+      )
+    }
 
     if (!is.null(df_proj_raw)) {
       df_proj_raw <- as.data.frame(df_proj_raw)
@@ -111,6 +142,7 @@ build_export_csv <- function(var_name, temp_mode, target_region, region_name,
         # so scientists can do their own statistical analysis
         df_proj_raw$Source <- sprintf("CMIP6 Projection (%s)", scenario_val)
         df_proj_raw$Region_Name <- region_name
+        if (!"variable" %in% names(df_proj_raw)) df_proj_raw$variable <- var_name
 
         proj_export_cols <- c("Year", "Value", "Source", "model", "variable", "Region", "Region_Name")
         if ("Season" %in% names(df_proj_raw)) proj_export_cols <- c(proj_export_cols, "Season")
