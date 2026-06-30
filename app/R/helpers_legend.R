@@ -70,6 +70,12 @@ compute_legend_params <- function(var_meta, is_precip,
                                   reference_period, clim_data,
                                   baseline_df) {
 
+  # Convert numeric month to month name for the legend title
+  display_temporal <- temporal_mode
+  if (temporal_mode %in% as.character(1:12)) {
+    display_temporal <- month.name[as.integer(temporal_mode)]
+  }
+
   # Extract raw finite values for range calculation
   vals <- clim_data$Value
   vals <- vals[is.finite(vals)]
@@ -126,7 +132,7 @@ compute_legend_params <- function(var_meta, is_precip,
       proj_note <- ""
     }
     legend_title <- sprintf("%s Anomaly (%s %s%s vs %s)",
-                            var_meta$label, temporal_mode, time_label,
+                            var_meta$label, display_temporal, time_label,
                             proj_note, reference_period)
 
   } else {
@@ -146,7 +152,7 @@ compute_legend_params <- function(var_meta, is_precip,
     } else {
       proj_note <- ""
     }
-    legend_title <- sprintf("%s (%s %s%s)", var_meta$label, temporal_mode, time_label, proj_note)
+    legend_title <- sprintf("%s (%s %s%s)", var_meta$label, display_temporal, time_label, proj_note)
   }
 
   list(
