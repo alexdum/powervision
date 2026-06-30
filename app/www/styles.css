@@ -1113,6 +1113,17 @@ html.shiny-busy #global-shiny-loader {
   padding: 8px 12px !important;
 }
 
+.selectize-dropdown .optgroup-header {
+  color: #94a3b8 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.65rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 12px 4px !important;
+  background: transparent !important;
+}
+
 .selectize-dropdown .option.active,
 .selectize-dropdown .option:hover {
   background: rgba(56, 189, 248, 0.15) !important;
