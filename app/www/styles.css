@@ -427,6 +427,11 @@ html.shiny-busy #global-shiny-loader {
   border-radius: 3px;
 }
 
+/* Hide the filled bar for the year slider since it's selecting a single point in time, not a duration */
+.year-slider .irs--flat .irs-bar {
+  background: transparent !important;
+}
+
 .irs--flat .irs-handle > i:first-child {
   width: 14px;
   height: 14px;

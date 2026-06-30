@@ -195,21 +195,24 @@ ui <- page_fillable(
       selected = "Annual"
     ),
 
-    sliderInput(
-      inputId = "selected_year",
-      label = span(
-        "Selected Year",
-        tooltip(
-          bsicons::bs_icon("info-circle", size = "0.85em"),
-          "Slide to select a year for the choropleth map."
-        )
-      ),
-      min = 1950,
-      max = 2023,
-      value = 2021,
-      step = 1,
-      sep = "",
-      ticks = FALSE
+    div(
+      class = "year-slider",
+      sliderInput(
+        inputId = "selected_year",
+        label = span(
+          "Selected Year",
+          tooltip(
+            bsicons::bs_icon("info-circle", size = "0.85em"),
+            "Slide to select a year for the choropleth map."
+          )
+        ),
+        min = 1950,
+        max = 2023,
+        value = 2021,
+        step = 1,
+        sep = "",
+        ticks = FALSE
+      )
     ),
 
     # View mode toggle — Year vs Period
@@ -606,10 +609,6 @@ ui <- page_fillable(
               target = "_blank",
               "Code for Earth 2026"
             )
-          ),
-          tags$p(
-            class = "about-copyright",
-            paste0("\u00A9 ", format(Sys.Date(), "%Y"))
           )
         )
       )
