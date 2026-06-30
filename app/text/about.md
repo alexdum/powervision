@@ -1,3 +1,5 @@
+> ⚠️ **This application is under active development** and may be modified until the final version is delivered by the end of the project.
+
 An interactive spatial dashboard produced during the ECMWF Code for Earth 2026 <a href="https://github.com/ECMWFCode4Earth/Challenges_2026/issues/15" target="_blank">Challenge 14 - Visualising the impact of climate change for the European power system</a> for exploring the **Pan-European Climate Database (PECD v4.2)** (which is provided by the Copernicus Climate Change Service (C3S) in collaboration with ENTSO-E).
 
 ### Data Sources
