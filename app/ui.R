@@ -559,10 +559,11 @@ ui <- page_fillable(
   ),
 
   # ── ABOUT MODAL OVERLAY ───────────────────────────────────────────────────────
-  # Hidden by default. The JS toggles .is-visible when the About button is
+  # Open by default. The JS toggles .is-visible when the About button is
   # clicked. A backdrop click or the close button dismisses it.
   tags$div(
     id = "about-overlay",
+    class = "is-visible",
 
     # Semi-transparent backdrop — clicking it also closes the modal
     tags$div(id = "about-backdrop"),
@@ -599,11 +600,11 @@ ui <- page_fillable(
         tags$div(
           class = "about-footer",
           tags$p(
-            "Climate Data Store · ",
+            "ECMWF · ",
             tags$a(
-              href = "https://cds.climate.copernicus.eu/datasets/sis-energy-pecd",
+              href = "https://codeforearth.ecmwf.int/",
               target = "_blank",
-              "cds.climate.copernicus.eu"
+              "Code for Earth 2026"
             )
           ),
           tags$p(
