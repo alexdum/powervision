@@ -193,38 +193,34 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
     proj_line_color <- ssp_colors[[ssp_key]]$line
     proj_fill_color <- ssp_colors[[ssp_key]]$fill
 
-    # Add the model agreement envelope (min-max band).
-    # Plotly's fill='tonexty' requires traces in a specific order:
-    # first the bottom boundary (invisible line), then the top boundary
-    # with fill referencing the previous trace.
+    # Clean up any Inf or -Inf values (caused by min/max on NA)
+    proj_data$min_val[!is.finite(proj_data$min_val)] <- NA
+    proj_data$max_val[!is.finite(proj_data$max_val)] <- NA
+    proj_data$median_val[!is.finite(proj_data$median_val)] <- NA
+
+    # Interpolate any missing years (like 2089 in ssp3_7_0) so the polygon doesn't break
+    if (any(is.na(proj_data$min_val))) {
+      proj_data$min_val <- approx(proj_data$Year, proj_data$min_val, xout = proj_data$Year, rule = 2)$y
+      proj_data$max_val <- approx(proj_data$Year, proj_data$max_val, xout = proj_data$Year, rule = 2)$y
+      proj_data$median_val <- approx(proj_data$Year, proj_data$median_val, xout = proj_data$Year, rule = 2)$y
+    }
+
+    # Add the model agreement envelope as a single closed polygon (fill='toself').
+    # This prevents SVG rendering gaps that occur with fill='tonexty' when bands are narrow.
+    band_x <- c(proj_data$Year, rev(proj_data$Year))
+    band_y <- c(proj_data$max_val, rev(proj_data$min_val))
+
     p <- p %>%
-      # Bottom boundary of the envelope (invisible line)
       add_trace(
-        data = proj_data,
-        x = ~Year,
-        y = ~min_val,
-        type = 'scatter',
-        mode = 'lines',
-        name = 'Model Agreement (min)',
-        line = list(color = 'transparent', width = 0),
-        showlegend = FALSE,
-        hoverinfo = 'skip'
-      ) %>%
-      # Top boundary of the envelope, filled down to the min trace
-      add_trace(
-        data = proj_data,
-        x = ~Year,
-        y = ~max_val,
+        x = band_x,
+        y = band_y,
         type = 'scatter',
         mode = 'lines',
         name = 'Model Agreement',
-        fill = 'tonexty',
+        fill = 'toself',
         fillcolor = proj_fill_color,
         line = list(color = 'transparent', width = 0),
-        text = ~paste0("Year: ", Year,
-                       "<br>Model range: ", round(min_val, 2),
-                       " \u2013 ", round(max_val, 2), " ", hover_unit),
-        hoverinfo = 'text'
+        hoverinfo = 'skip'
       ) %>%
       # Ensemble median line (dashed, colored by SSP)
       add_trace(
@@ -237,7 +233,8 @@ build_region_timeseries_chart <- function(df_region, var_name, var_meta,
         line = list(color = proj_line_color, width = 2.5, dash = 'dash'),
         text = ~paste0("Year: ", Year,
                        "<br>Median projection: ", round(median_val, 2),
-                       " ", hover_unit),
+                       "<br>Model range: ", round(min_val, 2),
+                       " \u2013 ", round(max_val, 2), " ", hover_unit),
         hoverinfo = 'text'
       )
   }

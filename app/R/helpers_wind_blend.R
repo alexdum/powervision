@@ -34,27 +34,26 @@ interpolate_tech_weights <- function(resource_group, target_year, wind_type) {
     return(data.frame(TechCode = existing_tech, Weight = 1.0))
   }
   
-  # For years <= 2020, we assume 100% existing fleet technology
-  if (target_year <= 2020) {
-    weights_df <- data.frame(TechCode = group_mix$TechCode, Weight = 0.0)
-    # Set existing tech to 1.0 (or add it if not in the dataframe)
-    if (existing_tech %in% weights_df$TechCode) {
-      weights_df$Weight[weights_df$TechCode == existing_tech] <- 1.0
-    } else {
-      weights_df <- rbind(weights_df, data.frame(TechCode = existing_tech, Weight = 1.0))
+  # For years <= 2025, we use the 2025 technology mix directly
+  if (target_year <= 2025) {
+    weights_df <- data.frame(
+      TechCode = group_mix$TechCode,
+      Weight = group_mix$Y2025
+    )
+    if (sum(weights_df$Weight) > 0) {
+      weights_df$Weight <- weights_df$Weight / sum(weights_df$Weight)
     }
     return(weights_df)
   }
   
-  # Anchor years provided in the CSV
+  # Anchor years provided in the CSV (from 2025 onwards)
   anchor_years <- c(2025, 2030, 2040, 2050)
   
   weights_df <- data.frame(TechCode = group_mix$TechCode)
   weights_df$Weight <- numeric(nrow(weights_df))
   
-  # Iterate over each technology to interpolate its weight
+  # Iterate over each technology to interpolate its weight from 2025 to 2050
   for (i in seq_len(nrow(group_mix))) {
-    # Extract the weights for this tech at the anchor years
     tech_weights_at_anchors <- c(
       group_mix$Y2025[i],
       group_mix$Y2030[i],
@@ -62,16 +61,12 @@ interpolate_tech_weights <- function(resource_group, target_year, wind_type) {
       group_mix$Y2050[i]
     )
     
-    # Prepend 2020 (100% existing fleet) for interpolation between 2020 and 2025
-    x_years <- c(2020, anchor_years)
-    y_weights <- c(ifelse(group_mix$TechCode[i] == existing_tech, 1.0, 0.0), tech_weights_at_anchors)
-    
-    # Linearly interpolate
-    interp <- approx(x = x_years, y = y_weights, xout = target_year, rule = 2)
+    # Linearly interpolate between 2025 and 2050
+    interp <- approx(x = anchor_years, y = tech_weights_at_anchors, xout = target_year, rule = 2)
     weights_df$Weight[i] <- interp$y
   }
   
-  # Normalize to ensure sum is exactly 1.0 (floating point safety)
+  # Normalize to ensure sum is exactly 1.0
   if (sum(weights_df$Weight) > 0) {
     weights_df$Weight <- weights_df$Weight / sum(weights_df$Weight)
   }

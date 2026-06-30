@@ -90,10 +90,13 @@ build_export_csv <- function(var_name, temp_mode, target_region, region_name,
   if (!is.null(df_hist)) {
     df_hist <- as.data.frame(df_hist)
   } else {
-    # Create an empty data.frame with the expected columns so rbind works
+    # Create an empty data.frame with ALL expected columns so rbind works.
+    # Must include Source, Region_Name, and model to match what df_proj_export
+    # will have — otherwise base R's rbind() crashes on column mismatch.
     df_hist <- data.frame(
-      Year = integer(0), Value = numeric(0),
+      Year = integer(0), Value = numeric(0), Source = character(0),
       variable = character(0), Region = character(0),
+      Region_Name = character(0), model = character(0),
       stringsAsFactors = FALSE
     )
   }
