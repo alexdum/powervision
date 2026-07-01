@@ -413,7 +413,8 @@ html.shiny-busy #global-shiny-loader {
 
 /* ---------------------------------------------------------------------------- */
 /* Slider Override — inside dark panel                                          */
-/* -------------------------------------------------------------.irs--shiny .irs-line {
+/* ---------------------------------------------------------------------------- */
+.irs--shiny .irs-line {
   height: 5px;
   background-color: rgba(255, 255, 255, 0.12);
   border-radius: 3px;
@@ -435,22 +436,30 @@ html.shiny-busy #global-shiny-loader {
   border-color: transparent !important;
 }
 
-.irs--shiny .irs-handle > i:first-child {
-  width: 14px;
-  height: 14px;
-  top: 1px;
-  background: #ffffff;
-  border: 2px solid var(--accent);
-  border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+/* Custom Circular Handle */
+.irs--shiny .irs-handle {
+  width: 16px !important;
+  height: 16px !important;
+  top: 20px !important;
+  background: #ffffff !important;
+  border: 2px solid var(--accent) !important;
+  border-radius: 50% !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  cursor: pointer !important;
+  transition: transform 0.15s ease, border-color 0.15s ease !important;
 }
 
-.irs--shiny .irs-handle.state_hover > i:first-child,
-.irs--shiny .irs-handle:hover > i:first-child {
-  transform: scale(1.2);
-  border-color: #1d4ed8;
+/* Hide any inner elements (like default vertical grips) */
+.irs--shiny .irs-handle i,
+.irs--shiny .irs-handle::before,
+.irs--shiny .irs-handle::after {
+  display: none !important;
+}
+
+.irs--shiny .irs-handle.state_hover,
+.irs--shiny .irs-handle:hover {
+  transform: scale(1.2) !important;
+  border-color: #1d4ed8 !important;
 }
 
 .irs--shiny .irs-single {
@@ -469,7 +478,6 @@ html.shiny-busy #global-shiny-loader {
 .irs--shiny .irs-min, .irs--shiny .irs-max {
   color: rgba(255,255,255,0.35);
   font-size: 0.75em;
-} font-size: 0.75em;
   background: transparent;
 }
 
