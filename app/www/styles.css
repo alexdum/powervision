@@ -436,30 +436,38 @@ html.shiny-busy #global-shiny-loader {
   border-color: transparent !important;
 }
 
-/* Custom Circular Handle */
+/* Base handle: completely transparent */
 .irs--shiny .irs-handle {
-  width: 16px !important;
-  height: 16px !important;
-  top: 20px !important;
-  background: #ffffff !important;
-  border: 2px solid var(--accent) !important;
-  border-radius: 50% !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
-  cursor: pointer !important;
-  transition: transform 0.15s ease, border-color 0.15s ease !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
-/* Hide any inner elements (like default vertical grips) */
-.irs--shiny .irs-handle i,
+/* Hide all inner elements except the first one (removes the vertical grip lines) */
+.irs--shiny .irs-handle > i:not(:first-child),
 .irs--shiny .irs-handle::before,
 .irs--shiny .irs-handle::after {
   display: none !important;
 }
 
-.irs--shiny .irs-handle.state_hover,
-.irs--shiny .irs-handle:hover {
-  transform: scale(1.2) !important;
-  border-color: #1d4ed8 !important;
+/* The first inner element becomes the actual circular dot */
+.irs--shiny .irs-handle > i:first-child {
+  display: block !important;
+  width: 14px;
+  height: 14px;
+  top: 1px;
+  background: #ffffff;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.irs--shiny .irs-handle.state_hover > i:first-child,
+.irs--shiny .irs-handle:hover > i:first-child {
+  transform: scale(1.2);
+  border-color: #1d4ed8;
 }
 
 .irs--shiny .irs-single {
