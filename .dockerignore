@@ -3,6 +3,7 @@ app/renv/library
 app/renv/staging
 app/renv/sandbox
 app/data
+app/www/data/pecd
 app/new_csv
 app/pipeline
 app/porposal

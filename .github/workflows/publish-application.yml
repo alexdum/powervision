@@ -27,6 +27,7 @@ jobs:
       registry: eccr.ecmwf.int
       image_repository: alexdum/powervision
       image_tag: ${{ github.event.inputs.image_tag || github.ref_name }}
+      dockerfile: docker/Dockerfile
       build_args: |
         environment=${{ github.event.inputs.environment || 'prod' }}
     secrets:
