@@ -671,6 +671,8 @@ $(document).ready(function () {
     $projToggle.removeClass('toggle-right');
     $('#show_projections').val('0').trigger('change');
     Shiny.setInputValue('show_projections', '0');
+    $('#scenario-selector-wrapper').removeClass('is-visible');
+    $('#display-mode-wrapper').removeClass('is-visible');
 
     // Reset display mode to 'absolute'
     var $modeToggle = $('#display-mode-toggle');
