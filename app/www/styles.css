@@ -453,9 +453,12 @@ html.shiny-busy #global-shiny-loader {
 /* The first inner element becomes the actual circular dot */
 .irs--shiny .irs-handle > i:first-child {
   display: block !important;
-  width: 14px;
-  height: 14px;
-  top: 1px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
   background: #ffffff;
   border: 2px solid var(--accent);
   border-radius: 50%;
@@ -466,7 +469,7 @@ html.shiny-busy #global-shiny-loader {
 
 .irs--shiny .irs-handle.state_hover > i:first-child,
 .irs--shiny .irs-handle:hover > i:first-child {
-  transform: scale(1.2);
+  transform: translate(-50%, -50%) scale(1.2);
   border-color: #1d4ed8;
 }
 
