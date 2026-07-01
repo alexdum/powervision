@@ -511,3 +511,50 @@ anomaly_palette_precipitation <- c(
   "#5ab4ac",
   "#01665e"
 )
+
+# Caching historical maximum years per variable and spatial level
+historical_max_years <- list()
+if (!is.null(hist_annual_ds)) {
+  message("Caching historical maximum years per variable and spatial level...")
+  tryCatch({
+    df_max_years <- hist_annual_ds |>
+      dplyr::group_by(variable, SpatialLevel) |>
+      dplyr::summarise(max_year = max(Year, na.rm = TRUE), .groups = "drop") |>
+      dplyr::collect()
+    
+    # Store in a list for fast lookups
+    for (i in seq_len(nrow(df_max_years))) {
+      key <- paste(df_max_years$variable[i], df_max_years$SpatialLevel[i], sep = "_")
+      historical_max_years[[key]] <- df_max_years$max_year[i]
+    }
+  }, error = function(e) {
+    warning("Failed to cache historical max years: ", e$message)
+  })
+}
+
+#' Get maximum historical year for a variable and spatial level
+#' 
+#' @param var_name UI-level climate variable code
+#' @param sp_level Parquet-level spatial level code (e.g. "nuts_0")
+#' @return Integer maximum year
+get_historical_max_year <- function(var_name, sp_level) {
+  # Map UI variable names to raw variables in Parquet if needed
+  pq_var <- if (var_name == "wind_power_onshore") {
+    "wind_onshore_30"
+  } else if (var_name == "wind_power_offshore") {
+    "wind_offshore_20"
+  } else {
+    var_name
+  }
+  
+  key <- paste(pq_var, sp_level, sep = "_")
+  val <- historical_max_years[[key]]
+  
+  if (!is.null(val)) {
+    return(val)
+  }
+  
+  # Fallback logic if key is missing from cache
+  is_offshore <- sp_level %in% c("p2of", "szof")
+  if (is_offshore) 2023 else 2021
+}

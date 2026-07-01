@@ -60,14 +60,16 @@ server <- function(input, output, session) {
     tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
 
     # Determine whether to use projection data.
-    # Standard variables: year > 2023 with projections ON.
+    # Standard variables: year > hist_max_year with projections ON.
     # Dynamic wind: ALWAYS use projection data (ERA5 has no meaning for
     # dynamically-interpolated future technology mixes — see AGENTS.md 9.1).
     show_proj <- isTRUE(input$show_projections == "1")
     proj_data_exists <- (var_name %in% projection_available_variables &&
                          sp_level %in% projection_available_spatial_levels)
     is_dynamic_wind <- (is_wind_power && tech_mix_mode == "dynamic")
-    use_projection <- (show_proj && (sel_year > 2023 || is_dynamic_wind) && proj_data_exists)
+    
+    hist_max_year <- get_historical_max_year(var_name, sp_level)
+    use_projection <- (show_proj && (sel_year > hist_max_year || is_dynamic_wind) && proj_data_exists)
 
     if (use_projection) {
       # ── Read from projection dataset ─────────────────────────────────────────
@@ -257,9 +259,9 @@ server <- function(input, output, session) {
   observe({
     req(input$spatial_level, input$temporal_mode, input$climate_variable)
 
-    # Determine the historical maximum year based on Onshore/Offshore tier
-    is_offshore <- input$spatial_level %in% c("P2OF", "SZOF")
-    hist_max_year <- if (is_offshore) 2023 else 2021
+    # Determine the historical maximum year dynamically based on variable + spatial level
+    sp_level_pq <- spatial_level_to_parquet[input$spatial_level]
+    hist_max_year <- get_historical_max_year(input$climate_variable, sp_level_pq)
 
     # Check if projections should extend the slider
     show_proj <- isTRUE(input$show_projections == "1")
@@ -751,11 +753,14 @@ server <- function(input, output, session) {
     tech_mix_mode_val <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
     is_dynamic_wind <- (is_wind && tech_mix_mode_val == "dynamic")
 
+    sp_level_pq <- spatial_level_to_parquet[input$spatial_level]
+    hist_max_year <- get_historical_max_year(input$climate_variable, sp_level_pq)
+
     if (use_period && !is.null(proj_period) && nchar(proj_period) > 0) {
       period_end_year <- as.integer(strsplit(proj_period, "-")[[1]][2])
-      is_projection_year <- (period_end_year > 2023 || is_dynamic_wind)
+      is_projection_year <- (period_end_year > hist_max_year || is_dynamic_wind)
     } else {
-      is_projection_year <- (sel_year > 2023 || is_dynamic_wind)
+      is_projection_year <- (sel_year > hist_max_year || is_dynamic_wind)
     }
 
     display_unit <- if (use_anomaly_map && is_precip) "%" else var_unit
@@ -1384,11 +1389,14 @@ server <- function(input, output, session) {
     tech_mix_val <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
     is_dynamic_wind <- (is_wind && tech_mix_val == "dynamic")
 
+    sp_level_pq <- spatial_level_to_parquet[input$spatial_level]
+    hist_max_year <- get_historical_max_year(input$climate_variable, sp_level_pq)
+
     if (use_period && !is.null(proj_period) && nchar(proj_period) > 0) {
       period_end_year <- as.integer(strsplit(proj_period, "-")[[1]][2])
-      is_projection_data <- (period_end_year > 2023 || is_dynamic_wind)
+      is_projection_data <- (period_end_year > hist_max_year || is_dynamic_wind)
     } else {
-      is_projection_data <- (sel_year > 2023 || is_dynamic_wind)
+      is_projection_data <- (sel_year > hist_max_year || is_dynamic_wind)
     }
 
     # Build the year/period label for titles
