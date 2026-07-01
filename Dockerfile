@@ -15,35 +15,35 @@ FROM ghcr.io/rocker-org/r-ver:4.5.0
 # --- System dependencies for R package compilation ---
 # Identical to docker/Dockerfile — spatial stack, text rendering, Arrow C++ build
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgdal-dev \
-    libgeos-dev \
-    libproj-dev \
-    libsqlite3-dev \
-    libudunits2-dev \
-    libssl-dev \
-    libcurl4-openssl-dev \
-    libxml2-dev \
-    libharfbuzz-dev \
-    libfribidi-dev \
-    libfreetype6-dev \
-    libpng-dev \
-    libtiff-dev \
-    libjpeg-dev \
-    libuv1-dev \
-    libabsl-dev \
-    gdal-bin \
-    curl \
-    cmake \
-    make \
-    gcc \
-    g++ \
-    python3 \
-    python3-pip \
+  libgdal-dev \
+  libgeos-dev \
+  libproj-dev \
+  libsqlite3-dev \
+  libudunits2-dev \
+  libssl-dev \
+  libcurl4-openssl-dev \
+  libxml2-dev \
+  libharfbuzz-dev \
+  libfribidi-dev \
+  libfreetype6-dev \
+  libpng-dev \
+  libtiff-dev \
+  libjpeg-dev \
+  libuv1-dev \
+  libabsl-dev \
+  gdal-bin \
+  curl \
+  cmake \
+  make \
+  gcc \
+  g++ \
+  python3 \
+  python3-pip \
   && rm -rf /var/lib/apt/lists/*
 
 # --- Install Inter font (used by the app's glassmorphism design) ---
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    fonts-inter \
+  fonts-inter \
   && rm -rf /var/lib/apt/lists/* \
   && fc-cache -fv
 
@@ -70,14 +70,12 @@ RUN R -e 'renv::restore()'
 # Files are stored under pecd/ in the dataset repo, and snapshot_download
 # preserves that structure, so local_dir='/app/www/data' creates /app/www/data/pecd/...
 RUN pip install --no-cache-dir --break-system-packages huggingface_hub && \
-    python3 -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='adumitrescu/powervision-data', repo_type='dataset', local_dir='/app/www/data', allow_patterns=['pecd/**'])" && \
-    pip uninstall -y --break-system-packages huggingface_hub && \
-    echo '✅ Parquet data downloaded'
+  python3 -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='adumitrescu/powervision-data', repo_type='dataset', local_dir='/app/www/data', allow_patterns=['pecd/**'])" && \
+  pip uninstall -y --break-system-packages huggingface_hub && \
+  echo '✅ Parquet data downloaded'
 
 # --- Copy the full app source (code, GeoJSON, CSVs — NOT Parquet) ---
 COPY app/ .
-
-
 
 # --- Environment variables ---
 ENV PECD_GEOJSON_VERSION=mixed
