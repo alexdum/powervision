@@ -6,30 +6,30 @@ FROM ghcr.io/rocker-org/shiny:4.5.0
 
 # --- System dependencies for R package compilation ---
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  libgdal-dev \
-  libgeos-dev \
-  libproj-dev \
-  libsqlite3-dev \
-  libudunits2-dev \
-  libssl-dev \
-  libcurl4-openssl-dev \
-  libxml2-dev \
-  libharfbuzz-dev \
-  libfribidi-dev \
-  libfreetype6-dev \
-  libpng-dev \
-  libtiff-dev \
-  libjpeg-dev \
-  libuv1-dev \
-  libabsl-dev \
-  gdal-bin \
-  curl \
-  cmake \
-  make \
-  gcc \
-  g++ \
-  git \
-  git-lfs \
+    libgdal-dev \
+    libgeos-dev \
+    libproj-dev \
+    libsqlite3-dev \
+    libudunits2-dev \
+    libssl-dev \
+    libcurl4-openssl-dev \
+    libxml2-dev \
+    libharfbuzz-dev \
+    libfribidi-dev \
+    libfreetype6-dev \
+    libpng-dev \
+    libtiff-dev \
+    libjpeg-dev \
+    libuv1-dev \
+    libabsl-dev \
+    gdal-bin \
+    curl \
+    cmake \
+    make \
+    gcc \
+    g++ \
+    git \
+    git-lfs \
   && rm -rf /var/lib/apt/lists/*
 
 # --- Install Inter font ---
