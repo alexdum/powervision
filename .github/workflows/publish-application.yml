@@ -1,0 +1,34 @@
+name: Build & push to Harbor
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+    inputs:
+      ref_to_deploy:
+        description: "Branch or tag to build"
+        required: true
+        default: "main"
+      environment:
+        description: "Deployment environment (dev, prod, etc)"
+        required: true
+        default: "dev"
+      image_tag:
+        description: "Image tag (optional, defaults to commit SHA)"
+        required: false
+
+jobs:
+  build_and_push:
+    name: Build and push image to Harbor
+    uses: ecmwf/reusable-workflows/.github/workflows/build-and-push-image.yml@v2
+    with:
+      ref: ${{ github.event.inputs.ref_to_deploy || github.ref }}
+      registry: eccr.ecmwf.int
+      image_repository: alexdum/powervision
+      image_tag: ${{ github.event.inputs.image_tag || github.ref_name }}
+      build_args: |
+        environment=${{ github.event.inputs.environment || 'prod' }}
+    secrets:
+      registry_username: ${{ secrets.HARBOR_USERNAME }}
+      registry_password: ${{ secrets.HARBOR_PASSWORD }}
