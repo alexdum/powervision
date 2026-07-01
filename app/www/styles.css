@@ -413,26 +413,29 @@ html.shiny-busy #global-shiny-loader {
 
 /* ---------------------------------------------------------------------------- */
 /* Slider Override — inside dark panel                                          */
-/* ---------------------------------------------------------------------------- */
-
-.irs--flat .irs-line {
+/* -------------------------------------------------------------.irs--shiny .irs-line {
   height: 5px;
   background-color: rgba(255, 255, 255, 0.12);
   border-radius: 3px;
 }
 
-.irs--flat .irs-bar {
+.irs--shiny .irs-bar {
   height: 5px;
-  background: linear-gradient(90deg, var(--accent), #1d4ed8);
+  background: linear-gradient(90deg, var(--accent), #1d4ed8) !important;
+  border-top: none !important;
+  border-bottom: none !important;
   border-radius: 3px;
 }
 
 /* Hide the filled bar for the year slider since it's selecting a single point in time, not a duration */
-.year-slider .irs--flat .irs-bar {
+.year-slider .irs--shiny .irs-bar,
+.year-slider .irs--shiny .irs-bar-edge,
+.year-slider .irs--shiny .irs-bar--single {
   background: transparent !important;
+  border-color: transparent !important;
 }
 
-.irs--flat .irs-handle > i:first-child {
+.irs--shiny .irs-handle > i:first-child {
   width: 14px;
   height: 14px;
   top: 1px;
@@ -444,13 +447,13 @@ html.shiny-busy #global-shiny-loader {
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
-.irs--flat .irs-handle.state_hover > i:first-child,
-.irs--flat .irs-handle:hover > i:first-child {
+.irs--shiny .irs-handle.state_hover > i:first-child,
+.irs--shiny .irs-handle:hover > i:first-child {
   transform: scale(1.2);
   border-color: #1d4ed8;
 }
 
-.irs--flat .irs-single {
+.irs--shiny .irs-single {
   background-color: var(--accent);
   border-radius: 4px;
   font-size: 0.80em;
@@ -459,13 +462,14 @@ html.shiny-busy #global-shiny-loader {
   font-family: 'Inter', sans-serif;
 }
 
-.irs--flat .irs-single::after {
+.irs--shiny .irs-single::after {
   border-top-color: var(--accent);
 }
 
-.irs--flat .irs-min, .irs--flat .irs-max {
+.irs--shiny .irs-min, .irs--shiny .irs-max {
   color: rgba(255,255,255,0.35);
   font-size: 0.75em;
+} font-size: 0.75em;
   background: transparent;
 }
 
