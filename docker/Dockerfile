@@ -28,6 +28,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     gcc \
     g++ \
+    python3 \
+    python3-pip \
   && rm -rf /var/lib/apt/lists/*
 
 # --- Install Inter font ---
@@ -53,6 +55,14 @@ RUN R -e 'renv::restore()'
 
 # --- Copy the full app source ---
 COPY app/ .
+
+# --- Download Parquet data from HF Dataset repo ---
+# The data is ignored by git, so we download it from the HF dataset repo during build.
+# Dataset repo: https://huggingface.co/datasets/adumitrescu/powervision-data
+RUN pip install --no-cache-dir --break-system-packages huggingface_hub && \
+    python3 -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='adumitrescu/powervision-data', repo_type='dataset', local_dir='/srv/shiny-server/powervision/www/data', allow_patterns=['pecd/**'])" && \
+    pip uninstall -y --break-system-packages huggingface_hub && \
+    echo '✅ Parquet data downloaded'
 
 # --- Custom Shiny Server configuration ---
 COPY docker/shiny-server.conf /etc/shiny-server/shiny-server.conf
