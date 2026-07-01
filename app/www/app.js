@@ -662,6 +662,7 @@ $(document).ready(function () {
     $viewToggle.find('.view-toggle-option[data-value="year"]').addClass('active');
     $viewToggle.removeClass('toggle-right');
     $('#projection_view_mode').val('year').trigger('change');
+    Shiny.setInputValue('projection_view_mode', 'year');
     
     // Reset projection show to '0'
     var $projToggle = $('#projection-show-toggle');
@@ -669,6 +670,7 @@ $(document).ready(function () {
     $projToggle.find('.proj-toggle-option[data-value="0"]').addClass('active');
     $projToggle.removeClass('toggle-right');
     $('#show_projections').val('0').trigger('change');
+    Shiny.setInputValue('show_projections', '0');
 
     // Reset display mode to 'absolute'
     var $modeToggle = $('#display-mode-toggle');
@@ -676,6 +678,7 @@ $(document).ready(function () {
     $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active');
     $modeToggle.removeClass('toggle-right');
     $('#display_mode').val('absolute').trigger('change');
+    Shiny.setInputValue('display_mode', 'absolute');
     updateHistoricalPeriodVisibility();
 
     // Reset map projection to 'globe'
@@ -684,6 +687,7 @@ $(document).ready(function () {
     $mapProjToggle.find('.toggle-option[data-value="globe"]').addClass('active');
     $mapProjToggle.removeClass('toggle-right');
     $('#map_projection').val('globe').trigger('change');
+    Shiny.setInputValue('map_projection', 'globe');
   });
 
 });
