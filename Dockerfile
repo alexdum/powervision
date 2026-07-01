@@ -64,9 +64,6 @@ ENV ARROW_WITH_SNAPPY=ON
 ENV NOT_CRAN=true
 RUN R -e 'renv::restore()'
 
-# --- Copy the full app source (code, GeoJSON, CSVs — NOT Parquet) ---
-COPY app/ .
-
 # --- Download Parquet data from HF Dataset repo ---
 # The data is stored separately because HF Space repos are limited to 1 GB.
 # Dataset repo: https://huggingface.co/datasets/adumitrescu/powervision-data
@@ -76,6 +73,11 @@ RUN pip install --no-cache-dir --break-system-packages huggingface_hub && \
     python3 -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='adumitrescu/powervision-data', repo_type='dataset', local_dir='/app/www/data', allow_patterns=['pecd/**'])" && \
     pip uninstall -y --break-system-packages huggingface_hub && \
     echo '✅ Parquet data downloaded'
+
+# --- Copy the full app source (code, GeoJSON, CSVs — NOT Parquet) ---
+COPY app/ .
+
+
 
 # --- Environment variables ---
 ENV PECD_GEOJSON_VERSION=mixed

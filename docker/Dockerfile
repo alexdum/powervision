@@ -53,9 +53,6 @@ ENV ARROW_WITH_SNAPPY=ON
 ENV NOT_CRAN=true
 RUN R -e 'renv::restore()'
 
-# --- Copy the full app source ---
-COPY app/ .
-
 # --- Download Parquet data from HF Dataset repo ---
 # The data is ignored by git, so we download it from the HF dataset repo during build.
 # Dataset repo: https://huggingface.co/datasets/adumitrescu/powervision-data
@@ -64,6 +61,11 @@ RUN git clone --depth 1 https://huggingface.co/datasets/adumitrescu/powervision-
     mv /tmp/hf-data/pecd /srv/shiny-server/powervision/www/data/ && \
     rm -rf /tmp/hf-data && \
     echo '✅ Parquet data downloaded'
+
+# --- Copy the full app source ---
+COPY app/ .
+
+
 
 # --- Custom Shiny Server configuration ---
 COPY docker/shiny-server.conf /etc/shiny-server/shiny-server.conf
