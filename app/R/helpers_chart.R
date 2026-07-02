@@ -77,6 +77,8 @@ build_region_timeseries_chart <- function(
   temp_mode,
   show_proj,
   proj_data,
+  proj_models = NULL,
+  projection_style = "band",
   baseline,
   display_mode,
   ssp_scenario,
@@ -121,6 +123,9 @@ build_region_timeseries_chart <- function(
           proj_data$min_val <- (proj_data$min_val - baseline) / baseline * 100
           proj_data$max_val <- (proj_data$max_val - baseline) / baseline * 100
         }
+        if (!is.null(proj_models) && nrow(proj_models) > 0 && "Value" %in% names(proj_models)) {
+          proj_models$Value <- (proj_models$Value - baseline) / baseline * 100
+        }
         anomaly_unit <- "%"
       } else {
         # Baseline is essentially zero — fall back to absolute difference
@@ -129,6 +134,9 @@ build_region_timeseries_chart <- function(
           proj_data$median_val <- proj_data$median_val - baseline
           proj_data$min_val <- proj_data$min_val - baseline
           proj_data$max_val <- proj_data$max_val - baseline
+        }
+        if (!is.null(proj_models) && nrow(proj_models) > 0 && "Value" %in% names(proj_models)) {
+          proj_models$Value <- proj_models$Value - baseline
         }
         anomaly_unit <- var_unit
       }
@@ -139,6 +147,9 @@ build_region_timeseries_chart <- function(
         proj_data$median_val <- proj_data$median_val - baseline
         proj_data$min_val <- proj_data$min_val - baseline
         proj_data$max_val <- proj_data$max_val - baseline
+      }
+      if (!is.null(proj_models) && nrow(proj_models) > 0 && "Value" %in% names(proj_models)) {
+        proj_models$Value <- proj_models$Value - baseline
       }
       anomaly_unit <- var_unit
     }
@@ -187,7 +198,7 @@ build_region_timeseries_chart <- function(
   # --------------------------------------------------------------------------
   # Build the Plotly chart — start with the historical ERA5 line trace
   # --------------------------------------------------------------------------
-  p <- plot_ly()
+  p <- plot_ly(source = "timeseries")
 
   # --- 1. Historical Line (Solid Blue/Accent) ---
   # We only add this trace if it hasn't been explicitly hidden (e.g. for dynamic wind mode)
@@ -203,7 +214,7 @@ build_region_timeseries_chart <- function(
         line = list(color = accent_color, width = 2),
         marker = list(color = accent_color, size = 4),
         hovertemplate = paste0(
-          "<b>Historical</b><br>Year: %{x}<br>Value: %{y:.2f} ",
+          "<b>Historical</b>: %{y:.2f} ",
           hover_unit,
           "<extra></extra>"
         )
@@ -246,46 +257,90 @@ build_region_timeseries_chart <- function(
       )$y
     }
 
-    # Add the model agreement envelope as a single closed polygon (fill='toself').
-    # This prevents SVG rendering gaps that occur with fill='tonexty' when bands are narrow.
-    band_x <- c(proj_data$Year, rev(proj_data$Year))
-    band_y <- c(proj_data$max_val, rev(proj_data$min_val))
+    # Plot Individual Models (Spaghetti) or Solid Band (Agreement)
+    if (projection_style == "spaghetti" && !is.null(proj_models) && nrow(proj_models) > 0 && "model" %in% names(proj_models)) {
+      models <- unique(proj_models$model)
+      
+      # Generate a color gradient (nuances) from the base projection color to a lighter version
+      nuance_pal <- grDevices::colorRampPalette(c(proj_line_color, "#ffffff"))(length(models) + 4)
+      nuance_colors <- nuance_pal[1:length(models)]
+      
+      for (i in seq_along(models)) {
+        mdl <- models[i]
+        
+        # Dynamically tidy up raw CMIP6 IDs: 'awi_cm_1_1_mr' -> 'AWI-CM-1-1-MR'
+        mdl_tidy <- toupper(gsub("_", "-", mdl))
+        
+        # Extremely short name for legend to keep it on one line (e.g., 'AWI')
+        mdl_short <- toupper(strsplit(mdl, "[_-]")[[1]][1])
+        if (mdl_short == "EC") mdl_short <- "EC-Earth"
+        
+        mdl_data <- proj_models[proj_models$model == mdl, ]
+        p <- p %>% add_trace(
+          data = mdl_data,
+          x = ~Year,
+          y = ~Value,
+          type = 'scatter',
+          mode = 'lines',
+          name = mdl_short,
+          legendgroup = mdl,
+          line = list(color = nuance_colors[i], width = 1.5),
+          opacity = 0.85,
+          hovertemplate = paste0(
+            "<b>", mdl_tidy, "</b>: %{y:.2f} ",
+            hover_unit, "<extra></extra>"
+          )
+        )
+      }
 
-    p <- p %>%
-      add_trace(
-        x = band_x,
-        y = band_y,
-        type = 'scatter',
-        mode = 'lines',
-        name = 'Model Agreement',
-        fill = 'toself',
-        fillcolor = proj_fill_color,
-        line = list(color = 'transparent', width = 0),
-        hoverinfo = 'skip'
-      ) %>%
-      # Ensemble median line (dashed, colored by SSP)
-      add_trace(
+      # Ensemble median line (dashed) on top of spaghetti
+      p <- p %>% add_trace(
         data = proj_data,
         x = ~Year,
         y = ~median_val,
         type = 'scatter',
         mode = 'lines',
         name = 'Projection Median',
-        line = list(color = proj_line_color, width = 2.5, dash = 'dash'),
+        line = list(color = "#ffffff", width = 3, dash = 'dash'),
         text = ~ paste0(
-          "Year: ",
-          Year,
-          "<br>Median projection: ",
-          round(median_val, 2),
-          "<br>Model range: ",
-          round(min_val, 2),
-          " \u2013 ",
-          round(max_val, 2),
-          " ",
-          hover_unit
+          "Year: ", Year,
+          "<br>Median projection: ", round(median_val, 2), " ", hover_unit
         ),
         hoverinfo = 'text'
       )
+    } else {
+      # This prevents SVG rendering gaps that occur with fill='tonexty' when bands are narrow.
+      band_x <- c(proj_data$Year, rev(proj_data$Year))
+      band_y <- c(proj_data$max_val, rev(proj_data$min_val))
+
+      p <- p %>%
+        add_trace(
+          x = band_x,
+          y = band_y,
+          type = 'scatter',
+          mode = 'lines',
+          name = 'Model Agreement',
+          fill = 'toself',
+          fillcolor = proj_fill_color,
+          line = list(color = 'transparent', width = 0),
+          hoverinfo = 'skip'
+        ) %>%
+        # Ensemble median line (dashed, colored by SSP)
+        add_trace(
+          data = proj_data,
+          x = ~Year,
+          y = ~median_val,
+          type = 'scatter',
+          mode = 'lines',
+          name = 'Projection Median',
+          line = list(color = proj_line_color, width = 2.5, dash = 'dash'),
+          text = ~ paste0(
+            "<b>Projection Median</b>: ", round(median_val, 2), " ", hover_unit,
+            "<br><span style='font-size:10px; color:#94a3b8;'>Range: ", round(min_val, 2), " \u2013 ", round(max_val, 2), "</span>"
+          ),
+          hovertemplate = "%{text}<extra></extra>"
+        )
+    }
   }
 
   # --------------------------------------------------------------------------
@@ -450,12 +505,13 @@ build_region_timeseries_chart <- function(
       ),
       paper_bgcolor = "rgba(0,0,0,0)",
       plot_bgcolor = "rgba(0,0,0,0)",
-      margin = list(t = 50, r = 20, b = 40, l = 50),
+      margin = list(t = 40, r = 20, b = 10, l = 50),
       xaxis = list(
         title = "",
         tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
         gridcolor = "rgba(255, 255, 255, 0.05)",
-        zeroline = FALSE
+        zeroline = FALSE,
+        showspikes = FALSE
       ),
       yaxis = list(
         title = list(
@@ -464,7 +520,8 @@ build_region_timeseries_chart <- function(
         ),
         tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
         gridcolor = "rgba(255, 255, 255, 0.05)",
-        zeroline = FALSE
+        zeroline = FALSE,
+        showspikes = FALSE
       ),
       shapes = chart_shapes,
       annotations = chart_annotations,
@@ -472,16 +529,19 @@ build_region_timeseries_chart <- function(
         orientation = "h",
         x = 0.5,
         xanchor = "center",
-        y = -0.15,
+        y = -0.12,
         font = list(
           family = "Inter, sans-serif",
-          size = 11,
+          size = 10,
           color = "#94a3b8"
         ),
         bgcolor = "rgba(0,0,0,0)"
       ),
+      # Unified tooltip is extremely helpful in spaghetti mode to compare all 6 models
+      # simultaneously for a specific year without having to individually hover each line.
       hovermode = "x unified",
       hoverlabel = list(
+        namelength = 0,
         bgcolor = "rgba(15, 23, 42, 0.90)",
         bordercolor = "rgba(255, 255, 255, 0.15)",
         font = list(
@@ -491,7 +551,11 @@ build_region_timeseries_chart <- function(
         )
       )
     ) %>%
-    config(displayModeBar = FALSE)
+    config(
+      displayModeBar = "hover",
+      displaylogo = FALSE,
+      modeBarButtonsToRemove = c("select2d", "lasso2d", "hoverClosestCartesian", "hoverCompareCartesian", "toggleSpikelines")
+    )
 }
 
 #' Build Seasonality Profile (Monthly Cycle) Chart
@@ -587,8 +651,8 @@ build_seasonality_plotly <- function(
     )
   }
 
-  p <- plot_ly()
-
+  p <- plot_ly(source = "seasonality")
+  
   # Historical Trace
   if (!is.null(df_hist) && nrow(df_hist) > 0) {
     p <- p %>%
@@ -599,7 +663,8 @@ build_seasonality_plotly <- function(
         type = "box",
         name = paste("Historical", reference_period),
         marker = list(color = accent_color),
-        line = list(color = accent_color)
+        line = list(color = accent_color),
+        hoverinfo = "y"
       )
   }
 
@@ -617,7 +682,8 @@ build_seasonality_plotly <- function(
         type = "box",
         name = paste(ssp_label, target_period),
         marker = list(color = proj_line_color),
-        line = list(color = proj_line_color)
+        line = list(color = proj_line_color),
+        hoverinfo = "y"
       )
   }
 
@@ -635,7 +701,8 @@ build_seasonality_plotly <- function(
         ticktext = month_labels,
         tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
         gridcolor = "rgba(255, 255, 255, 0.05)",
-        zeroline = FALSE
+        zeroline = FALSE,
+        showspikes = FALSE
       ),
       yaxis = list(
         title = paste0(var_label, " (", var_meta$unit, ")"),
@@ -646,32 +713,186 @@ build_seasonality_plotly <- function(
         ),
         tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
         gridcolor = "rgba(255, 255, 255, 0.05)",
-        zerolinecolor = "rgba(255, 255, 255, 0.1)"
+        zerolinecolor = "rgba(255, 255, 255, 0.1)",
+        showspikes = FALSE
       ),
       boxmode = "group",
       plot_bgcolor = "rgba(0,0,0,0)",
       paper_bgcolor = "rgba(0,0,0,0)",
-      margin = list(t = 50, r = 20, b = 40, l = 50),
+      margin = list(t = 50, r = 20, b = 20, l = 50),
       legend = list(
         orientation = "h",
         x = 0.5,
-        y = -0.15,
+        y = -0.10,
         xanchor = "center",
         font = list(family = "Inter, sans-serif", size = 11, color = "#94a3b8"),
         bgcolor = "rgba(0,0,0,0)"
       ),
-      hovermode = "x unified",
-      hoverlabel = list(
-        bgcolor = "rgba(15, 23, 42, 0.90)",
-        bordercolor = "rgba(255, 255, 255, 0.15)",
-        font = list(
-          family = "Inter, sans-serif",
-          size = 12,
-          color = "#e2e8f0"
-        )
-      )
+      hovermode = "x"
     ) %>%
-    config(displayModeBar = FALSE)
+    config(
+      displayModeBar = "hover",
+      displaylogo = FALSE,
+      modeBarButtonsToRemove = c("select2d", "lasso2d", "hoverClosestCartesian", "hoverCompareCartesian", "toggleSpikelines")
+    ) %>%
+    htmlwidgets::onRender("
+      function(el) {
+        var tooltipId = 'custom-seasonality-tooltip';
+        var tooltip = document.getElementById(tooltipId);
+        if (!tooltip) {
+          tooltip = document.createElement('div');
+          tooltip.id = tooltipId;
+          tooltip.style.position = 'absolute';
+          tooltip.style.display = 'none';
+          tooltip.style.zIndex = '9999';
+          tooltip.style.background = 'rgba(15, 23, 42, 0.95)';
+          tooltip.style.border = '1px solid rgba(255, 255, 255, 0.15)';
+          tooltip.style.borderRadius = '6px';
+          tooltip.style.padding = '12px';
+          tooltip.style.color = '#e2e8f0';
+          tooltip.style.fontFamily = 'Inter, sans-serif';
+          tooltip.style.fontSize = '12px';
+          tooltip.style.pointerEvents = 'none';
+          tooltip.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.5)';
+          
+          // Add a fast CSS transition so it glides smoothly between boxes
+          tooltip.style.transition = 'left 0.12s cubic-bezier(0.25, 1, 0.5, 1), top 0.12s cubic-bezier(0.25, 1, 0.5, 1)';
+          
+          document.body.appendChild(tooltip);
+        }
+
+        el.on('plotly_hover', function(d) {
+          var pts = d.points;
+          if (!pts || pts.length === 0) return;
+          
+          // For box traces, pts[0].x is the categorical x value (month number 1-12)
+          // pts[0].pointNumber is the raw data point index, NOT the box index
+          var monthNum = pts[0].x;
+          if (monthNum === undefined) return;
+          
+          // Convert 1-based month number to 0-based array index
+          var idx = monthNum - 1;
+          
+          var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          var monthName = (idx >= 0 && idx < 12) ? months[idx] : String(monthNum);
+          
+          var title = '<div style=\"margin-bottom: 8px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;\">' + monthName + '</div>';
+          
+          var cols = [];
+          // Loop through all traces in calcdata to pull box stats for this month index
+          if (el.calcdata) {
+            for (var c = 0; c < el.calcdata.length; c++) {
+              var traceData = el.calcdata[c];
+              if (!traceData) continue;
+              
+              var calcPt = traceData[idx];
+              if (!calcPt) continue;
+              
+              // Ensure we only process box plot traces
+              if (calcPt.trace && calcPt.trace.type !== 'box') continue;
+              
+              var name = (calcPt.trace && calcPt.trace.name) ? calcPt.trace.name : 'Data';
+              
+              // Simplify trace names: 'Hist' and 'SSPx.xx'
+              var displayName = 'Data';
+              if (name.indexOf('Historical') !== -1) {
+                displayName = 'Hist';
+              } else if (name.indexOf('SSP') !== -1) {
+                // Extract 'SSPx-x.x' using indexOf instead of regex
+                // to avoid R string escaping issues
+                var sspIdx = name.indexOf('SSP');
+                if (sspIdx !== -1) {
+                  var chunk = name.substring(sspIdx, sspIdx + 9); // e.g. 'SSP2-4.5 '
+                  displayName = chunk.split(' ')[0]; // 'SSP2-4.5'
+                } else {
+                  displayName = name.split(' ')[0];
+                }
+              } else {
+                displayName = name;
+              }
+              
+              var max = calcPt.max !== undefined ? calcPt.max.toFixed(2) : '-';
+              var q3 = calcPt.q3 !== undefined ? calcPt.q3.toFixed(2) : '-';
+              var med = calcPt.med !== undefined ? calcPt.med.toFixed(2) : '-';
+              var q1 = calcPt.q1 !== undefined ? calcPt.q1.toFixed(2) : '-';
+              var min = calcPt.min !== undefined ? calcPt.min.toFixed(2) : '-';
+              
+              if (max === '-' && med === '-' && min === '-') continue;
+              
+              cols.push({
+                name: displayName,
+                max: max,
+                q3: q3,
+                med: med,
+                q1: q1,
+                min: min
+              });
+            }
+          }
+          
+          // Construct a single unified HTML table for the comparisons
+          var tableHtml = '<table style=\"width: 100%; font-variant-numeric: tabular-nums; border-collapse: collapse;\">';
+          
+          // Header row with trace names
+          tableHtml += '<tr><th style=\"text-align: left; padding-right: 16px; font-weight: normal; color: #94a3b8;\"></th>';
+          for (var i = 0; i < cols.length; i++) {
+            tableHtml += '<th style=\"text-align: right; padding-left: 20px; font-weight: 600; color: #fff;\">' + cols[i].name + '</th>';
+          }
+          tableHtml += '</tr>';
+          
+          // Data rows for each statistical boundary
+          var rowConfigs = [
+            { key: 'max', label: 'Max' },
+            { key: 'q3', label: '75%' },
+            { key: 'med', label: 'Median', bold: true },
+            { key: 'q1', label: '25%' },
+            { key: 'min', label: 'Min' }
+          ];
+          
+          for (var r = 0; r < rowConfigs.length; r++) {
+            var row = rowConfigs[r];
+            var style = row.bold ? 'font-weight: 600; color: #fff;' : 'color: #e2e8f0;';
+            var lblStyle = 'color: #94a3b8; padding-right: 16px;';
+            if (row.bold) lblStyle += ' font-weight: 600;';
+            
+            tableHtml += '<tr style=\"' + style + '\"><td style=\"' + lblStyle + '\">' + row.label + '</td>';
+            for (var i = 0; i < cols.length; i++) {
+              tableHtml += '<td style=\"text-align: right; padding-left: 20px;\">' + cols[i][row.key] + '</td>';
+            }
+            tableHtml += '</tr>';
+          }
+          tableHtml += '</table>';
+          
+          tooltip.innerHTML = title + tableHtml;
+          
+          // Center the tooltip vertically relative to the plot container
+          var rect = el.getBoundingClientRect();
+          var centerY = window.scrollY + rect.top + (rect.height / 2);
+          
+          // Make visible to measure dimensions
+          tooltip.style.display = 'block';
+          var tooltipWidth = tooltip.offsetWidth || 200;
+          var tooltipHeight = tooltip.offsetHeight || 150;
+          
+          var evt = d.event;
+          if (evt) {
+            var leftPos = evt.pageX + 15;
+            // Check if it overflows the right side of the viewport
+            if (evt.clientX + 15 + tooltipWidth > window.innerWidth) {
+              // Flip to the left of the cursor
+              leftPos = evt.pageX - tooltipWidth - 15;
+            }
+            tooltip.style.left = leftPos + 'px';
+          }
+          
+          tooltip.style.top = (centerY - tooltipHeight / 2) + 'px';
+        });
+        
+        el.on('plotly_unhover', function(d) {
+          tooltip.style.display = 'none';
+        });
+      }
+    ")
 
   return(p)
 }

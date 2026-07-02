@@ -214,7 +214,35 @@ $(document).ready(function () {
   // reset clicked_region() — the server observer handles the reactive clean-up.
   $(document).on('click', '#drawer-close-btn', function () {
     $('#stats-drawer').removeClass('is-visible');
+    
+    // If it was expanded, collapse it back so next time it opens at normal height
+    $('#stats-drawer').removeClass('expanded');
+    var $expandIcon = $('#drawer-expand-btn').find('i');
+    $expandIcon.removeClass('bi-arrows-angle-contract').addClass('bi-arrows-angle-expand');
+    
     Shiny.setInputValue('drawer_closed', Math.random()); // random ensures reactivity fires every time
+  });
+
+  // Clicking the expand/contract button toggles the .expanded class on the drawer,
+  // making it tall (85vh). We also must trigger window.dispatchEvent(new Event('resize'))
+  // after the CSS transition finishes (~400ms) so Plotly charts redraw to the new height.
+  $(document).on('click', '#drawer-expand-btn', function () {
+    var $drawer = $('#stats-drawer');
+    $drawer.toggleClass('expanded');
+    
+    // Change the icon depending on state
+    var isExpanded = $drawer.hasClass('expanded');
+    var $icon = $(this).find('i');
+    if (isExpanded) {
+      $icon.removeClass('bi-arrows-angle-expand').addClass('bi-arrows-angle-contract');
+    } else {
+      $icon.removeClass('bi-arrows-angle-contract').addClass('bi-arrows-angle-expand');
+    }
+
+    // Wait for the CSS height transition to finish, then force Plotly to resize
+    setTimeout(function() {
+      window.dispatchEvent(new Event('resize'));
+    }, 450); // The CSS transition is 0.4s
   });
 
   // --------------------------------------------------------------------------
@@ -562,6 +590,32 @@ $(document).ready(function () {
   });
 
   // --------------------------------------------------------------------------
+  // Projection Style Toggle — Band vs Spaghetti
+  // --------------------------------------------------------------------------
+  $(document).on('click', '#projection-style-toggle-container .display-toggle-option', function () {
+    var $btn       = $(this);
+    var $container = $btn.closest('#projection-style-toggle-container');
+    var newValue   = $btn.data('value');
+
+    // Skip if this option is already active
+    if ($btn.hasClass('active')) return;
+
+    // Swap active class
+    $container.find('.display-toggle-option').removeClass('active');
+    $btn.addClass('active');
+
+    // Slide the pill: "spaghetti" = toggle-right, "band" = default left
+    if (newValue === 'spaghetti') {
+      $container.addClass('toggle-right');
+    } else {
+      $container.removeClass('toggle-right');
+    }
+
+    // Push the value into Shiny's input binding
+    Shiny.setInputValue('projection_style', newValue);
+  });
+
+  // --------------------------------------------------------------------------
   // View Mode Toggle — Year vs Period
   // --------------------------------------------------------------------------
   // Switches between single-year view (year slider) and period-averaged view
@@ -617,6 +671,7 @@ $(document).ready(function () {
       $projToggle.removeClass('toggle-right');
       // Hide all sub-controls
       $('#scenario-selector-wrapper').removeClass('is-visible');
+      $('#projection-style-wrapper').removeClass('is-visible');
       $('#display-mode-wrapper').removeClass('is-visible');
       $('#projection-period-wrapper').hide();
       

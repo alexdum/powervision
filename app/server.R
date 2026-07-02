@@ -1333,10 +1333,15 @@ server <- function(input, output, session) {
 
     # Helper to build a single metric card
     metric_card <- function(label, value, accent_class = "") {
+      content <- if (inherits(value, "shiny.tag") || inherits(value, "html") || inherits(value, "shiny.tag.list")) {
+        value
+      } else {
+        HTML(value)
+      }
       div(
         class = paste("metric-card", accent_class),
         div(class = "metric-label", label),
-        div(class = "metric-value", HTML(value))
+        div(class = "metric-value", content)
       )
     }
 
@@ -1348,13 +1353,46 @@ server <- function(input, output, session) {
       display_level <- "P2OF (Study Zone)"
     }
 
-    tagList(
+    cards <- list(
       metric_card("Region Name",    region$name),
       metric_card("Zone ID",        sprintf("<code>%s</code>", region$zone_id), "accent-danger"),
       metric_card("Parent Zone",    sprintf("<code>%s</code>", parent_txt)),
       metric_card("Spatial Tier",   display_level),
       metric_card("Area",           area_txt, "accent-success")
     )
+
+    if (isTRUE(input$show_projections == "1")) {
+      current_val <- isolate(if (is.null(input$projection_style)) "band" else input$projection_style)
+      
+      proj_style_toggle <- div(
+        class = paste0("proj-style-toggle", if (current_val == "spaghetti") " toggle-right" else ""),
+        id = "projection-style-toggle-container",
+        div(class = "proj-style-pill"),
+        tags$button(
+          type = "button",
+          class = paste0("display-toggle-option", if (current_val == "band") " active" else ""),
+          `data-value` = "band",
+          "Band"
+        ),
+        tags$button(
+          type = "button",
+          class = paste0("display-toggle-option", if (current_val == "spaghetti") " active" else ""),
+          `data-value` = "spaghetti",
+          "Spaghetti"
+        )
+      )
+      
+      toggle_card <- metric_card("Ensemble View", proj_style_toggle, "accent-info")
+      
+      conditional_toggle <- conditionalPanel(
+        condition = "input.drawer_tabs == 'trends'",
+        toggle_card
+      )
+      
+      cards <- c(cards, list(conditional_toggle))
+    }
+
+    do.call(tagList, cards)
   })
 
   # ----------------------------------------------------------------------------
@@ -1506,16 +1544,21 @@ server <- function(input, output, session) {
       )
     } else {
       # Query all 6 models for the chosen scenario using centralized helper.
-      # Only read Year + Value — that's all we need for ensemble stats.
+      # Read Year, Value, and model for both ensemble stats and spaghetti plots.
       df_proj <- query_arrow_dataset(
         proj_annual_ds, proj_seasonal_ds, proj_monthly_ds, temp_mode,
         var_name, sp_level,
         target_region = target_region, scenario_val = scenario,
-        select_cols = c("Year", "Value")
+        select_cols = c("Year", "Value", "model")
       )
     }
 
     if (is.null(df_proj)) return(NULL)
+
+    # Arrow dataset queries do not guarantee row order. We must explicitly sort 
+    # the data chronologically so that Plotly draws the spaghetti lines cleanly 
+    # from left to right instead of zig-zagging backward and forward in time.
+    df_proj <- df_proj[order(df_proj$Year), ]
 
     # Compute ensemble statistics grouped by Year:
     # - median_val: the central model estimate (robust to outliers)
@@ -1531,7 +1574,10 @@ server <- function(input, output, session) {
       ) |>
       dplyr::arrange(Year)
 
-    ensemble_stats
+    list(
+      ensemble = ensemble_stats,
+      models = df_proj
+    )
   })
 
   # NOTE: baseline_mean_value() used to be a separate reactive that queried
@@ -1638,9 +1684,17 @@ server <- function(input, output, session) {
     # Gather projection data and baseline if projections are toggled ON
     show_proj <- isTRUE(input$show_projections == "1")
     proj_data <- NULL
+    proj_models <- NULL
     baseline <- NULL
     if (show_proj) {
-      proj_data <- filtered_projection_data()
+      proj_data_list <- filtered_projection_data()
+      # Guard: filtered_projection_data() returns NULL on early-exit paths
+      # (e.g., variable has no projection data). Only extract list components
+      # when we actually got a valid list back.
+      if (!is.null(proj_data_list)) {
+        proj_data <- proj_data_list$ensemble
+        proj_models <- proj_data_list$models
+      }
 
       # ── Compute baseline inline from df_region (no extra query needed) ──────
       # The full historical record is already in df_region (all years, 1950-2023).
@@ -1678,6 +1732,8 @@ server <- function(input, output, session) {
       temp_mode        = temp_mode,
       show_proj        = show_proj,
       proj_data        = proj_data,
+      proj_models      = proj_models,
+      projection_style = if(is.null(input$projection_style)) "band" else input$projection_style,
       baseline         = baseline,
       display_mode     = input$display_mode,
       ssp_scenario     = input$ssp_scenario,
@@ -1703,6 +1759,32 @@ server <- function(input, output, session) {
       hideTab(inputId = "drawer_tabs", target = "tech")
     }
   }, ignoreInit = FALSE)
+
+  # -------------------------------------------------------------------------
+  # Cross-Filtering: Chart Click -> Map Year
+  # -------------------------------------------------------------------------
+  observeEvent(event_data("plotly_click", source = "timeseries"), {
+    # Do not update the map if the user is in "Period" view mode (multiannual means)
+    if (isTRUE(input$projection_view_mode == "period")) return()
+    
+    click_data <- event_data("plotly_click", source = "timeseries")
+    if (!is.null(click_data) && "x" %in% names(click_data)) {
+      clicked_year <- as.integer(round(click_data$x[[1]]))
+      
+      # Use dynamic bounds from the current UI state instead of hardcoded 1950-2100
+      c_min <- isolate(last_slider_min())
+      c_max <- isolate(last_slider_max())
+      
+      # Fallback defaults if state isn't initialized
+      if (is.null(c_min)) c_min <- 1950
+      if (is.null(c_max)) c_max <- 2100
+      
+      # Only update the map slider if the clicked year is within the current allowed bounds
+      if (clicked_year >= c_min && clicked_year <= c_max) {
+        updateSliderInput(session, "selected_year", value = clicked_year)
+      }
+    }
+  })
 
   # -------------------------------------------------------------------------
   # Seasonality Profile (Monthly) Plotly Chart

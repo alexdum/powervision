@@ -21,8 +21,16 @@ ui <- page_fillable(
       content = "PowerClimate Vision Explorer — Copernicus PECD v4.2 Interactive Spatial Dashboard"
     ),
     tags$title("PowerClimate Vision Explorer"),
-    tags$link(rel = "stylesheet", href = "styles.css?v=1.2"),
-    tags$script(src = "app.js?v=1.3")
+    # Cache-busting: append file modification timestamp as version query string.
+    # This guarantees browsers always fetch the latest CSS/JS after any rebuild,
+    # without needing to manually bump version numbers.
+    tags$link(
+      rel = "stylesheet",
+      href = paste0("styles.css?v=", as.integer(file.mtime("www/styles.css")))
+    ),
+    tags$script(
+      src = paste0("app.js?v=", as.integer(file.mtime("www/app.js")))
+    )
   ),
 
   # ── Full-screen MapLibre canvas (z-index 0) ──────────────────────────────────
@@ -367,6 +375,9 @@ ui <- page_fillable(
           width = "100%"
         )
       ),
+      
+
+
 
       # Display mode toggle — Absolute vs Anomaly
       div(
@@ -632,12 +643,21 @@ ui <- page_fillable(
         "Selected Region Analysis"
       ),
 
-      # Right side: close button
-      tags$button(
-        id = "drawer-close-btn",
-        class = "drawer-close",
-        type = "button",
-        HTML("&times;")
+      # Right side: expand and close buttons
+      div(
+        class = "drawer-actions",
+        tags$button(
+          id = "drawer-expand-btn",
+          class = "drawer-action-btn",
+          type = "button",
+          bsicons::bs_icon("arrows-angle-expand", size = "0.9em")
+        ),
+        tags$button(
+          id = "drawer-close-btn",
+          class = "drawer-action-btn",
+          type = "button",
+          HTML("&times;")
+        )
       )
     ),
 

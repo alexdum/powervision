@@ -739,7 +739,12 @@ html.shiny-busy #global-shiny-loader {
 
   /* Hidden by default — slides in from below */
   transform: translateY(100%);
-  transition: transform 0.38s cubic-bezier(0.32, 0, 0.15, 1);
+  transition: transform 0.38s cubic-bezier(0.32, 0, 0.15, 1), height 0.4s cubic-bezier(0.25, 1, 0.5, 1), max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+#stats-drawer.expanded {
+  height: 65vh;
+  max-height: 65vh;
 }
 
 #stats-drawer.is-visible {
@@ -844,7 +849,8 @@ html.shiny-busy #global-shiny-loader {
   margin: 0;
 }
 
-#stats-drawer .nav-pills > li > a {
+#stats-drawer .nav-pills > li > a,
+#stats-drawer .nav-pills .nav-link {
   border-radius: 6px;
   padding: 6px 16px;
   color: rgba(255, 255, 255, 0.6);
@@ -852,21 +858,23 @@ html.shiny-busy #global-shiny-loader {
   font-weight: 500;
   transition: all 0.2s ease;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
 }
 
-#stats-drawer .nav-pills > li > a:hover {
+#stats-drawer .nav-pills > li > a:hover,
+#stats-drawer .nav-pills .nav-link:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.05);
 }
 
 #stats-drawer .nav-pills > li.active > a,
 #stats-drawer .nav-pills > li.active > a:hover,
-#stats-drawer .nav-pills > li.active > a:focus {
-  background: rgba(56, 189, 248, 0.15);
-  color: var(--accent-light);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(56, 189, 248, 0.3);
+#stats-drawer .nav-pills > li.active > a:focus,
+#stats-drawer .nav-pills .nav-link.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 #stats-drawer .tabbable {
@@ -980,7 +988,13 @@ html.shiny-busy #global-shiny-loader {
   gap: 6px;
 }
 
-#stats-drawer .drawer-close {
+#stats-drawer .drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#stats-drawer .drawer-action-btn {
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 6px;
@@ -996,7 +1010,13 @@ html.shiny-busy #global-shiny-loader {
   padding: 0;
 }
 
-#stats-drawer .drawer-close:hover {
+#stats-drawer .drawer-action-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.30);
+  color: #fff;
+}
+
+#stats-drawer #drawer-close-btn:hover {
   background: rgba(239, 68, 68, 0.20);
   border-color: rgba(239, 68, 68, 0.40);
   color: #ef4444;
@@ -1255,6 +1275,43 @@ html.shiny-busy #global-shiny-loader {
 
 .display-toggle-option:hover:not(.active) {
   color: #cbd5e1;
+}
+
+/* Projection Style toggle — Band vs Spaghetti (same pill pattern, unique class to
+   avoid colliding with the display-mode-toggle click handler) */
+.proj-style-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 8px;
+  overflow: hidden;
+  height: 32px;
+  width: 100%;
+}
+
+.proj-style-toggle .proj-style-pill {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.30);
+  border-radius: 6px;
+  transition: transform 0.25s cubic-bezier(0.32, 0, 0.15, 1);
+  z-index: 0;
+}
+
+.proj-style-toggle.toggle-right .proj-style-pill {
+  transform: translateX(100%);
+}
+
+.proj-style-toggle .display-toggle-option {
+  padding: 4px 4px;
+  font-size: 0.68rem;
+  letter-spacing: -0.2px;
 }
 
 /* View mode toggle — Year vs Period (same pill pattern as display mode) */
@@ -1707,4 +1764,13 @@ code {
 }
 .tech-mix-wrapper .form-group {
   margin-bottom: 0;
+}
+
+/* Hide default Plotly SVG hover label only for seasonality plot.
+   IMPORTANT: Use visibility:hidden, NOT display:none. display:none
+   prevents Plotly from computing hover hit-test geometry entirely,
+   which means plotly_hover events never fire. visibility:hidden keeps
+   the hit-testing active but makes the native tooltip SVG invisible. */
+#region_seasonality .hoverlayer {
+  visibility: hidden !important;
 }
