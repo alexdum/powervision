@@ -174,7 +174,7 @@ build_region_timeseries_chart <- function(
     # Projections overlay active: show SSP scenario and reference period
     scenario_label <- ssp_scenario_labels[ssp_scenario]
     chart_title <- sprintf(
-      "%s: %s (%s) \u2014 %s vs %s",
+      "%s: %s (%s) \u2014 %s vs Hist (%s)",
       var_label,
       region_name,
       temp_mode,
@@ -184,7 +184,7 @@ build_region_timeseries_chart <- function(
   } else if (use_anomaly) {
     # Anomaly mode without projection data: show reference period only
     chart_title <- sprintf(
-      "%s Anomaly: %s (%s) vs %s",
+      "%s Anomaly: %s (%s) vs Hist (%s)",
       var_label,
       region_name,
       temp_mode,
@@ -211,8 +211,8 @@ build_region_timeseries_chart <- function(
         type = "scatter",
         mode = "lines+markers",
         name = "Historical (ERA5)",
-        line = list(color = accent_color, width = 2),
-        marker = list(color = accent_color, size = 4),
+        line = list(color = "#94a3b8", width = 2),
+        marker = list(color = "#94a3b8", size = 4),
         hovertemplate = paste0(
           "<b>Historical</b>: %{y:.2f} ",
           hover_unit,
@@ -555,7 +555,59 @@ build_region_timeseries_chart <- function(
       displayModeBar = "hover",
       displaylogo = FALSE,
       modeBarButtonsToRemove = c("select2d", "lasso2d", "hoverClosestCartesian", "hoverCompareCartesian", "toggleSpikelines")
-    )
+    ) %>%
+    htmlwidgets::onRender("
+      function(el) {
+        var spikeId = 'custom-timeseries-spike';
+        var spike = document.getElementById(spikeId);
+        if (!spike) {
+          spike = document.createElement('div');
+          spike.id = spikeId;
+          spike.style.position = 'absolute';
+          spike.style.display = 'none';
+          spike.style.zIndex = '9998';
+          spike.style.width = '1px';
+          spike.style.borderLeft = '1px dashed rgba(255, 255, 255, 0.4)';
+          spike.style.pointerEvents = 'none';
+          spike.style.transition = 'left 0.12s cubic-bezier(0.25, 1, 0.5, 1)';
+          document.body.appendChild(spike);
+        }
+
+        // Hide Plotly's native spike lines via CSS
+        var style = document.getElementById('hide-native-spikes');
+        if (!style) {
+          style = document.createElement('style');
+          style.id = 'hide-native-spikes';
+          style.textContent = '.spikeline { display: none !important; }';
+          document.head.appendChild(style);
+        }
+
+        el.on('plotly_hover', function(d) {
+          if (!d.points || d.points.length === 0) return;
+          var rect = el.getBoundingClientRect();
+          var xAxis = d.points[0].xaxis;
+          if (xAxis && d.points[0].x !== undefined) {
+            var ml = el._fullLayout ? el._fullLayout.margin.l : 50;
+            var mt = el._fullLayout ? el._fullLayout.margin.t : 50;
+            var mb = el._fullLayout ? el._fullLayout.margin.b : 20;
+
+            var leftOffset = xAxis.l2p(d.points[0].x);
+            var absoluteLeft = window.scrollX + rect.left + ml + leftOffset;
+            var absoluteTop = window.scrollY + rect.top + mt;
+            var plotHeight = el._fullLayout ? (el._fullLayout.height - mt - mb) : (rect.height - 70);
+
+            spike.style.display = 'block';
+            spike.style.left = absoluteLeft + 'px';
+            spike.style.top = absoluteTop + 'px';
+            spike.style.height = plotHeight + 'px';
+          }
+        });
+
+        el.on('plotly_unhover', function(d) {
+          spike.style.display = 'none';
+        });
+      }
+    ")
 }
 
 #' Build Seasonality Profile (Monthly Cycle) Chart
@@ -588,10 +640,11 @@ build_seasonality_plotly <- function(
   if (!is.null(df_proj) && nrow(df_proj) > 0) {
     ssp_label <- ssp_scenario_labels[ssp_scenario]
     chart_title <- sprintf(
-      "%s Seasonal Profile: %s \u2014 %s vs %s",
+      "%s Seasonal Profile: %s \u2014 %s (%s) vs Hist (%s)",
       var_label,
       region_name,
       ssp_label,
+      target_period,
       reference_period
     )
   } else {
@@ -662,9 +715,9 @@ build_seasonality_plotly <- function(
         y = ~Value,
         type = "box",
         name = paste("Historical", reference_period),
-        marker = list(color = accent_color),
-        line = list(color = accent_color),
-        hoverinfo = "y"
+        marker = list(color = "#94a3b8"),
+        line = list(color = "#94a3b8"),
+        hoverinfo = "none"
       )
   }
 
@@ -683,7 +736,7 @@ build_seasonality_plotly <- function(
         name = paste(ssp_label, target_period),
         marker = list(color = proj_line_color),
         line = list(color = proj_line_color),
-        hoverinfo = "y"
+        hoverinfo = "none"
       )
   }
 
@@ -728,7 +781,7 @@ build_seasonality_plotly <- function(
         font = list(family = "Inter, sans-serif", size = 11, color = "#94a3b8"),
         bgcolor = "rgba(0,0,0,0)"
       ),
-      hovermode = "x"
+      hovermode = "closest"
     ) %>%
     config(
       displayModeBar = "hover",
@@ -738,6 +791,8 @@ build_seasonality_plotly <- function(
     htmlwidgets::onRender("
       function(el) {
         var tooltipId = 'custom-seasonality-tooltip';
+        var spikeId = 'custom-seasonality-spike';
+        
         var tooltip = document.getElementById(tooltipId);
         if (!tooltip) {
           tooltip = document.createElement('div');
@@ -759,6 +814,20 @@ build_seasonality_plotly <- function(
           tooltip.style.transition = 'left 0.12s cubic-bezier(0.25, 1, 0.5, 1), top 0.12s cubic-bezier(0.25, 1, 0.5, 1)';
           
           document.body.appendChild(tooltip);
+        }
+        
+        var spike = document.getElementById(spikeId);
+        if (!spike) {
+          spike = document.createElement('div');
+          spike.id = spikeId;
+          spike.style.position = 'absolute';
+          spike.style.display = 'none';
+          spike.style.zIndex = '9998'; // Just below tooltip
+          spike.style.width = '1px';
+          spike.style.borderLeft = '1px dashed rgba(255, 255, 255, 0.4)';
+          spike.style.pointerEvents = 'none';
+          spike.style.transition = 'left 0.12s cubic-bezier(0.25, 1, 0.5, 1)';
+          document.body.appendChild(spike);
         }
 
         el.on('plotly_hover', function(d) {
@@ -793,20 +862,14 @@ build_seasonality_plotly <- function(
               
               var name = (calcPt.trace && calcPt.trace.name) ? calcPt.trace.name : 'Data';
               
-              // Simplify trace names: 'Hist' and 'SSPx.xx'
+              // Simplify trace names but PRESERVE periods
+              // e.g. 'Historical 1991-2020' -> 'Hist 1991-2020'
+              // e.g. 'SSP5-8.5 2041-2060' -> 'SSP5-8.5 2041-2060'
               var displayName = 'Data';
               if (name.indexOf('Historical') !== -1) {
-                displayName = 'Hist';
+                displayName = name.replace('Historical', 'Hist');
               } else if (name.indexOf('SSP') !== -1) {
-                // Extract 'SSPx-x.x' using indexOf instead of regex
-                // to avoid R string escaping issues
-                var sspIdx = name.indexOf('SSP');
-                if (sspIdx !== -1) {
-                  var chunk = name.substring(sspIdx, sspIdx + 9); // e.g. 'SSP2-4.5 '
-                  displayName = chunk.split(' ')[0]; // 'SSP2-4.5'
-                } else {
-                  displayName = name.split(' ')[0];
-                }
+                displayName = name; // Leave the SSP name and period intact
               } else {
                 displayName = name;
               }
@@ -883,6 +946,24 @@ build_seasonality_plotly <- function(
               leftPos = evt.pageX - tooltipWidth - 15;
             }
             tooltip.style.left = leftPos + 'px';
+            
+            // Position the custom spike line
+            var xAxis = d.points[0].xaxis;
+            if (xAxis && d.points[0].x !== undefined) {
+              var ml = el._fullLayout ? el._fullLayout.margin.l : 50;
+              var mt = el._fullLayout ? el._fullLayout.margin.t : 50;
+              var mb = el._fullLayout ? el._fullLayout.margin.b : 20;
+              
+              var leftOffset = xAxis.l2p(d.points[0].x);
+              var absoluteLeft = window.scrollX + rect.left + ml + leftOffset;
+              var absoluteTop = window.scrollY + rect.top + mt;
+              var plotHeight = el._fullLayout ? (el._fullLayout.height - mt - mb) : (rect.height - 70);
+              
+              spike.style.display = 'block';
+              spike.style.left = absoluteLeft + 'px';
+              spike.style.top = absoluteTop + 'px';
+              spike.style.height = plotHeight + 'px';
+            }
           }
           
           tooltip.style.top = (centerY - tooltipHeight / 2) + 'px';
@@ -890,6 +971,514 @@ build_seasonality_plotly <- function(
         
         el.on('plotly_unhover', function(d) {
           tooltip.style.display = 'none';
+          spike.style.display = 'none';
+        });
+      }
+    ")
+
+  return(p)
+}
+
+# ==============================================================================
+# All Scenarios Plotting Logic
+# ==============================================================================
+
+build_all_scenarios_timeseries_chart <- function(
+  df_region,
+  var_name,
+  var_meta,
+  accent_color,
+  region_name,
+  proj_ensemble,
+  hide_historical_line = FALSE,
+  reference_period = ""
+) {
+  var_label <- var_meta$label
+  var_unit <- var_meta$unit
+  hover_unit <- if (nchar(var_unit) > 0) paste0(" ", var_unit) else ""
+
+  if (nchar(reference_period) > 0) {
+    chart_title <- sprintf(
+      "%s: %s \u2014 All Scenarios vs Hist (%s)",
+      var_label,
+      region_name,
+      reference_period
+    )
+  } else {
+    chart_title <- sprintf(
+      "%s: %s \u2014 All Scenarios",
+      var_label,
+      region_name
+    )
+  }
+
+  p <- plot_ly(source = "all_timeseries")
+
+  # Historical Line
+  if (!hide_historical_line && !is.null(df_region) && nrow(df_region) > 0) {
+    p <- p %>%
+      add_trace(
+        data = df_region,
+        x = ~Year,
+        y = ~Value,
+        type = "scatter",
+        mode = "lines+markers",
+        name = "Historical (ERA5)",
+        line = list(color = "#94a3b8", width = 2),
+        marker = list(color = "#94a3b8", size = 4),
+        hovertemplate = paste0(
+          "<b>Historical</b>: %{y:.2f} ",
+          hover_unit,
+          "<extra></extra>"
+        )
+      )
+  }
+
+  # Projection Medians
+  if (!is.null(proj_ensemble) && nrow(proj_ensemble) > 0) {
+    scenarios <- unique(proj_ensemble$scenario)
+    # Sort scenarios logically
+    scenarios <- sort(scenarios)
+
+    for (s in scenarios) {
+      s_data <- proj_ensemble[proj_ensemble$scenario == s, ]
+      s_color <- ssp_colors[[s]]$line
+      s_label <- ssp_scenario_labels[[s]]
+
+      p <- p %>%
+        add_trace(
+          data = s_data,
+          x = ~Year,
+          y = ~median_val,
+          type = "scatter",
+          mode = "lines",
+          name = s_label,
+          line = list(color = s_color, width = 2),
+          hovertemplate = paste0(
+            "<b>", s_label, "</b>: %{y:.2f} ",
+            hover_unit,
+            "<extra></extra>"
+          )
+        )
+    }
+  }
+
+  p <- p %>%
+    layout(
+      title = list(
+        text = chart_title,
+        font = list(family = "Inter, sans-serif", size = 14, color = "#e2e8f0"),
+        x = 0.05,
+        y = 0.95,
+        xanchor = "left"
+      ),
+      hovermode = "x unified",
+      hoverlabel = list(
+        namelength = 0,
+        bgcolor = "rgba(15, 23, 42, 0.90)",
+        bordercolor = "rgba(255, 255, 255, 0.15)",
+        font = list(
+          family = "Inter, sans-serif",
+          size = 12,
+          color = "#e2e8f0"
+        )
+      ),
+      paper_bgcolor = "rgba(0,0,0,0)",
+      plot_bgcolor = "rgba(0,0,0,0)",
+      legend = list(
+        orientation = "h",
+        x = 0.5,
+        y = -0.15,
+        xanchor = "center",
+        yanchor = "top",
+        font = list(family = "Inter, sans-serif", color = "#cbd5e1", size = 11)
+      ),
+      margin = list(t = 40, r = 20, b = 10, l = 50),
+      xaxis = list(
+        title = "",
+        tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
+        gridcolor = "rgba(255, 255, 255, 0.05)",
+        zeroline = FALSE,
+        showspikes = FALSE
+      ),
+      yaxis = list(
+        title = list(
+          text = var_unit,
+          font = list(family = "Inter, sans-serif", color = "#cbd5e1", size = 12)
+        ),
+        tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
+        gridcolor = "rgba(255, 255, 255, 0.05)",
+        zerolinecolor = "rgba(255, 255, 255, 0.2)"
+      )
+    ) %>%
+    config(
+      displayModeBar = "hover",
+      displaylogo = FALSE,
+      modeBarButtonsToRemove = c("select2d", "lasso2d", "hoverClosestCartesian", "hoverCompareCartesian", "toggleSpikelines")
+    ) %>%
+    htmlwidgets::onRender("
+      function(el) {
+        var spikeId = 'custom-all-timeseries-spike';
+        var spike = document.getElementById(spikeId);
+        if (!spike) {
+          spike = document.createElement('div');
+          spike.id = spikeId;
+          spike.style.position = 'absolute';
+          spike.style.display = 'none';
+          spike.style.zIndex = '9998';
+          spike.style.width = '1px';
+          spike.style.borderLeft = '1px dashed rgba(255, 255, 255, 0.4)';
+          spike.style.pointerEvents = 'none';
+          spike.style.transition = 'left 0.12s cubic-bezier(0.25, 1, 0.5, 1)';
+          document.body.appendChild(spike);
+        }
+
+        // Hide Plotly's native spike lines via CSS
+        var style = document.getElementById('hide-native-spikes');
+        if (!style) {
+          style = document.createElement('style');
+          style.id = 'hide-native-spikes';
+          style.textContent = '.spikeline { display: none !important; }';
+          document.head.appendChild(style);
+        }
+
+        el.on('plotly_hover', function(d) {
+          if (!d.points || d.points.length === 0) return;
+          var rect = el.getBoundingClientRect();
+          var xAxis = d.points[0].xaxis;
+          if (xAxis && d.points[0].x !== undefined) {
+            var ml = el._fullLayout ? el._fullLayout.margin.l : 50;
+            var mt = el._fullLayout ? el._fullLayout.margin.t : 50;
+            var mb = el._fullLayout ? el._fullLayout.margin.b : 20;
+
+            var leftOffset = xAxis.l2p(d.points[0].x);
+            var absoluteLeft = window.scrollX + rect.left + ml + leftOffset;
+            var absoluteTop = window.scrollY + rect.top + mt;
+            var plotHeight = el._fullLayout ? (el._fullLayout.height - mt - mb) : (rect.height - 70);
+
+            spike.style.display = 'block';
+            spike.style.left = absoluteLeft + 'px';
+            spike.style.top = absoluteTop + 'px';
+            spike.style.height = plotHeight + 'px';
+          }
+        });
+
+        el.on('plotly_unhover', function(d) {
+          spike.style.display = 'none';
+        });
+      }
+    ")
+
+  return(p)
+}
+
+build_all_scenarios_seasonality_chart <- function(
+  df_hist,
+  df_proj,
+  var_name,
+  var_meta,
+  accent_color,
+  region_name,
+  reference_period = "",
+  target_period = ""
+) {
+  var_label <- var_meta$label
+  var_unit <- var_meta$unit
+
+  if (nchar(target_period) > 0 && nchar(reference_period) > 0) {
+    chart_title <- sprintf(
+      "%s Seasonal Profile: %s \u2014 All Scenarios (%s) vs Hist (%s)",
+      var_label,
+      region_name,
+      target_period,
+      reference_period
+    )
+  } else if (nchar(reference_period) > 0) {
+    chart_title <- sprintf(
+      "%s Seasonal Profile: %s \u2014 Historical (%s)",
+      var_label,
+      region_name,
+      reference_period
+    )
+  } else {
+    chart_title <- sprintf(
+      "%s Seasonal Profile: %s \u2014 All Scenarios",
+      var_label,
+      region_name
+    )
+  }
+
+  month_labels <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+  # Guard
+  if ((is.null(df_hist) || nrow(df_hist) == 0) && (is.null(df_proj) || nrow(df_proj) == 0)) {
+    return(plot_ly() %>% layout(title = list(text = "No data available")))
+  }
+
+  p <- plot_ly(source = "all_seasonality")
+
+  # Historical Boxplots
+  if (!is.null(df_hist) && nrow(df_hist) > 0) {
+    p <- p %>%
+      add_trace(
+        data = df_hist,
+        x = ~Month,
+        y = ~Value,
+        type = "box",
+        name = "Historical",
+        marker = list(color = "#94a3b8"),
+        line = list(color = "#94a3b8"),
+        fillcolor = "rgba(0,0,0,0)",
+        hoverinfo = "none"
+      )
+  }
+
+  # Projection Boxplots
+  if (!is.null(df_proj) && nrow(df_proj) > 0) {
+    scenarios <- unique(df_proj$scenario)
+    scenarios <- sort(scenarios)
+
+    for (s in scenarios) {
+      s_data <- df_proj[df_proj$scenario == s, ]
+      s_color <- ssp_colors[[s]]$line
+      s_label <- ssp_scenario_labels[[s]]
+
+      p <- p %>%
+        add_trace(
+          data = s_data,
+          x = ~Month,
+          y = ~Value,
+          type = "box",
+          name = s_label,
+          marker = list(color = s_color),
+          line = list(color = s_color),
+          fillcolor = "rgba(0,0,0,0)",
+          hoverinfo = "none"
+        )
+    }
+  }
+
+  p <- p %>%
+    layout(
+      boxmode = "group",
+      title = list(
+        text = chart_title,
+        font = list(family = "Inter, sans-serif", size = 14, color = "#e2e8f0"),
+        x = 0.05,
+        y = 0.95,
+        xanchor = "left"
+      ),
+      paper_bgcolor = "rgba(0,0,0,0)",
+      plot_bgcolor = "rgba(0,0,0,0)",
+      legend = list(
+        orientation = "h",
+        x = 0.5,
+        y = -0.15,
+        xanchor = "center",
+        yanchor = "top",
+        font = list(family = "Inter, sans-serif", color = "#cbd5e1", size = 11)
+      ),
+      xaxis = list(
+        title = "",
+        tickmode = "array",
+        tickvals = 1:12,
+        ticktext = month_labels,
+        tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
+        gridcolor = "rgba(255, 255, 255, 0.05)",
+        zeroline = FALSE,
+        showspikes = FALSE
+      ),
+      yaxis = list(
+        title = list(
+          text = var_unit,
+          font = list(family = "Inter, sans-serif", color = "#cbd5e1", size = 12)
+        ),
+        tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
+        gridcolor = "rgba(255, 255, 255, 0.05)"
+      ),
+      hovermode = "closest"
+    ) %>%
+    config(
+      displayModeBar = "hover",
+      displaylogo = FALSE,
+      modeBarButtonsToRemove = c("select2d", "lasso2d", "hoverClosestCartesian", "hoverCompareCartesian", "toggleSpikelines")
+    ) %>%
+    htmlwidgets::onRender("
+      function(el) {
+        var tooltipId = 'custom-all-seasonality-tooltip';
+        var spikeId = 'custom-all-seasonality-spike';
+        
+        var tooltip = document.getElementById(tooltipId);
+        if (!tooltip) {
+          tooltip = document.createElement('div');
+          tooltip.id = tooltipId;
+          tooltip.style.position = 'absolute';
+          tooltip.style.display = 'none';
+          tooltip.style.zIndex = '9999';
+          tooltip.style.background = 'rgba(15, 23, 42, 0.95)';
+          tooltip.style.border = '1px solid rgba(255, 255, 255, 0.15)';
+          tooltip.style.borderRadius = '6px';
+          tooltip.style.padding = '12px';
+          tooltip.style.color = '#e2e8f0';
+          tooltip.style.fontFamily = 'Inter, sans-serif';
+          tooltip.style.fontSize = '12px';
+          tooltip.style.pointerEvents = 'none';
+          tooltip.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.5)';
+          
+          // Add a fast CSS transition so it glides smoothly between boxes
+          tooltip.style.transition = 'left 0.12s cubic-bezier(0.25, 1, 0.5, 1), top 0.12s cubic-bezier(0.25, 1, 0.5, 1)';
+          
+          document.body.appendChild(tooltip);
+        }
+        
+        var spike = document.getElementById(spikeId);
+        if (!spike) {
+          spike = document.createElement('div');
+          spike.id = spikeId;
+          spike.style.position = 'absolute';
+          spike.style.display = 'none';
+          spike.style.zIndex = '9998'; // Just below tooltip
+          spike.style.width = '1px';
+          spike.style.borderLeft = '1px dashed rgba(255, 255, 255, 0.4)';
+          spike.style.pointerEvents = 'none';
+          spike.style.transition = 'left 0.12s cubic-bezier(0.25, 1, 0.5, 1)';
+          document.body.appendChild(spike);
+        }
+
+        el.on('plotly_hover', function(d) {
+          var pts = d.points;
+          if (!pts || pts.length === 0) return;
+          
+          // For box traces, pts[0].x is the categorical x value (month number 1-12)
+          var monthNum = pts[0].x;
+          if (monthNum === undefined) return;
+          
+          var idx = monthNum - 1;
+          
+          var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          var monthName = (idx >= 0 && idx < 12) ? months[idx] : String(monthNum);
+          
+          var title = '<div style=\"margin-bottom: 8px; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;\">' + monthName + '</div>';
+          
+          var cols = [];
+          if (el.calcdata) {
+            for (var c = 0; c < el.calcdata.length; c++) {
+              var traceData = el.calcdata[c];
+              if (!traceData) continue;
+              
+              var calcPt = traceData[idx];
+              if (!calcPt) continue;
+              
+              if (calcPt.trace && calcPt.trace.type !== 'box') continue;
+              
+              var name = (calcPt.trace && calcPt.trace.name) ? calcPt.trace.name : 'Data';
+              
+              var displayName = 'Data';
+              if (name.indexOf('Historical') !== -1) {
+                displayName = 'Hist';
+              } else if (name.indexOf('SSP') !== -1) {
+                var sspIdx = name.indexOf('SSP');
+                if (sspIdx !== -1) {
+                  var chunk = name.substring(sspIdx, sspIdx + 9);
+                  displayName = chunk.split(' ')[0];
+                } else {
+                  displayName = name.split(' ')[0];
+                }
+              } else {
+                displayName = name;
+              }
+              
+              var max = calcPt.max !== undefined ? calcPt.max.toFixed(2) : '-';
+              var q3 = calcPt.q3 !== undefined ? calcPt.q3.toFixed(2) : '-';
+              var med = calcPt.med !== undefined ? calcPt.med.toFixed(2) : '-';
+              var q1 = calcPt.q1 !== undefined ? calcPt.q1.toFixed(2) : '-';
+              var min = calcPt.min !== undefined ? calcPt.min.toFixed(2) : '-';
+              
+              if (max === '-' && med === '-' && min === '-') continue;
+              
+              cols.push({
+                name: displayName,
+                max: max,
+                q3: q3,
+                med: med,
+                q1: q1,
+                min: min
+              });
+            }
+          }
+          
+          var tableHtml = '<table style=\"width: 100%; font-variant-numeric: tabular-nums; border-collapse: collapse;\">';
+          tableHtml += '<tr><th style=\"text-align: left; padding-right: 16px; font-weight: normal; color: #94a3b8;\"></th>';
+          for (var i = 0; i < cols.length; i++) {
+            tableHtml += '<th style=\"text-align: right; padding-left: 20px; font-weight: 600; color: #fff;\">' + cols[i].name + '</th>';
+          }
+          tableHtml += '</tr>';
+          
+          var rowConfigs = [
+            { key: 'max', label: 'Max' },
+            { key: 'q3', label: '75%' },
+            { key: 'med', label: 'Median', bold: true },
+            { key: 'q1', label: '25%' },
+            { key: 'min', label: 'Min' }
+          ];
+          
+          for (var r = 0; r < rowConfigs.length; r++) {
+            var row = rowConfigs[r];
+            var style = row.bold ? 'font-weight: 600; color: #fff;' : 'color: #e2e8f0;';
+            var lblStyle = 'color: #94a3b8; padding-right: 16px;';
+            if (row.bold) lblStyle += ' font-weight: 600;';
+            
+            tableHtml += '<tr style=\"' + style + '\"><td style=\"' + lblStyle + '\">' + row.label + '</td>';
+            for (var i = 0; i < cols.length; i++) {
+              tableHtml += '<td style=\"text-align: right; padding-left: 20px;\">' + cols[i][row.key] + '</td>';
+            }
+            tableHtml += '</tr>';
+          }
+          tableHtml += '</table>';
+          
+          tooltip.innerHTML = title + tableHtml;
+          
+          var rect = el.getBoundingClientRect();
+          var centerY = window.scrollY + rect.top + (rect.height / 2);
+          
+          tooltip.style.display = 'block';
+          var tooltipWidth = tooltip.offsetWidth || 200;
+          var tooltipHeight = tooltip.offsetHeight || 150;
+          
+          var evt = d.event;
+          if (evt) {
+            var leftPos = evt.pageX + 15;
+            if (evt.clientX + 15 + tooltipWidth > window.innerWidth) {
+              leftPos = evt.pageX - tooltipWidth - 15;
+            }
+            tooltip.style.left = leftPos + 'px';
+            
+            // Position the custom spike line
+            var xAxis = d.points[0].xaxis;
+            if (xAxis && d.points[0].x !== undefined) {
+              var ml = el._fullLayout ? el._fullLayout.margin.l : 50;
+              var mt = el._fullLayout ? el._fullLayout.margin.t : 50;
+              var mb = el._fullLayout ? el._fullLayout.margin.b : 20;
+              
+              var leftOffset = xAxis.l2p(d.points[0].x);
+              var absoluteLeft = window.scrollX + rect.left + ml + leftOffset;
+              var absoluteTop = window.scrollY + rect.top + mt;
+              var plotHeight = el._fullLayout ? (el._fullLayout.height - mt - mb) : (rect.height - 70);
+              
+              spike.style.display = 'block';
+              spike.style.left = absoluteLeft + 'px';
+              spike.style.top = absoluteTop + 'px';
+              spike.style.height = plotHeight + 'px';
+            }
+          }
+          
+          tooltip.style.top = (centerY - tooltipHeight / 2) + 'px';
+        });
+        
+        el.on('plotly_unhover', function(d) {
+          tooltip.style.display = 'none';
+          spike.style.display = 'none';
         });
       }
     ")

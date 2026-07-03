@@ -686,14 +686,24 @@ ui <- page_fillable(
           id = "drawer_tabs",
           type = "pills",
           tabPanel(
-            title = "Long-term Trends",
+            title = "Time Series",
             value = "trends",
             plotlyOutput("region_timeseries", height = "100%", width = "100%")
           ),
           tabPanel(
-            title = "Seasonality Profile",
+            title = "Annual Cycle",
             value = "seasonality",
             plotlyOutput("region_seasonality", height = "100%", width = "100%")
+          ),
+          tabPanel(
+            title = "Multi-Scenario Time Series",
+            value = "all_trends",
+            plotlyOutput("all_region_timeseries", height = "100%", width = "100%")
+          ),
+          tabPanel(
+            title = "Multi-Scenario Annual Cycle",
+            value = "all_seasonality",
+            plotlyOutput("all_region_seasonality", height = "100%", width = "100%")
           )
         )
       )

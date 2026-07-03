@@ -104,7 +104,7 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mod
 
   # Optional: filter by SSP scenario (only for projection datasets).
   if (!is.null(scenario_val)) {
-    query <- query |> dplyr::filter(scenario == !!scenario_val)
+    query <- query |> dplyr::filter(scenario %in% !!scenario_val)
   }
 
   # For seasonal/monthly modes, also filter by the active season/month.
@@ -144,6 +144,11 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mod
   # handling. Most callers check `if (is.null(...)) return(NULL)` which
   # is more readable than `if (nrow(...) == 0)`.
   if (nrow(df_result) == 0) return(NULL)
+
+  # Explicitly sort chronologically by Year to prevent zig-zag rendering in Plotly
+  if ("Year" %in% names(df_result)) {
+    df_result <- df_result[order(df_result$Year), , drop = FALSE]
+  }
 
   df_result
 }

@@ -55,6 +55,7 @@ RUN R -e 'renv::restore()'
 
 # --- Download Parquet data from HF Dataset repo ---
 # The data is ignored by git, so we download it from the HF dataset repo during build.
+ARG CACHEBUST=2
 # Dataset repo: https://huggingface.co/datasets/adumitrescu/powervision-data
 RUN git clone --depth 1 https://huggingface.co/datasets/adumitrescu/powervision-data /tmp/hf-data && \
   mkdir -p /srv/shiny-server/powervision/www/data && \

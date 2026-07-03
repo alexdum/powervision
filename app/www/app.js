@@ -555,6 +555,28 @@ $(document).ready(function () {
     // Push the value into Shiny's input binding
     Shiny.setInputValue('show_projections', String(newValue));
     updateHistoricalPeriodVisibility();
+
+    // Dynamically show/hide the All Scenarios tabs
+    if (String(newValue) === '1') {
+      $('a[data-value="all_trends"]').parent().show();
+      $('a[data-value="all_seasonality"]').parent().show();
+    } else {
+      $('a[data-value="all_trends"]').parent().hide();
+      $('a[data-value="all_seasonality"]').parent().hide();
+      // Auto-switch to trends tab if an all_scenarios tab was active
+      if ($('a[data-value="all_trends"]').parent().hasClass('active') || 
+          $('a[data-value="all_seasonality"]').parent().hasClass('active')) {
+        $('a[data-value="trends"]').tab('show');
+      }
+    }
+  });
+
+  // Ensure tabs are hidden on initial load if projections are off
+  $(document).on('shiny:connected', function(event) {
+    if ($('#show_projections').val() === '0') {
+      $('a[data-value="all_trends"]').parent().hide();
+      $('a[data-value="all_seasonality"]').parent().hide();
+    }
   });
 
   // --------------------------------------------------------------------------
@@ -728,6 +750,13 @@ $(document).ready(function () {
     Shiny.setInputValue('show_projections', '0');
     $('#scenario-selector-wrapper').removeClass('is-visible');
     $('#display-mode-wrapper').removeClass('is-visible');
+    
+    $('a[data-value="all_trends"]').parent().hide();
+    $('a[data-value="all_seasonality"]').parent().hide();
+    if ($('a[data-value="all_trends"]').parent().hasClass('active') || 
+        $('a[data-value="all_seasonality"]').parent().hasClass('active')) {
+      $('a[data-value="trends"]').tab('show');
+    }
 
     // Reset display mode to 'absolute'
     var $modeToggle = $('#display-mode-toggle');

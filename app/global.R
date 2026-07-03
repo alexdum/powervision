@@ -466,10 +466,10 @@ ssp_scenario_labels <- c(
 # These are used for the ensemble median line and the model spread envelope
 # in the time-series chart. Colors follow the IPCC AR6 convention.
 ssp_colors <- list(
-  "ssp1_2_6" = list(line = "#2563eb", fill = "rgba(37, 99, 235, 0.15)"),
-  "ssp2_4_5" = list(line = "#f59e0b", fill = "rgba(245, 158, 11, 0.15)"),
-  "ssp3_7_0" = list(line = "#ef4444", fill = "rgba(239, 68, 68, 0.15)"),
-  "ssp5_8_5" = list(line = "#7c3aed", fill = "rgba(124, 58, 237, 0.15)")
+  "ssp1_2_6" = list(line = "#00a9cf", fill = "rgba(0, 169, 207, 0.15)"),
+  "ssp2_4_5" = list(line = "#f69320", fill = "rgba(246, 147, 32, 0.15)"),
+  "ssp3_7_0" = list(line = "#df0000", fill = "rgba(223, 0, 0, 0.15)"),
+  "ssp5_8_5" = list(line = "#980002", fill = "rgba(152, 0, 2, 0.15)")
 )
 
 # CMIP6 model display names (for potential future individual-model toggle)
