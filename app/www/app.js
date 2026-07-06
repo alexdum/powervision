@@ -92,15 +92,27 @@ $(document).ready(function () {
       promoteId: 'zone_id'    // use zone_id as feature ID for queryRenderedFeatures
     });
 
-    // Step 4: Find the first symbol layer to insert our polygons underneath.
-    // This ensures that city names, borders, and labels always render ON TOP
-    // of the choropleth data.
+    // Step 4: Find the ideal layer to insert our polygons underneath.
+    // To ensure reference borders sit ON TOP of the choropleth data, we look
+    // for standard boundary layers (boundary_3, boundary_2). If not found, 
+    // we fallback to the first symbol layer (labels).
     var layers = map.getStyle().layers;
-    var firstSymbolId = null;
+    var targetBeforeId = null;
+
     for (var i = 0; i < layers.length; i++) {
-      if (layers[i].type === 'symbol') {
-        firstSymbolId = layers[i].id;
+      var id = layers[i].id;
+      if (id === 'boundary_3' || id === 'boundary_2' || id === 'boundary_disputed') {
+        targetBeforeId = id;
         break;
+      }
+    }
+
+    if (!targetBeforeId) {
+      for (var i = 0; i < layers.length; i++) {
+        if (layers[i].type === 'symbol') {
+          targetBeforeId = layers[i].id;
+          break;
+        }
       }
     }
 
@@ -114,7 +126,7 @@ $(document).ready(function () {
         'fill-opacity': 0,
         'fill-outline-color': '#ffffff00'
       }
-    }, firstSymbolId);
+    }, targetBeforeId);
 
     // Step 6: Add border layer
     map.addLayer({
@@ -126,11 +138,28 @@ $(document).ready(function () {
         'line-width': borderWidth,
         'line-opacity': borderOpacity
       }
-    }, firstSymbolId);
+    }, targetBeforeId);
 
     console.log('[GeoJSON] Swapped source to:', geojsonUrl);
   });
 
+  // --------------------------------------------------------------------------
+  // Toggle Labels Handler
+  // --------------------------------------------------------------------------
+  Shiny.addCustomMessageHandler('toggle_labels', function(message) {
+    var map = _getMapInstance();
+    if (!map) return;
+    var isVisible = message.visible ? 'visible' : 'none';
+    var layers = map.getStyle().layers;
+    for (var i = 0; i < layers.length; i++) {
+      if (layers[i].type === 'symbol') {
+        map.setLayoutProperty(layers[i].id, 'visibility', isVisible);
+      }
+    }
+  });
+
+  // --------------------------------------------------------------------------
+  // Drill-down Zone Click Handler
   // --------------------------------------------------------------------------
   // Paint Zone Fills Handler
   // --------------------------------------------------------------------------
@@ -176,22 +205,15 @@ $(document).ready(function () {
 
 
   // --------------------------------------------------------------------------
-  // Floating Layer Control — hover-expand / auto-collapse
+  // Basemap Popover — auto-collapse
   // --------------------------------------------------------------------------
-  var $layerControl = $('.map-layer-control');
-
-  $layerControl.on('mouseenter', function () {
-    $(this).addClass('expanded');
-  });
-
-  $layerControl.on('mouseleave', function () {
-    $(this).removeClass('expanded');
-  });
-
   // Auto-collapse 400ms after a basemap radio is chosen
-  $layerControl.on('change', 'input[type="radio"]', function () {
+  $(document).on('change', '#basemap-popover input[type="radio"]', function () {
     setTimeout(function () {
-      $layerControl.removeClass('expanded');
+      var popover = document.getElementById('basemap-popover');
+      if (popover && typeof popover.hidePopover === 'function') {
+        popover.hidePopover();
+      }
     }, 400);
   });
 
@@ -217,8 +239,6 @@ $(document).ready(function () {
     
     // If it was expanded, collapse it back so next time it opens at normal height
     $('#stats-drawer').removeClass('expanded');
-    var $expandIcon = $('#drawer-expand-btn').find('i');
-    $expandIcon.removeClass('bi-arrows-angle-contract').addClass('bi-arrows-angle-expand');
     
     Shiny.setInputValue('drawer_closed', Math.random()); // random ensures reactivity fires every time
   });
@@ -229,15 +249,6 @@ $(document).ready(function () {
   $(document).on('click', '#drawer-expand-btn', function () {
     var $drawer = $('#stats-drawer');
     $drawer.toggleClass('expanded');
-    
-    // Change the icon depending on state
-    var isExpanded = $drawer.hasClass('expanded');
-    var $icon = $(this).find('i');
-    if (isExpanded) {
-      $icon.removeClass('bi-arrows-angle-expand').addClass('bi-arrows-angle-contract');
-    } else {
-      $icon.removeClass('bi-arrows-angle-contract').addClass('bi-arrows-angle-expand');
-    }
 
     // Wait for the CSS height transition to finish, then force Plotly to resize
     setTimeout(function() {
@@ -468,33 +479,37 @@ $(document).ready(function () {
   });
 
   // --------------------------------------------------------------------------
-  // About Modal — open / close handlers
+  // About Modal — open / close handlers for native <dialog>
   // --------------------------------------------------------------------------
-  // The About button (#about_btn) toggles the .is-visible class on the overlay.
-  // Dismissal happens via: close button, backdrop click, or Escape key.
-  // --------------------------------------------------------------------------
-
   // Open the About modal when the info button is clicked
   $(document).on('click', '#about_btn', function () {
-    $('#about-overlay').addClass('is-visible');
+    var aboutModal = document.getElementById('about-modal');
+    if (aboutModal && typeof aboutModal.showModal === 'function') {
+      aboutModal.showModal();
+    }
   });
 
   // Close when the ✕ button is clicked
   $(document).on('click', '#about-close-btn', function () {
-    $('#about-overlay').removeClass('is-visible');
+    var aboutModal = document.getElementById('about-modal');
+    if (aboutModal) aboutModal.close();
   });
 
-  // Close when clicking the dark backdrop (outside the modal card)
-  $(document).on('click', '#about-backdrop', function () {
-    $('#about-overlay').removeClass('is-visible');
-  });
-
-  // Close on Escape key press
-  $(document).on('keydown', function (event) {
-    if (event.key === 'Escape' && $('#about-overlay').hasClass('is-visible')) {
-      $('#about-overlay').removeClass('is-visible');
+  // Close when clicking the backdrop (outside the modal card bounds)
+  $(document).on('click', '#about-modal', function (event) {
+    var aboutModal = document.getElementById('about-modal');
+    if (event.target === aboutModal) {
+      aboutModal.close();
     }
   });
+
+  // Auto-open on app startup
+  setTimeout(function() {
+    var aboutModal = document.getElementById('about-modal');
+    if (aboutModal && typeof aboutModal.showModal === 'function' && !aboutModal.open) {
+      aboutModal.showModal();
+    }
+  }, 100);
   // --------------------------------------------------------------------------
   // Update Historical Period Visibility Helper
   // --------------------------------------------------------------------------

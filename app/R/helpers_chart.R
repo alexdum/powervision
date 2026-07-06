@@ -991,10 +991,47 @@ build_all_scenarios_timeseries_chart <- function(
   region_name,
   proj_ensemble,
   hide_historical_line = FALSE,
-  reference_period = ""
+  reference_period = "",
+  baseline = NULL,
+  display_mode = "absolute"
 ) {
   var_label <- var_meta$label
   var_unit <- var_meta$unit
+
+  # --------------------------------------------------------------------------
+  # Apply anomaly transformation if active
+  # --------------------------------------------------------------------------
+  use_anomaly <- (isTRUE(display_mode == "anomaly") && !is.null(baseline) && is.finite(baseline))
+  is_relative_anomaly <- (var_name == "total_precipitation")
+
+  if (use_anomaly) {
+    if (is_relative_anomaly) {
+      if (abs(baseline) > 0.001) {
+        if (!is.null(df_region)) df_region$Value <- (df_region$Value - baseline) / baseline * 100
+        if (!is.null(proj_ensemble) && nrow(proj_ensemble) > 0) {
+          proj_ensemble$median_val <- (proj_ensemble$median_val - baseline) / baseline * 100
+        }
+        var_unit <- "%"
+      } else {
+        if (!is.null(df_region)) df_region$Value <- df_region$Value - baseline
+        if (!is.null(proj_ensemble) && nrow(proj_ensemble) > 0) {
+          proj_ensemble$median_val <- proj_ensemble$median_val - baseline
+        }
+      }
+    } else {
+      if (!is.null(df_region)) df_region$Value <- df_region$Value - baseline
+      if (!is.null(proj_ensemble) && nrow(proj_ensemble) > 0) {
+        proj_ensemble$median_val <- proj_ensemble$median_val - baseline
+      }
+    }
+  }
+
+  if (use_anomaly) {
+    y_axis_label <- sprintf("Change from %s (%s)", reference_period, var_unit)
+  } else {
+    y_axis_label <- sprintf("%s (%s)", var_label, var_unit)
+  }
+
   hover_unit <- if (nchar(var_unit) > 0) paste0(" ", var_unit) else ""
 
   if (nchar(reference_period) > 0) {
@@ -1103,7 +1140,7 @@ build_all_scenarios_timeseries_chart <- function(
       ),
       yaxis = list(
         title = list(
-          text = var_unit,
+          text = y_axis_label,
           font = list(family = "Inter, sans-serif", color = "#cbd5e1", size = 12)
         ),
         tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),

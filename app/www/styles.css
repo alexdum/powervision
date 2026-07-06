@@ -578,75 +578,50 @@ html.shiny-busy #global-shiny-loader {
 /* Right Mini Panel — Basemap Selector (hover-expand)                          */
 /* ---------------------------------------------------------------------------- */
 
-.map-layer-control {
-  background: var(--glass-dark-bg);
+/* Popover styling */
+.map-layer-popover {
+  background: rgba(10, 15, 35, 0.95);
   border: 1px solid var(--glass-dark-border);
   border-radius: 10px;
   backdrop-filter: var(--glass-dark-blur);
   -webkit-backdrop-filter: var(--glass-dark-blur);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-  padding: 9px 11px;
-  width: 40px;
-  height: 40px;
-  overflow: hidden;
-  transition:
-    width  0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    height 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  z-index: 1000 !important;
-  color: var(--text-primary);
-}
-
-.map-layer-control:hover,
-.map-layer-control.expanded {
+  padding: 12px;
   width: 230px;
-  height: auto;
-  background: rgba(10, 15, 35, 0.95);
-}
-
-.map-layer-control .control-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
+  
+  /* Reset default popover positioning */
+  margin: 0;
+  inset: auto;
+  position: absolute;
+  top: 162px;
+  right: 60px;
+  
   color: var(--text-primary);
 }
 
-.map-layer-control .control-content {
-  display: none;
-  margin-top: 10px;
-  min-width: 200px;
-}
-
-.map-layer-control:hover .control-content,
-.map-layer-control.expanded .control-content {
-  display: block;
-}
-
-.map-layer-control label {
+.map-layer-popover label {
   font-size: 0.82em;
   color: var(--text-muted);
   font-family: 'Inter', sans-serif;
 }
 
-.map-layer-control .form-check-label,
-.map-layer-control .form-check-input:checked ~ .form-check-label {
+.map-layer-popover .form-check-label,
+.map-layer-popover .form-check-input:checked ~ .form-check-label {
   color: var(--text-primary) !important;
 }
 
-.map-layer-control hr {
+.map-layer-popover hr {
   margin: 7px 0;
   border-color: var(--border-dark);
 }
 
 /* Radio buttons inside dark panel */
-.map-layer-control .form-check-input {
+.map-layer-popover .form-check-input {
   background-color: rgba(255,255,255,0.10) !important;
   border-color: rgba(255,255,255,0.25) !important;
 }
 
-.map-layer-control .form-check-input:checked {
+.map-layer-popover .form-check-input:checked {
   background-color: var(--accent) !important;
   border-color: var(--accent) !important;
 }
@@ -720,13 +695,15 @@ html.shiny-busy #global-shiny-loader {
   /* This keeps the control panel fully visible while the drawer is open — users can still change the */
   /* variable/year without closing the drawer first. This is a key UX improvement over full-width drawers. */
   left: 326px;
-  right: 0;
+  right: 18px;
   z-index: 1100;
 
   background: rgba(10, 15, 35, 0.92);
   border-top: 1px solid var(--glass-dark-border);
-  /* Rounded top-left corner since the drawer no longer touches the left edge */
-  border-radius: 12px 0 0 0;
+  border-left: 1px solid var(--glass-dark-border);
+  border-right: 1px solid var(--glass-dark-border);
+  /* Rounded top-left and top-right corners since the drawer is floating 18px off the right edge */
+  border-radius: 12px 12px 0 0;
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
   box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.55), -4px 0 24px rgba(0, 0, 0, 0.20);
@@ -740,6 +717,9 @@ html.shiny-busy #global-shiny-loader {
   /* Hidden by default — slides in from below */
   transform: translateY(100%);
   transition: transform 0.38s cubic-bezier(0.32, 0, 0.15, 1), height 0.4s cubic-bezier(0.25, 1, 0.5, 1), max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  
+  /* Optimize off-screen rendering */
+  content-visibility: auto;
 }
 
 #stats-drawer.expanded {
@@ -1020,6 +1000,16 @@ html.shiny-busy #global-shiny-loader {
   background: rgba(239, 68, 68, 0.20);
   border-color: rgba(239, 68, 68, 0.40);
   color: #ef4444;
+}
+
+#stats-drawer .icon-contract {
+  display: none;
+}
+#stats-drawer.expanded .icon-expand {
+  display: none;
+}
+#stats-drawer.expanded .icon-contract {
+  display: inline-block;
 }
 
 /* ---------------------------------------------------------------------------- */
@@ -1510,43 +1500,14 @@ code {
 }
 
 /* ---------------------------------------------------------------------------- */
-/* About Modal Overlay                                                          */
-/* Full-screen overlay with a glassmorphism card centred on screen.              */
-/* Hidden by default; .is-visible triggers fade-in + slide-up.                  */
+/* About Native Dialog                                                          */
+/* Native HTML5 <dialog> styled with glassmorphism and ::backdrop.               */
 /* ---------------------------------------------------------------------------- */
-
-#about-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  /* Hidden by default */
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-
-#about-overlay.is-visible {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* Dark semi-transparent backdrop */
-#about-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.60);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
 
 /* The modal card itself */
 #about-modal {
-  position: relative;
-  z-index: 1;
+  margin: auto;
+  border: none;
   width: min(520px, calc(100vw - 48px));
   max-height: calc(100vh - 80px);
   overflow-y: auto;
@@ -1563,22 +1524,20 @@ code {
   padding: 28px 28px 24px;
   color: var(--text-primary);
 
-  /* Slide up on open */
-  transform: translateY(20px);
-  transition: transform 0.35s cubic-bezier(0.32, 0, 0.15, 1);
-
   /* Smooth scrollbar */
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.15) transparent;
 }
 
+#about-modal::backdrop {
+  background: rgba(0, 0, 0, 0.60);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
 #about-modal::-webkit-scrollbar       { width: 4px; }
 #about-modal::-webkit-scrollbar-track { background: transparent; }
 #about-modal::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }
-
-#about-overlay.is-visible #about-modal {
-  transform: translateY(0);
-}
 
 /* Close button — top-right */
 .about-close {

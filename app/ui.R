@@ -537,29 +537,38 @@ ui <- page_fillable(
       title = "Zoom to selected region or all of Europe"
     ),
 
-    # Basemap / Boundary hover-expand selector
+    # Basemap / Boundary popover selector
+    tags$button(
+      type = "button",
+      popovertarget = "basemap-popover",
+      class = "btn-map-ctrl",
+      title = "Basemap Settings",
+      div(class = "control-icon", icon("layer-group"))
+    ),
     div(
-      class = "map-layer-control",
-
-      div(class = "control-icon", icon("layer-group")),
-      div(
-        class = "control-content map-control-right",
-        radioButtons(
-          inputId = "basemap",
-          label = "Basemap Style",
-          choices = c(
-            "Positron (Light)" = "ofm_positron",
-            "Bright (Detailed)" = "ofm_bright",
-            "Satellite (Sentinel-2)" = "sentinel"
-          ),
-          selected = "ofm_positron"
+      id = "basemap-popover",
+      popover = "auto",
+      class = "map-control-right map-layer-popover",
+      radioButtons(
+        inputId = "basemap",
+        label = "Basemap Style",
+        choices = c(
+          "Positron (Light)" = "ofm_positron",
+          "Bright (Detailed)" = "ofm_bright",
+          "Satellite (Sentinel-2)" = "sentinel"
         ),
-        hr(style = "margin: 8px 0;"),
-        checkboxInput(
-          inputId = "show_boundaries",
-          label = "Show Reference Borders",
-          value = TRUE
-        )
+        selected = "ofm_positron"
+      ),
+      hr(style = "margin: 8px 0;"),
+      checkboxInput(
+        inputId = "show_boundaries",
+        label = "Show Reference Borders",
+        value = TRUE
+      ),
+      checkboxInput(
+        inputId = "show_labels",
+        label = "Show Labels",
+        value = TRUE
       )
     ),
 
@@ -572,54 +581,45 @@ ui <- page_fillable(
     )
   ),
 
-  # ── ABOUT MODAL OVERLAY ───────────────────────────────────────────────────────
-  # Open by default. The JS toggles .is-visible when the About button is
-  # clicked. A backdrop click or the close button dismisses it.
-  tags$div(
-    id = "about-overlay",
-    class = "is-visible",
+  # ── ABOUT MODAL ───────────────────────────────────────────────────────────────
+  # The JS calls showModal() when the About button is clicked. 
+  # A backdrop click or the close button dismisses it natively.
+  tags$dialog(
+    id = "about-modal",
 
-    # Semi-transparent backdrop — clicking it also closes the modal
-    tags$div(id = "about-backdrop"),
+    # Close button
+    tags$button(
+      id = "about-close-btn",
+      class = "about-close",
+      type = "button",
+      HTML("&times;")
+    ),
 
-    # Modal content panel — glassmorphism card
-    tags$div(
-      id = "about-modal",
-
-      # Close button
-      tags$button(
-        id = "about-close-btn",
-        class = "about-close",
-        type = "button",
-        HTML("&times;")
-      ),
-
-      # Header
+    # Header
+    div(
+      class = "about-header",
+      div(class = "about-icon", HTML("&#9889;")),
       div(
-        class = "about-header",
-        div(class = "about-icon", HTML("&#9889;")),
-        div(
-          class = "about-header-text",
-          tags$h2("PowerClimate Vision Explorer"),
-          tags$p(class = "about-version", "PECD v4.2 · Code for Earth 2026")
-        )
-      ),
+        class = "about-header-text",
+        tags$h2("PowerClimate Vision Explorer"),
+        tags$p(class = "about-version", "PECD v4.2 · Code for Earth 2026")
+      )
+    ),
 
-      # Body content
-      div(
-        class = "about-body",
+    # Body content
+    div(
+      class = "about-body",
 
-        includeMarkdown("text/about.md"),
+      includeMarkdown("text/about.md"),
 
-        tags$div(
-          class = "about-footer",
-          tags$p(
-            "ECMWF · ",
-            tags$a(
-              href = "https://codeforearth.ecmwf.int/",
-              target = "_blank",
-              "Code for Earth 2026"
-            )
+      tags$div(
+        class = "about-footer",
+        tags$p(
+          "ECMWF · ",
+          tags$a(
+            href = "https://codeforearth.ecmwf.int/",
+            target = "blank",
+            "Code for Earth 2026"
           )
         )
       )
@@ -650,7 +650,8 @@ ui <- page_fillable(
           id = "drawer-expand-btn",
           class = "drawer-action-btn",
           type = "button",
-          bsicons::bs_icon("arrows-angle-expand", size = "0.9em")
+          div(class = "icon-expand", bsicons::bs_icon("arrows-angle-expand", size = "0.9em")),
+          div(class = "icon-contract", bsicons::bs_icon("arrows-angle-contract", size = "0.9em"))
         ),
         tags$button(
           id = "drawer-close-btn",

@@ -29,11 +29,11 @@ server <- function(input, output, session) {
   satellite_src_id  <- reactiveVal(NULL)
 
   # Dynamic layer stacking helper: determines which base map layer to insert
-  # our custom polygon boundaries BEFORE. Setting this to "waterway_line_label"
-  # ensures that vector drawing (roads, borders, waterways) sits BEHIND our
-  # polygons, while only labels (places, city names, country names) overlay on top.
+  # our custom polygon boundaries BEFORE. Setting this to "boundary_2"
+  # ensures that all reference boundaries (national, regional) and text labels
+  # (places, city names, country names) overlay on top of our colored polygons.
   target_before_id <- reactive({
-    "waterway_line_label"
+    "boundary_2"
   })
 
   # ----------------------------------------------------------------------------
@@ -152,6 +152,11 @@ server <- function(input, output, session) {
     updateSelectInput(session, "ssp_scenario", selected = "ssp2_4_5")
     updateSelectInput(session, "projection_period", selected = "2021-2040")
     updateSliderInput(session, "polygon_opacity", value = 0.75)
+    
+    # Reset basemap layers (popover settings)
+    updateRadioButtons(session, "basemap", selected = "ofm_positron")
+    updateCheckboxInput(session, "show_boundaries", value = TRUE)
+    updateCheckboxInput(session, "show_labels", value = TRUE)
     session$sendCustomMessage("reset_custom_toggles", list())
     
     # Close drawer, clear selection, and zoom out
@@ -813,6 +818,14 @@ server <- function(input, output, session) {
   })
 
   # ----------------------------------------------------------------------------
+  # Label Visibility Controller
+  # --------------------------------------------------------------------------
+  observeEvent(input$show_labels, {
+    req(map_loaded())
+    session$sendCustomMessage("toggle_labels", list(visible = isTRUE(input$show_labels)))
+  })
+
+  # ----------------------------------------------------------------------------
   # Map Projection Controller
   # ----------------------------------------------------------------------------
   # Switches the MapLibre projection between "globe" (3D sphere) and
@@ -974,6 +987,7 @@ server <- function(input, output, session) {
       later::later(function() {
         shiny::withReactiveDomain(current_session, {
           style_trigger(isolate(style_trigger()) + 1)
+          session$sendCustomMessage("toggle_labels", list(visible = isTRUE(isolate(input$show_labels))))
         })
       }, delay = 0.7)
 
@@ -1047,6 +1061,7 @@ server <- function(input, output, session) {
 
           # 3) Redraw the zone polygon overlays on top of the now-visible satellite
           style_trigger(isolate(style_trigger()) + 1)
+          session$sendCustomMessage("toggle_labels", list(visible = isTRUE(isolate(input$show_labels))))
         })
       }, delay = 0.7)
     }
@@ -1705,6 +1720,18 @@ server <- function(input, output, session) {
     accent_color <- tail(var_meta$palette, 1)
     if (accent_color %in% c("#f7fbff", "#ffeaa7")) accent_color <- "#38bdf8"
 
+    # ── Compute baseline inline from df_region ──────
+    baseline <- NULL
+    if (!is.null(input$historical_period) && nchar(input$historical_period) > 0 && !is.null(df_region)) {
+      ref_years <- as.integer(strsplit(input$historical_period, "-")[[1]])
+      ref_start <- ref_years[1]
+      ref_end   <- ref_years[2]
+      ref_values <- df_region$Value[df_region$Year >= ref_start & df_region$Year <= ref_end]
+      if (length(ref_values) > 0) {
+        baseline <- mean(ref_values, na.rm = TRUE)
+      }
+    }
+
     build_all_scenarios_timeseries_chart(
       df_region = df_region,
       var_name = var_name,
@@ -1713,7 +1740,9 @@ server <- function(input, output, session) {
       region_name = region_data[["name"]],
       proj_ensemble = proj_ensemble,
       hide_historical_line = hide_hist,
-      reference_period = input$historical_period
+      reference_period = input$historical_period,
+      baseline = baseline,
+      display_mode = input$display_mode
     )
   })
 
@@ -1759,6 +1788,25 @@ server <- function(input, output, session) {
       if (is.null(c_max)) c_max <- 2100
       
       # Only update the map slider if the clicked year is within the current allowed bounds
+      if (clicked_year >= c_min && clicked_year <= c_max) {
+        updateSliderInput(session, "selected_year", value = clicked_year)
+      }
+    }
+  })
+
+  observeEvent(event_data("plotly_click", source = "all_timeseries"), {
+    if (isTRUE(input$projection_view_mode == "period")) return()
+    
+    click_data <- event_data("plotly_click", source = "all_timeseries")
+    if (!is.null(click_data) && "x" %in% names(click_data)) {
+      clicked_year <- as.integer(round(click_data$x[[1]]))
+      
+      c_min <- isolate(last_slider_min())
+      c_max <- isolate(last_slider_max())
+      
+      if (is.null(c_min)) c_min <- 1950
+      if (is.null(c_max)) c_max <- 2100
+      
       if (clicked_year >= c_min && clicked_year <= c_max) {
         updateSliderInput(session, "selected_year", value = clicked_year)
       }
@@ -1956,8 +2004,20 @@ server <- function(input, output, session) {
       region <- clicked_region()
       var_name <- input$climate_variable
       temp_mode <- input$temporal_mode
+      active_tab <- input$drawer_tabs
+      
       region_id <- if (!is.null(region)) region[["zone_id"]] else "unknown"
-      paste0("powervision_", region_id, "_", var_name, "_", temp_mode, ".csv")
+      
+      tab_name <- "timeseries"
+      if (isTRUE(grepl("^all_seasonality", active_tab))) {
+        tab_name <- "all_scenarios_seasonality"
+      } else if (isTRUE(grepl("^all_trends", active_tab))) {
+        tab_name <- "all_scenarios_timeseries"
+      } else if (isTRUE(grepl("seasonality", active_tab))) {
+        tab_name <- "seasonality"
+      }
+      
+      paste0("powervision_", region_id, "_", var_name, "_", temp_mode, "_", tab_name, ".csv")
     },
 
     content = function(file) {
@@ -1974,7 +2034,7 @@ server <- function(input, output, session) {
       if (grepl("seasonality", active_tab)) {
         df_hist <- historical_seasonality_data()
         if (show_proj) {
-          if (grepl("^all_scenarios", active_tab)) {
+          if (grepl("^all_", active_tab)) {
             df_proj <- all_scenarios_projection_seasonality_data()
           } else {
             df_proj <- projection_seasonality_data()
@@ -1983,7 +2043,7 @@ server <- function(input, output, session) {
       } else {
         df_hist <- historical_trends_data()
         if (show_proj) {
-          if (grepl("^all_scenarios", active_tab)) {
+          if (grepl("^all_", active_tab)) {
             df_proj <- all_scenarios_projection_data()
           } else {
             proj_list <- filtered_projection_data()

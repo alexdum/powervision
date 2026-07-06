@@ -23,12 +23,9 @@ generate_wysiwyg_export_csv <- function(
       df_hist <- df_hist %>%
         filter(Year >= ref_years[1] & Year <= ref_years[2])
       
-      # Group by Month if Month exists
       if ("Month" %in% names(df_hist)) {
         df_hist <- df_hist %>%
-          group_by(Month) %>%
-          summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop") %>%
-          mutate(Source = "Historical (ERA5)", scenario = "Historical", Year = NA_integer_)
+          mutate(Source = "Historical (ERA5)", scenario = "Historical")
       }
     }
     if (!is.null(df_proj) && !is.null(projection_period) && isTRUE(nchar(projection_period) > 0)) {
@@ -38,9 +35,7 @@ generate_wysiwyg_export_csv <- function(
       
       if ("Month" %in% names(df_proj)) {
         df_proj <- df_proj %>%
-          group_by(Month, scenario) %>%
-          summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop") %>%
-          mutate(Source = "Projection", Year = NA_integer_)
+          mutate(Source = "Projection")
       }
     }
   } else {
