@@ -883,6 +883,19 @@ server <- function(input, output, session) {
     if (!layer_hit) return()
 
     props <- click$properties
+    
+    # Check if the region has valid data before allowing selection
+    view_mode <- isolate(input$projection_view_mode)
+    clim_data <- isolate(if (isTRUE(view_mode == "period")) period_averaged_climate_data() else filtered_climate_data())
+    
+    if (!is.null(clim_data)) {
+      region_row <- clim_data[clim_data$Region == props$zone_id, ]
+      if (nrow(region_row) == 0 || all(is.na(region_row$Value))) {
+        message(sprintf("Ignoring click on %s: No data available", props$name))
+        return()
+      }
+    }
+    
     message(sprintf("Polygon clicked: ID = %s | Name = %s", props$zone_id, props$name))
     clicked_region(props)
 
