@@ -1100,8 +1100,52 @@ build_all_scenarios_timeseries_chart <- function(
     }
   }
 
+  # --------------------------------------------------------------------------
+  # Shapes and annotations for projection context overlays
+  # --------------------------------------------------------------------------
+  chart_shapes <- list()
+  chart_annotations <- list()
+
+  if (!hide_historical_line && !is.null(proj_ensemble) && nrow(proj_ensemble) > 0) {
+    divider_year <- if (!is.null(df_region) && nrow(df_region) > 0) max(df_region$Year, na.rm = TRUE) else 2023
+
+    chart_shapes <- list(
+      list(
+        type = "line",
+        x0 = divider_year,
+        x1 = divider_year,
+        y0 = 0,
+        y1 = 1,
+        yref = "paper",
+        line = list(
+          color = "rgba(255, 255, 255, 0.35)",
+          width = 1.5,
+          dash = "dot"
+        )
+      )
+    )
+
+    chart_annotations <- list(
+      list(
+        x = divider_year,
+        y = 1.02,
+        yref = "paper",
+        text = "Observed | Projected",
+        showarrow = FALSE,
+        font = list(
+          family = "Inter, sans-serif",
+          size = 10,
+          color = "rgba(255, 255, 255, 0.50)"
+        ),
+        xanchor = "center"
+      )
+    )
+  }
+
   p <- p %>%
     layout(
+      shapes = chart_shapes,
+      annotations = chart_annotations,
       title = list(
         text = chart_title,
         font = list(family = "Inter, sans-serif", size = 14, color = "#e2e8f0"),
