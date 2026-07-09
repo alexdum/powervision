@@ -15,8 +15,13 @@
 #' @param resource_group Character. The assigned resource group (e.g. "High")
 #' @param target_year Numeric. The year to interpolate for (e.g. 2027)
 #' @param wind_type Character. "onshore" or "offshore"
+#' @param use_existing_fleet_only Logical. If TRUE, skip all interpolation and
+#'   return 100% weight on the existing fleet technology (tech_30 for onshore,
+#'   tech_20 for offshore). This is used when tech_mix_mode == "fixed_2020" so
+#'   that the backward clamping rule (years <= 2025 -> 2025 mix) does NOT fire.
 #' @return A data.frame with TechCode and Weight.
-interpolate_tech_weights <- function(resource_group, target_year, wind_type) {
+interpolate_tech_weights <- function(resource_group, target_year, wind_type,
+                                     use_existing_fleet_only = FALSE) {
   # Select the correct matrices based on wind type
   if (wind_type == "onshore") {
     mix_ratios <- onshore_mix_ratios
@@ -24,6 +29,18 @@ interpolate_tech_weights <- function(resource_group, target_year, wind_type) {
   } else {
     mix_ratios <- offshore_mix_ratios
     existing_tech <- 20 # wind_offshore_20
+  }
+  
+  # ---- FIX: Existing fleet short-circuit for fixed_2020 mode ----
+  # When the user selects "Fixed Existing Technology (2020)", we must return
+  # 100% weight on the raw existing fleet variable (tech_30 or tech_20) with
+  # NO interpolation. Without this guard, the backward clamping rule below
+  # (target_year <= 2025 -> use 2025 mix) would incorrectly fire, returning
+  # the 2025 technology blend instead of the true existing fleet data.
+  # The 2025 blend has data for ALL regions, but the existing fleet tech only
+  # has data for the 26 EU regions that actually have installed capacity.
+  if (use_existing_fleet_only) {
+    return(data.frame(TechCode = existing_tech, Weight = 1.0))
   }
   
   # Filter to the requested resource group
@@ -34,7 +51,10 @@ interpolate_tech_weights <- function(resource_group, target_year, wind_type) {
     return(data.frame(TechCode = existing_tech, Weight = 1.0))
   }
   
-  # For years <= 2025, we use the 2025 technology mix directly
+  # For years <= 2025 in DYNAMIC mode, we use the 2025 technology mix directly.
+  # This clamping rule acts as a floor: the dynamic trajectory starts at 2025,
+  # so any earlier year should use the 2025 mix. This does NOT apply to
+  # fixed_2020 mode (handled above via use_existing_fleet_only).
   if (target_year <= 2025) {
     weights_df <- data.frame(
       TechCode = group_mix$TechCode,
@@ -95,10 +115,15 @@ get_resource_group <- function(region_id, wind_type) {
 #' @param region_id String. The region zone_id
 #' @param wind_type String. "onshore" or "offshore"
 #' @param target_year Numeric. The anchor year for the mix
+#' @param use_existing_fleet_only Logical. If TRUE, the tooltip will show
+#'   "100% Existing Fleet" instead of the interpolated technology blend.
+#'   Should be TRUE when tech_mix_mode == "fixed_2020".
 #' @return HTML string formatted for tooltips
-get_wind_mix_tooltip <- function(region_id, wind_type, target_year) {
+get_wind_mix_tooltip <- function(region_id, wind_type, target_year,
+                                  use_existing_fleet_only = FALSE) {
   res_grp <- get_resource_group(region_id, wind_type)
-  weights_df <- interpolate_tech_weights(res_grp, target_year, wind_type)
+  weights_df <- interpolate_tech_weights(res_grp, target_year, wind_type,
+                                          use_existing_fleet_only = use_existing_fleet_only)
   
   # Filter to technologies that actually contribute
   weights_df <- weights_df |> dplyr::filter(Weight > 0.005) # at least 0.5%
@@ -156,7 +181,10 @@ resolve_tech_year <- function(tech_mix_mode, data_year) {
 }
 
 #' Get all distinct resource groups and their weights for a given target_year
-get_all_group_weights <- function(target_year, wind_type) {
+#' @param use_existing_fleet_only Logical. Passed through to
+#'   interpolate_tech_weights() to handle fixed_2020 mode.
+get_all_group_weights <- function(target_year, wind_type,
+                                  use_existing_fleet_only = FALSE) {
   if (wind_type == "onshore") {
     unique_groups <- unique(onshore_resource_groups$ResourceGroup)
   } else {
@@ -165,7 +193,10 @@ get_all_group_weights <- function(target_year, wind_type) {
   
   group_weights <- list()
   for (grp in unique_groups) {
-    group_weights[[grp]] <- interpolate_tech_weights(grp, target_year, wind_type)
+    group_weights[[grp]] <- interpolate_tech_weights(
+      grp, target_year, wind_type,
+      use_existing_fleet_only = use_existing_fleet_only
+    )
   }
   return(group_weights)
 }
@@ -195,8 +226,15 @@ blend_wind_power_all_regions <- function(
   
   tech_year <- resolve_tech_year(tech_mix_mode, target_data_year)
   
+  # ---- FIX: Detect fixed_2020 mode and propagate to blending engine ----
+  # When the user selects "Fixed Existing Technology (2020)", we must bypass
+  # the interpolation engine entirely and query only the raw existing fleet
+  # variable. The flag is propagated down to interpolate_tech_weights().
+  is_existing_fleet_only <- (tech_mix_mode == "fixed_2020")
+  
   # Get group weights for the target tech year
-  group_weights <- get_all_group_weights(tech_year, wind_type)
+  group_weights <- get_all_group_weights(tech_year, wind_type,
+                                         use_existing_fleet_only = is_existing_fleet_only)
   
   # Gather all distinct tech codes we need to query
   all_techs <- unique(unlist(lapply(group_weights, function(w) w$TechCode[w$Weight > 0])))
@@ -386,6 +424,13 @@ blend_wind_power_timeseries <- function(region_id, tech_mix_mode, wind_type, ds_
   
   blended_by_year <- list()
   
+  # ---- FIX: Detect fixed_2020 mode for timeseries blending ----
+  # Same fix as in blend_wind_power_all_regions: when the user selects
+  # "Fixed Existing Technology (2020)", bypass interpolation and use
+  # 100% existing fleet tech for every year in the time series.
+  # This flag is invariant across years, so we compute it once outside the loop.
+  is_existing_fleet_only <- (tech_mix_mode == "fixed_2020")
+  
   for (yr in unique_years) {
     tech_year <- resolve_tech_year(tech_mix_mode, yr)
     
@@ -393,7 +438,8 @@ blend_wind_power_timeseries <- function(region_id, tech_mix_mode, wind_type, ds_
     yr_data <- raw_data[raw_data$Year == yr, ]
     
     # Get weights for all groups for this tech_year
-    group_weights <- get_all_group_weights(tech_year, wind_type)
+    group_weights <- get_all_group_weights(tech_year, wind_type,
+                                           use_existing_fleet_only = is_existing_fleet_only)
     weights_flat <- do.call(rbind, lapply(names(group_weights), function(grp) {
       df <- group_weights[[grp]]
       if (nrow(df) > 0) df$ResourceGroup <- grp
