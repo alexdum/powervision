@@ -1676,8 +1676,9 @@ server <- function(input, output, session) {
 
     df_region <- historical_trends_data()
 
-    # Avoid early return if we're doing dynamic wind projections (where historical might be mostly zeros or we want to hide it anyway)
-    hide_hist <- (is_wind_power && tech_mix_mode == "dynamic")
+    # Dynamic wind now shows blended historical data (fixed_2025 tech),
+    # so the historical line is always visible.
+    hide_hist <- FALSE
     
     if (!hide_hist && (is.null(df_region) || nrow(df_region) == 0)) {
       # Return an empty plotly object with a text message if no data exists
