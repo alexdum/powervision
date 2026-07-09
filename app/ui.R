@@ -59,6 +59,7 @@ ui <- page_fillable(
     id = "control-panel",
     class = "shiny-absolute-panel",
     style = "position: fixed; top: 18px; left: 18px; width: 290px; z-index: 1000;",
+    `aria-label` = "Map Configuration Panel",
 
     # ── Scrollable controls area ───────────────────────────────────────────────
     # All controls live in this scrollable zone. When projection controls expand,
