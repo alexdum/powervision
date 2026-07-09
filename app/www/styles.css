@@ -27,6 +27,30 @@ body, html {
 /* Full-Screen Map Canvas                                                        */
 /* ---------------------------------------------------------------------------- */
 
+/* ---------------------------------------------------------------------------- */
+/* CSS State Management (:has)                                                  */
+/* ---------------------------------------------------------------------------- */
+/* Hide periods by default. UI overrides in ui.R style="display: none;" should be removed */
+#historical-period-wrapper,
+#projection-period-wrapper {
+  display: none !important;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Historical Period is shown if we are in Period mode OR Anomaly mode */
+body:has(#view-mode-toggle .view-toggle-option[data-value="period"].active) #historical-period-wrapper,
+body:has(#display-mode-toggle .display-toggle-option[data-value="anomaly"].active) #historical-period-wrapper {
+  display: block !important;
+  opacity: 1;
+}
+
+/* Projection Period is shown ONLY if Projections are ON AND we are in Period mode */
+body:has(#projection-show-toggle .proj-toggle-option[data-value="1"].active):has(#view-mode-toggle .view-toggle-option[data-value="period"].active) #projection-period-wrapper {
+  display: block !important;
+  opacity: 1;
+}
+
 #map {
   position: fixed !important;
   top: 0;

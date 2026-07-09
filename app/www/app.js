@@ -224,36 +224,40 @@ $(document).ready(function () {
   // This adds/removes the .is-visible class which drives the CSS translateY transition.
   // --------------------------------------------------------------------------
   Shiny.addCustomMessageHandler('toggle_stats_drawer', function (msg) {
-    var $drawer = $('#stats-drawer');
+    var drawer = document.getElementById('stats-drawer');
+    if (!drawer) return;
     if (msg.show) {
-      $drawer.addClass('is-visible');
+      drawer.classList.add('is-visible');
     } else {
-      $drawer.removeClass('is-visible');
+      drawer.classList.remove('is-visible');
     }
   });
 
-  // Clicking the ✕ close button hides the drawer AND notifies Shiny so it can
-  // reset clicked_region() — the server observer handles the reactive clean-up.
-  $(document).on('click', '#drawer-close-btn', function () {
-    $('#stats-drawer').removeClass('is-visible');
+  // Vanilla JS Event Delegation for Drawer Actions
+  document.addEventListener('click', function(e) {
+    // Handle Close Button
+    var closeBtn = e.target.closest('#drawer-close-btn');
+    if (closeBtn) {
+      var drawer = document.getElementById('stats-drawer');
+      if (drawer) {
+        drawer.classList.remove('is-visible');
+        drawer.classList.remove('expanded');
+      }
+      Shiny.setInputValue('drawer_closed', Math.random());
+    }
     
-    // If it was expanded, collapse it back so next time it opens at normal height
-    $('#stats-drawer').removeClass('expanded');
-    
-    Shiny.setInputValue('drawer_closed', Math.random()); // random ensures reactivity fires every time
-  });
-
-  // Clicking the expand/contract button toggles the .expanded class on the drawer,
-  // making it tall (85vh). We also must trigger window.dispatchEvent(new Event('resize'))
-  // after the CSS transition finishes (~400ms) so Plotly charts redraw to the new height.
-  $(document).on('click', '#drawer-expand-btn', function () {
-    var $drawer = $('#stats-drawer');
-    $drawer.toggleClass('expanded');
-
-    // Wait for the CSS height transition to finish, then force Plotly to resize
-    setTimeout(function() {
-      window.dispatchEvent(new Event('resize'));
-    }, 450); // The CSS transition is 0.4s
+    // Handle Expand Button
+    var expandBtn = e.target.closest('#drawer-expand-btn');
+    if (expandBtn) {
+      var drawer = document.getElementById('stats-drawer');
+      if (drawer) {
+        drawer.classList.toggle('expanded');
+      }
+      // Wait for CSS transition then trigger Plotly redraw
+      setTimeout(function() {
+        window.dispatchEvent(new Event('resize'));
+      }, 450);
+    }
   });
 
   // --------------------------------------------------------------------------
@@ -513,29 +517,9 @@ $(document).ready(function () {
   // --------------------------------------------------------------------------
   // Update Historical Period Visibility Helper
   // --------------------------------------------------------------------------
-  // The historical period selector is visible ONLY if:
-  // 1) View mode is "period", OR
-  // 2) Display mode is "anomaly"
+  // REMOVED IN PHASE 2: This state management is now handled purely in
+  // styles.css using the modern CSS :has() pseudo-class.
   // --------------------------------------------------------------------------
-  function updateHistoricalPeriodVisibility() {
-    var viewMode = $('#view-mode-toggle .view-toggle-option.active').data('value');
-    var displayMode = $('#display-mode-toggle .display-toggle-option.active').data('value');
-    var showProj = $('.projection-show-toggle .proj-toggle-option.active').data('value');
-    
-    // Historical Period is shown if we are in Period mode OR Anomaly mode
-    if (viewMode === 'period' || displayMode === 'anomaly') {
-      $('#historical-period-wrapper').slideDown(200);
-    } else {
-      $('#historical-period-wrapper').slideUp(200);
-    }
-    
-    // Projection Period is shown ONLY if Projections are ON AND we are in Period mode
-    if ((showProj === '1' || showProj === 1) && viewMode === 'period') {
-      $('#projection-period-wrapper').slideDown(200);
-    } else {
-      $('#projection-period-wrapper').slideUp(200);
-    }
-  }
 
   // --------------------------------------------------------------------------
   // Projection Toggle — Show/Hide projections on time-series chart
@@ -569,7 +553,6 @@ $(document).ready(function () {
 
     // Push the value into Shiny's input binding
     Shiny.setInputValue('show_projections', String(newValue));
-    updateHistoricalPeriodVisibility();
 
     // Dynamically show/hide the All Scenarios tabs
     if (String(newValue) === '1') {
@@ -623,7 +606,6 @@ $(document).ready(function () {
 
     // Push the value into Shiny's input binding
     Shiny.setInputValue('display_mode', newValue);
-    updateHistoricalPeriodVisibility();
   });
 
   // --------------------------------------------------------------------------
@@ -684,7 +666,6 @@ $(document).ready(function () {
 
     // Push the value into Shiny's input binding
     Shiny.setInputValue('projection_view_mode', newValue);
-    updateHistoricalPeriodVisibility();
   });
 
   // --------------------------------------------------------------------------
@@ -726,7 +707,6 @@ $(document).ready(function () {
       Shiny.setInputValue('show_projections', '0');
       Shiny.setInputValue('display_mode', 'absolute');
       Shiny.setInputValue('projection_view_mode', 'year');
-      updateHistoricalPeriodVisibility();
       
       // Restore year slider if it was hidden by period mode
       $('#selected_year').closest('.form-group').slideDown(200);
@@ -780,7 +760,6 @@ $(document).ready(function () {
     $modeToggle.removeClass('toggle-right');
     $('#display_mode').val('absolute').trigger('change');
     Shiny.setInputValue('display_mode', 'absolute');
-    updateHistoricalPeriodVisibility();
 
     // Reset map projection to 'globe'
     var $mapProjToggle = $('#projection-toggle');
