@@ -34,7 +34,9 @@ ui <- page_fillable(
   ),
 
   # ── Full-screen MapLibre canvas (z-index 0) ──────────────────────────────────
-  maplibreOutput("map", height = "100vh", width = "100%"),
+  tags$main(
+    maplibreOutput("map", height = "100vh", width = "100%")
+  ),
 
   # ── Map Loading Shimmer ────────────────────────────────────────────────────────
   # A faint pulsing overlay shown during choropleth re-rendering.
@@ -53,11 +55,10 @@ ui <- page_fillable(
   ),
 
   # ── LEFT: Glassmorphism Control Panel ────────────────────────────────────────
-  absolutePanel(
+  tags$aside(
     id = "control-panel",
-    top = 18,
-    left = 18,
-    width = 290,
+    class = "shiny-absolute-panel",
+    style = "position: fixed; top: 18px; left: 18px; width: 290px; z-index: 1000;",
 
     # ── Scrollable controls area ───────────────────────────────────────────────
     # All controls live in this scrollable zone. When projection controls expand,
@@ -235,11 +236,14 @@ ui <- page_fillable(
     div(
       class = "view-mode-toggle",
       id = "view-mode-toggle",
+      role = "group",
+      `aria-label` = "View Mode",
       div(class = "view-toggle-pill"),
       tags$button(
         type = "button",
         class = "view-toggle-option active",
         `data-value` = "year",
+        `aria-pressed` = "true",
         bsicons::bs_icon("calendar3", size = "0.8em"),
         "Year"
       ),
@@ -247,6 +251,7 @@ ui <- page_fillable(
         type = "button",
         class = "view-toggle-option",
         `data-value` = "period",
+        `aria-pressed` = "false",
         bsicons::bs_icon("calendar-range", size = "0.8em"),
         "Period"
       )
@@ -341,11 +346,14 @@ ui <- page_fillable(
       div(
         class = "projection-show-toggle",
         id = "projection-show-toggle",
+        role = "group",
+        `aria-label` = "Projections Toggle",
         div(class = "proj-toggle-pill"),
         tags$button(
           type = "button",
           class = "proj-toggle-option active",
           `data-value` = "0",
+          `aria-pressed` = "true",
           bsicons::bs_icon("eye-slash", size = "0.8em"),
           "Off"
         ),
@@ -353,6 +361,7 @@ ui <- page_fillable(
           type = "button",
           class = "proj-toggle-option",
           `data-value` = "1",
+          `aria-pressed` = "false",
           bsicons::bs_icon("graph-up-arrow", size = "0.8em"),
           "Projections"
         )
@@ -392,11 +401,14 @@ ui <- page_fillable(
         div(
           class = "display-mode-toggle",
           id = "display-mode-toggle",
+          role = "group",
+          `aria-label` = "Display Mode",
           div(class = "display-toggle-pill"),
           tags$button(
             type = "button",
             class = "display-toggle-option active",
             `data-value` = "absolute",
+            `aria-pressed` = "true",
             bsicons::bs_icon("thermometer-half", size = "0.8em"),
             "Absolute"
           ),
@@ -404,6 +416,7 @@ ui <- page_fillable(
             type = "button",
             class = "display-toggle-option",
             `data-value` = "anomaly",
+            `aria-pressed` = "false",
             bsicons::bs_icon("plus-slash-minus", size = "0.8em"),
             "Anomaly"
           )
@@ -463,6 +476,8 @@ ui <- page_fillable(
       div(
         class = "projection-toggle",
         id = "projection-toggle",
+        role = "group",
+        `aria-label` = "Map Projection",
         # Sliding highlight pill (positioned by CSS/JS)
         div(class = "toggle-pill"),
         # Two clickable label segments
@@ -470,6 +485,7 @@ ui <- page_fillable(
           type = "button",
           class = "toggle-option active",
           `data-value` = "globe",
+          `aria-pressed` = "true",
           bsicons::bs_icon("globe2", size = "0.85em"),
           "Globe"
         ),
@@ -477,6 +493,7 @@ ui <- page_fillable(
           type = "button",
           class = "toggle-option",
           `data-value` = "mercator",
+          `aria-pressed` = "false",
           bsicons::bs_icon("map", size = "0.85em"),
           "Flat"
         )
@@ -518,7 +535,8 @@ ui <- page_fillable(
       "zoom_in",
       bsicons::bs_icon("plus-lg"),
       class = "btn-map-ctrl",
-      title = "Zoom in"
+      title = "Zoom in",
+      `aria-label` = "Zoom in"
     ),
 
     # Zoom Out
@@ -526,7 +544,8 @@ ui <- page_fillable(
       "zoom_out",
       bsicons::bs_icon("dash-lg"),
       class = "btn-map-ctrl",
-      title = "Zoom out"
+      title = "Zoom out",
+      `aria-label` = "Zoom out"
     ),
 
     # Home / Fit Bounds
@@ -534,7 +553,8 @@ ui <- page_fillable(
       "zoom_home",
       bsicons::bs_icon("house-fill"),
       class = "btn-map-ctrl btn-map-ctrl--home",
-      title = "Zoom to selected region or all of Europe"
+      title = "Zoom to selected region or all of Europe",
+      `aria-label` = "Zoom to home extent"
     ),
 
     # Basemap / Boundary popover selector
@@ -543,6 +563,7 @@ ui <- page_fillable(
       popovertarget = "basemap-popover",
       class = "btn-map-ctrl",
       title = "Basemap Settings",
+      `aria-label` = "Open basemap settings",
       div(class = "control-icon", icon("layer-group"))
     ),
     div(
@@ -577,7 +598,8 @@ ui <- page_fillable(
       "about_btn",
       bsicons::bs_icon("info-circle-fill"),
       class = "btn-map-ctrl btn-map-ctrl--about",
-      title = "About this application"
+      title = "About this application",
+      `aria-label` = "About this application"
     )
   ),
 
@@ -629,7 +651,7 @@ ui <- page_fillable(
   # ── BOTTOM: Slide-Up Region Stats Drawer ─────────────────────────────────────
   # Hidden by default (CSS transform: translateY(100%)). The server sends a
   # 'toggle_stats_drawer' message that adds/removes the .is-visible class.
-  tags$div(
+  tags$section(
     id = "stats-drawer",
 
     # Header row: region name + close button
@@ -650,6 +672,7 @@ ui <- page_fillable(
           id = "drawer-expand-btn",
           class = "drawer-action-btn",
           type = "button",
+          `aria-label` = "Expand or contract drawer",
           div(class = "icon-expand", bsicons::bs_icon("arrows-angle-expand", size = "0.9em")),
           div(class = "icon-contract", bsicons::bs_icon("arrows-angle-contract", size = "0.9em"))
         ),
@@ -657,6 +680,7 @@ ui <- page_fillable(
           id = "drawer-close-btn",
           class = "drawer-action-btn",
           type = "button",
+          `aria-label` = "Close drawer",
           HTML("&times;")
         )
       )

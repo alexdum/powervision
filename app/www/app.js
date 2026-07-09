@@ -416,9 +416,9 @@ $(document).ready(function () {
     // Skip if this option is already active
     if ($btn.hasClass('active')) return;
 
-    // Swap active class
-    $container.find('.toggle-option').removeClass('active');
-    $btn.addClass('active');
+    // Swap active class and aria-pressed
+    $container.find('.toggle-option').removeClass('active').attr('aria-pressed', 'false');
+    $btn.addClass('active').attr('aria-pressed', 'true');
 
     // Slide the pill: second option = toggle-right, first = default (left)
     if (newValue === 'mercator') {
@@ -552,9 +552,9 @@ $(document).ready(function () {
     // Skip if this option is already active
     if ($btn.hasClass('active')) return;
 
-    // Swap active class
-    $container.find('.proj-toggle-option').removeClass('active');
-    $btn.addClass('active');
+    // Swap active class and aria-pressed
+    $container.find('.proj-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+    $btn.addClass('active').attr('aria-pressed', 'true');
 
     // Slide the pill: "1" (Projections) = toggle-right, "0" (Off) = default left
     if (newValue === '1' || newValue === 1) {
@@ -610,9 +610,9 @@ $(document).ready(function () {
     // Skip if this option is already active
     if ($btn.hasClass('active')) return;
 
-    // Swap active class
-    $container.find('.display-toggle-option').removeClass('active');
-    $btn.addClass('active');
+    // Swap active class and aria-pressed
+    $container.find('.display-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+    $btn.addClass('active').attr('aria-pressed', 'true');
 
     // Slide the pill: "anomaly" = toggle-right, "absolute" = default left
     if (newValue === 'anomaly') {
@@ -637,9 +637,9 @@ $(document).ready(function () {
     // Skip if this option is already active
     if ($btn.hasClass('active')) return;
 
-    // Swap active class
-    $container.find('.display-toggle-option').removeClass('active');
-    $btn.addClass('active');
+    // Swap active class and aria-pressed
+    $container.find('.display-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+    $btn.addClass('active').attr('aria-pressed', 'true');
 
     // Slide the pill: "spaghetti" = toggle-right, "band" = default left
     if (newValue === 'spaghetti') {
@@ -667,9 +667,9 @@ $(document).ready(function () {
     // Skip if this option is already active
     if ($btn.hasClass('active')) return;
 
-    // Swap active class
-    $container.find('.view-toggle-option').removeClass('active');
-    $btn.addClass('active');
+    // Swap active class and aria-pressed
+    $container.find('.view-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+    $btn.addClass('active').attr('aria-pressed', 'true');
 
     // Slide the pill: "period" = toggle-right, "year" = default left
     if (newValue === 'period') {
@@ -703,8 +703,8 @@ $(document).ready(function () {
       $controls.addClass('is-disabled');
       // Reset the projection toggle to Off
       var $projToggle = $('#projection-show-toggle');
-      $projToggle.find('.proj-toggle-option').removeClass('active');
-      $projToggle.find('.proj-toggle-option[data-value="0"]').addClass('active');
+      $projToggle.find('.proj-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+      $projToggle.find('.proj-toggle-option[data-value="0"]').addClass('active').attr('aria-pressed', 'true');
       $projToggle.removeClass('toggle-right');
       // Hide all sub-controls
       $('#scenario-selector-wrapper').removeClass('is-visible');
@@ -714,13 +714,13 @@ $(document).ready(function () {
       
       // Reset display mode to absolute (default)
       var $modeToggle = $('#display-mode-toggle');
-      $modeToggle.find('.display-toggle-option').removeClass('active');
-      $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active');
+      $modeToggle.find('.display-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+      $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active').attr('aria-pressed', 'true');
       $modeToggle.removeClass('toggle-right');
       // Reset view mode to year (default)
       var $viewToggle = $('#view-mode-toggle');
-      $viewToggle.find('.view-toggle-option').removeClass('active');
-      $viewToggle.find('.view-toggle-option[data-value="year"]').addClass('active');
+      $viewToggle.find('.view-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+      $viewToggle.find('.view-toggle-option[data-value="year"]').addClass('active').attr('aria-pressed', 'true');
       $viewToggle.removeClass('toggle-right');
       // Push reset values to Shiny
       Shiny.setInputValue('show_projections', '0');
@@ -750,16 +750,16 @@ $(document).ready(function () {
   Shiny.addCustomMessageHandler('reset_custom_toggles', function(msg) {
     // Reset view mode to 'year'
     var $viewToggle = $('#view-mode-toggle');
-    $viewToggle.find('.view-toggle-option').removeClass('active');
-    $viewToggle.find('.view-toggle-option[data-value="year"]').addClass('active');
+    $viewToggle.find('.view-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+    $viewToggle.find('.view-toggle-option[data-value="year"]').addClass('active').attr('aria-pressed', 'true');
     $viewToggle.removeClass('toggle-right');
     $('#projection_view_mode').val('year').trigger('change');
     Shiny.setInputValue('projection_view_mode', 'year');
     
     // Reset projection show to '0'
     var $projToggle = $('#projection-show-toggle');
-    $projToggle.find('.proj-toggle-option').removeClass('active');
-    $projToggle.find('.proj-toggle-option[data-value="0"]').addClass('active');
+    $projToggle.find('.proj-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+    $projToggle.find('.proj-toggle-option[data-value="0"]').addClass('active').attr('aria-pressed', 'true');
     $projToggle.removeClass('toggle-right');
     $('#show_projections').val('0').trigger('change');
     Shiny.setInputValue('show_projections', '0');
@@ -775,8 +775,8 @@ $(document).ready(function () {
 
     // Reset display mode to 'absolute'
     var $modeToggle = $('#display-mode-toggle');
-    $modeToggle.find('.display-toggle-option').removeClass('active');
-    $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active');
+    $modeToggle.find('.display-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+    $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active').attr('aria-pressed', 'true');
     $modeToggle.removeClass('toggle-right');
     $('#display_mode').val('absolute').trigger('change');
     Shiny.setInputValue('display_mode', 'absolute');
@@ -784,8 +784,8 @@ $(document).ready(function () {
 
     // Reset map projection to 'globe'
     var $mapProjToggle = $('#projection-toggle');
-    $mapProjToggle.find('.toggle-option').removeClass('active');
-    $mapProjToggle.find('.toggle-option[data-value="globe"]').addClass('active');
+    $mapProjToggle.find('.toggle-option').removeClass('active').attr('aria-pressed', 'false');
+    $mapProjToggle.find('.toggle-option[data-value="globe"]').addClass('active').attr('aria-pressed', 'true');
     $mapProjToggle.removeClass('toggle-right');
     $('#map_projection').val('globe').trigger('change');
     Shiny.setInputValue('map_projection', 'globe');
