@@ -54,15 +54,11 @@ generate_wysiwyg_export_csv <- function(
 
   res_list <- list()
   if (!is.null(df_hist) && nrow(df_hist) > 0) {
-    if (!"Month" %in% names(df_hist)) df_hist$Month <- NA_integer_
     if (!"scenario" %in% names(df_hist)) df_hist$scenario <- "Historical"
-    if (!"Year" %in% names(df_hist)) df_hist$Year <- NA_integer_
     res_list[[1]] <- df_hist[, intersect(c("Year", "Month", "scenario", "Value", "Source"), names(df_hist))]
   }
   if (!is.null(df_proj) && nrow(df_proj) > 0) {
-    if (!"Month" %in% names(df_proj)) df_proj$Month <- NA_integer_
     if (!"scenario" %in% names(df_proj)) df_proj$scenario <- "Projection"
-    if (!"Year" %in% names(df_proj)) df_proj$Year <- NA_integer_
     res_list[[2]] <- df_proj[, intersect(c("Year", "Month", "scenario", "Value", "Source"), names(df_proj))]
   }
 

@@ -2094,10 +2094,17 @@ server <- function(input, output, session) {
         df_hist <- historical_trends_data()
         if (show_proj) {
           if (grepl("^all_", active_tab)) {
-            df_proj <- all_scenarios_projection_data()
+            proj_list <- all_scenarios_projection_data()
+            if (!is.null(proj_list)) {
+              df_proj <- proj_list$ensemble
+              if ("median_val" %in% names(df_proj)) df_proj$Value <- df_proj$median_val
+            }
           } else {
             proj_list <- filtered_projection_data()
-            if (!is.null(proj_list)) df_proj <- proj_list$ensemble
+            if (!is.null(proj_list)) {
+              df_proj <- proj_list$ensemble
+              if ("median_val" %in% names(df_proj)) df_proj$Value <- df_proj$median_val
+            }
           }
         }
       }
