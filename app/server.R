@@ -61,15 +61,15 @@ server <- function(input, output, session) {
 
     # Determine whether to use projection data.
     # Standard variables: year > hist_max_year with projections ON.
-    # Dynamic wind: ALWAYS use projection data (ERA5 has no meaning for
-    # dynamically-interpolated future technology mixes — see AGENTS.md 9.1).
+    # Dynamic wind: use projection data for future years, but historical years
+    # can now use ERA5 blended with fixed_2025 technology (see Rule 9.20).
     show_proj <- isTRUE(input$show_projections == "1")
     proj_data_exists <- (var_name %in% projection_available_variables &&
                          sp_level %in% projection_available_spatial_levels)
     is_dynamic_wind <- (is_wind_power && tech_mix_mode == "dynamic")
     
     hist_max_year <- get_historical_max_year(var_name, sp_level)
-    use_projection <- (show_proj && (sel_year > hist_max_year || is_dynamic_wind) && proj_data_exists)
+    use_projection <- (show_proj && (sel_year > hist_max_year) && proj_data_exists)
 
     if (use_projection) {
       # ── Read from projection dataset ─────────────────────────────────────────
@@ -247,10 +247,12 @@ server <- function(input, output, session) {
     is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
     tech_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
     
-    # Disable anomaly if Wind Power + Dynamic
+    # Disable anomaly if Wind Power + Dynamic — the baseline uses fixed_2025 tech
+    # while projections use a shifting mix, so anomalies would conflate technology
+    # and climate signals.
     is_dynamic_wind <- is_wind && (tech_mode == "dynamic")
     session$sendCustomMessage("set_anomaly_disabled", list(disable = is_dynamic_wind))
-    session$sendCustomMessage("set_projection_forced", list(force_on = is_dynamic_wind))
+    session$sendCustomMessage("set_projection_forced", list(force_on = FALSE))
   })
 
   # ----------------------------------------------------------------------------
@@ -280,12 +282,8 @@ server <- function(input, output, session) {
     # Winter season has incomplete 1950 data, so min year is 1951 for seasonal mode
     min_year <- if (input$temporal_mode == "Annual") 1950 else 1951
     
-    # If Wind Power + Dynamic Tech Mix is active, never show historical "Existing Fleet"
-    is_wind <- var_name %in% c("wind_power_onshore", "wind_power_offshore")
-    tech_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
-    if (is_wind && tech_mode == "dynamic") {
-      min_year <- 2021
-    }
+    # Note: Dynamic wind mode now shows blended historical data (fixed_2025 tech),
+    # so no special min_year override is needed — users can browse all years.
 
     # Adjust current year selection if it lies outside the valid range
     current_yr <- input$selected_year
@@ -532,9 +530,9 @@ server <- function(input, output, session) {
     tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
 
     # Decide whether this is a historical or projected period.
-    # Dynamic wind is always projection-only (see AGENTS.md 9.1).
-    is_dynamic_wind <- (is_wind_power && tech_mix_mode == "dynamic")
-    is_historical_period <- (period_end <= 2023 && !is_dynamic_wind)
+    # Dynamic wind now uses blended historical data (fixed_2025 tech via
+    # backward clamping), so historical periods are valid for all modes.
+    is_historical_period <- (period_end <= 2023)
 
     if (is_historical_period) {
       # ── Historical period: mean from ERA5 reanalysis ──────────────────────────
@@ -1188,19 +1186,19 @@ server <- function(input, output, session) {
     sel_year <- as.integer(input$selected_year)
 
     # Determine if the current view shows projected data.
-    # Dynamic wind always uses projection data (see AGENTS.md 9.1).
+    # Dynamic wind now uses blended historical data (fixed_2025 tech), so the
+    # standard year-based check applies to all modes.
     is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
     tech_mix_val <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
-    is_dynamic_wind <- (is_wind && tech_mix_val == "dynamic")
 
     sp_level_pq <- spatial_level_to_parquet[input$spatial_level]
     hist_max_year <- get_historical_max_year(input$climate_variable, sp_level_pq)
 
     if (use_period && !is.null(proj_period) && nchar(proj_period) > 0) {
       period_end_year <- as.integer(strsplit(proj_period, "-")[[1]][2])
-      is_projection_data <- (period_end_year > hist_max_year || is_dynamic_wind)
+      is_projection_data <- (period_end_year > hist_max_year)
     } else {
-      is_projection_data <- (sel_year > hist_max_year || is_dynamic_wind)
+      is_projection_data <- (sel_year > hist_max_year)
     }
 
     # Build the year/period label for titles
@@ -1288,7 +1286,22 @@ server <- function(input, output, session) {
     tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
 
     if (is_wind_power && tech_mix_mode == "dynamic") {
-      df_region <- NULL
+      # Dynamic mode: show historical ERA5 data blended with the 2025 technology
+      # mix weights. This is consistent with the backward clamping rule (Rule 8):
+      # all years <= 2025 use the 2025 mix, so blending ERA5 with fixed_2025
+      # produces a scientifically valid historical baseline that connects
+      # seamlessly to the dynamically-evolving projection line.
+      df_region <- blend_wind_power_timeseries(
+        region_id = target_region,
+        tech_mix_mode = "fixed_2025",
+        wind_type = wind_type,
+        ds_annual = hist_annual_ds,
+        ds_monthly = hist_monthly_ds,
+        ds_seasonal = hist_seasonal_ds,
+        temporal_mode = temp_mode,
+        sp_level = sp_level
+      )
+      if (!is.null(df_region)) df_region <- df_region |> dplyr::select(Year, Value)
     } else if (is_wind_power) {
       df_region <- blend_wind_power_timeseries(
         region_id = target_region,
@@ -1323,12 +1336,48 @@ server <- function(input, output, session) {
     query_var <- var_name
     tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
     
-    if (grepl("wind_power", var_name)) {
-      wind_type <- ifelse(grepl("onshore", var_name), "onshore", "offshore")
-      if (wind_type == "onshore") {
-        query_var <- switch(tech_mix_mode, "fixed_2020"="wind_onshore_30", "fixed_2030"="wind_onshore_34", "fixed_2040"="wind_onshore_34", "fixed_2050"="wind_onshore_34", "wind_onshore_34")
+    # Track whether this is a wind variable that needs blending for historical data.
+    # Dynamic and fixed_2025 modes require the blending engine (weighted average of
+    # multiple turbine technologies), not a single raw variable query.
+    is_wind_power <- grepl("wind_power", var_name)
+    wind_type <- ifelse(grepl("onshore", var_name), "onshore", "offshore")
+    needs_hist_blending <- FALSE
+    
+    if (is_wind_power) {
+      if (tech_mix_mode %in% c("dynamic", "fixed_2025")) {
+        # Dynamic mode clamps to the 2025 technology mix for historical years
+        # (all historical years are <= 2025 per Rule 8). fixed_2025 uses the
+        # same 2025 weights. Both require the blending engine, not a single
+        # raw tech variable, so we flag this for historical_seasonality_data().
+        # For projection queries, the raw variable approach still works as a
+        # reasonable fallback — but the blending engine is preferred.
+        needs_hist_blending <- TRUE
+        # Still set a fallback query_var for projection queries that don't use
+        # the blending engine (e.g. all_scenarios_projection_seasonality_data)
+        if (wind_type == "onshore") {
+          query_var <- "wind_onshore_34"
+        } else {
+          query_var <- "wind_offshore_21"
+        }
       } else {
-        query_var <- switch(tech_mix_mode, "fixed_2020"="wind_offshore_20", "fixed_2030"="wind_offshore_21", "fixed_2040"="wind_offshore_21", "fixed_2050"="wind_offshore_21", "wind_offshore_21")
+        # Fixed technology modes: map directly to the single raw variable
+        if (wind_type == "onshore") {
+          query_var <- switch(tech_mix_mode,
+            "fixed_2020" = "wind_onshore_30",
+            "fixed_2030" = "wind_onshore_34",
+            "fixed_2040" = "wind_onshore_34",
+            "fixed_2050" = "wind_onshore_34",
+            "wind_onshore_34"
+          )
+        } else {
+          query_var <- switch(tech_mix_mode,
+            "fixed_2020" = "wind_offshore_20",
+            "fixed_2030" = "wind_offshore_21",
+            "fixed_2040" = "wind_offshore_21",
+            "fixed_2050" = "wind_offshore_21",
+            "wind_offshore_21"
+          )
+        }
       }
     }
     
@@ -1359,22 +1408,56 @@ server <- function(input, output, session) {
       ref_end = as.numeric(substr(ref_period, 6, 9)),
       proj_start = proj_start,
       proj_end = proj_end,
-      ssp = input$ssp_scenario
+      ssp = input$ssp_scenario,
+      # Wind blending context — used by historical_seasonality_data() to decide
+      # whether it needs the full blending engine or a simple Arrow query
+      needs_hist_blending = needs_hist_blending,
+      wind_type = wind_type,
+      is_wind_power = is_wind_power
     )
   })
 
   # Historical Data for Seasonality (Year, Month, Value)
+  # When the dynamic or fixed_2025 technology mix is selected for wind power,
+  # the historical boxplot must use the blending engine with fixed_2025 mode.
+  # This ensures the 12-month seasonal shape is computed from a properly
+  # weighted average of multiple turbine technologies at the 2025 anchor,
+  # consistent with the dynamic engine's backward clamping rule (Rule 8:
+  # all years <= 2025 use the 2025 technology mix).
   historical_seasonality_data <- reactive({
     params <- seasonality_query_params()
-    df <- query_arrow_dataset(
-      ds_annual = hist_monthly_ds, ds_seasonal = hist_seasonal_ds, ds_monthly = hist_monthly_ds,
-      temporal_mode = "Annual",
-      var_name = params$query_var,
-      sp_level = params$sp_level,
-      year_start = params$ref_start, 
-      year_end = params$ref_end,
-      target_region = params$region_id
-    )
+    
+    if (params$needs_hist_blending) {
+      # Use the blending engine with fixed_2025 mode to compute a weighted
+      # average of multiple turbine technologies for this region's resource group
+      df <- blend_wind_power_timeseries(
+        region_id = params$region_id,
+        tech_mix_mode = "fixed_2025",
+        wind_type = params$wind_type,
+        ds_annual = hist_monthly_ds,
+        ds_monthly = hist_monthly_ds,
+        ds_seasonal = hist_seasonal_ds,
+        temporal_mode = "Annual",
+        sp_level = params$sp_level
+      )
+      # blend_wind_power_timeseries returns all years in the dataset. Filter to
+      # the user's selected reference period (e.g. 1991-2020) for the boxplot.
+      if (!is.null(df) && nrow(df) > 0) {
+        df <- df[df$Year >= params$ref_start & df$Year <= params$ref_end, ]
+        if (nrow(df) == 0) df <- NULL
+      }
+    } else {
+      # Standard path: query a single variable directly from Arrow
+      df <- query_arrow_dataset(
+        ds_annual = hist_monthly_ds, ds_seasonal = hist_seasonal_ds, ds_monthly = hist_monthly_ds,
+        temporal_mode = "Annual",
+        var_name = params$query_var,
+        sp_level = params$sp_level,
+        year_start = params$ref_start, 
+        year_end = params$ref_end,
+        target_region = params$region_id
+      )
+    }
     if (!is.null(df)) df <- as.data.frame(df)
     df
   })
@@ -1708,11 +1791,9 @@ server <- function(input, output, session) {
 
     df_region <- historical_trends_data()
 
-    # For dynamic wind mode, we typically hide the historical line 
-    # to avoid plotting ERA5 against CMIP6.
-    is_dynamic_wind <- grepl("wind", var_name) && 
-                       (!is.null(input$technology_mix) && input$technology_mix == "dynamic")
-    hide_hist <- is_dynamic_wind
+    # Dynamic wind now shows blended historical data (fixed_2025 tech),
+    # so the historical line is always visible.
+    hide_hist <- FALSE
 
     all_proj <- all_scenarios_projection_data()
     proj_ensemble <- if (!is.null(all_proj)) all_proj$ensemble else NULL
@@ -1829,29 +1910,26 @@ server <- function(input, output, session) {
     ssp <- input$ssp_scenario
     # ref_period is set below depending on view_mode
     
-    # For Wind Power, we need a single proxy technology to plot the seasonal shape.
-    # Non-EU/Study zones lack "Existing" (2020) technology data (yielding 0 rows).
-    # We respect the user's fixed technology choice, or default to 2025 tech for dynamic mode.
-    query_var <- var_name
+    # Technology note label for the chart subtitle — communicates to the user
+    # which turbine technology is being used for the seasonal shape.
+    tech_note <- ""
     if (grepl("wind_power", var_name)) {
-      wind_type <- ifelse(grepl("onshore", var_name), "onshore", "offshore")
       tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
-      
-      if (wind_type == "onshore") {
-        if (tech_mix_mode == "fixed_2020") query_var <- "wind_onshore_30"
-        else if (tech_mix_mode == "fixed_2030") query_var <- "wind_onshore_34"
-        else if (tech_mix_mode == "fixed_2040") query_var <- "wind_onshore_34"
-        else if (tech_mix_mode == "fixed_2050") query_var <- "wind_onshore_34"
-        else query_var <- "wind_onshore_34" # fixed_2025 or dynamic proxy
-      } else {
-        if (tech_mix_mode == "fixed_2020") query_var <- "wind_offshore_20"
-        else if (tech_mix_mode == "fixed_2030") query_var <- "wind_offshore_21"
-        else if (tech_mix_mode == "fixed_2040") query_var <- "wind_offshore_21"
-        else if (tech_mix_mode == "fixed_2050") query_var <- "wind_offshore_21"
-        else query_var <- "wind_offshore_21" # fixed_2025 or dynamic proxy
+      if (tech_mix_mode == "dynamic") {
+        tech_note <- "Historical uses Blended 2025 Tech"
+      } else if (tech_mix_mode == "fixed_2020") {
+        tech_note <- "Computed with 2020 Tech"
+      } else if (tech_mix_mode == "fixed_2025") {
+        tech_note <- "Computed with 2025 Tech"
+      } else if (tech_mix_mode == "fixed_2030") {
+        tech_note <- "Computed with 2030 Tech"
+      } else if (tech_mix_mode == "fixed_2040") {
+        tech_note <- "Computed with 2040 Tech"
+      } else if (tech_mix_mode == "fixed_2050") {
+        tech_note <- "Computed with 2050 Tech"
       }
     }
-    
+
     view_mode <- if (!is.null(input$projection_view_mode)) input$projection_view_mode else "year"
     
     # User requested: if no period selected, the anualcycle plot must use the most recent period 1991-2020
@@ -1885,19 +1963,6 @@ server <- function(input, output, session) {
     if (show_proj) {
       df_proj <- projection_seasonality_data()
     }
-    tech_note <- ""
-    if (grepl("wind_power", var_name)) {
-      if (!is.null(input$technology_mix) && input$technology_mix != "dynamic") {
-        # e.g., input$technology_mix == "fixed_2030" -> Extract year for label
-        if (input$technology_mix == "fixed_2020") tech_note <- "Computed with 2020 Tech"
-        else if (input$technology_mix == "fixed_2025") tech_note <- "Computed with 2025 Tech"
-        else if (input$technology_mix == "fixed_2030") tech_note <- "Computed with 2030 Tech"
-        else if (input$technology_mix == "fixed_2040") tech_note <- "Computed with 2040 Tech"
-        else if (input$technology_mix == "fixed_2050") tech_note <- "Computed with 2050 Tech"
-      } else {
-        tech_note <- "Computed with 2025 Tech Proxy"
-      }
-    }
 
     build_seasonality_plotly(
       df_hist = df_hist,
@@ -1924,26 +1989,6 @@ server <- function(input, output, session) {
     
     var_name <- input$climate_variable
     var_meta <- climate_variables[[var_name]]
-    
-    query_var <- var_name
-    tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
-    
-    # Wind logic applies same as region_seasonality
-    if (grepl("wind_power", var_name)) {
-      if (var_name == "wind_power_onshore") {
-        if (tech_mix_mode == "fixed_2020") query_var <- "wind_onshore_30"
-        else if (tech_mix_mode == "fixed_2030") query_var <- "wind_onshore_31"
-        else if (tech_mix_mode == "fixed_2040") query_var <- "wind_onshore_31"
-        else if (tech_mix_mode == "fixed_2050") query_var <- "wind_onshore_31"
-        else query_var <- "wind_onshore_31"
-      } else {
-        if (tech_mix_mode == "fixed_2020") query_var <- "wind_offshore_20"
-        else if (tech_mix_mode == "fixed_2030") query_var <- "wind_offshore_21"
-        else if (tech_mix_mode == "fixed_2040") query_var <- "wind_offshore_21"
-        else if (tech_mix_mode == "fixed_2050") query_var <- "wind_offshore_21"
-        else query_var <- "wind_offshore_21"
-      }
-    }
     
     view_mode <- if (!is.null(input$projection_view_mode)) input$projection_view_mode else "year"
     ref_period <- if (!is.null(input$historical_period)) input$historical_period else "1991-2020"

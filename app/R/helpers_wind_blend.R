@@ -366,7 +366,7 @@ blend_wind_power_timeseries <- function(region_id, tech_mix_mode, wind_type, ds_
       var_name = var_name,
       sp_level = query_sp_level,
       scenario_val = scenario_val,
-      select_cols = c("Region", "Value", "Year", "scenario", "model")
+      select_cols = c("Region", "Value", "Year", "Month", "scenario", "model")
     )
     if (!is.null(tech_data)) {
       tech_data <- tech_data[tech_data$Region %in% target_regions, ]
@@ -407,8 +407,9 @@ blend_wind_power_timeseries <- function(region_id, tech_mix_mode, wind_type, ds_
       dplyr::mutate(Weight = ifelse(is.na(Weight), 0, Weight)) |>
       dplyr::mutate(WeightedValue = Value * Weight)
     
-    # Aggregate to region level
+    # Aggregate to region level, preserving Month if present (for seasonality boxplots)
     grp_cols <- c("Region", "Year")
+    if ("Month" %in% names(yr_data)) grp_cols <- c(grp_cols, "Month")
     if ("scenario" %in% names(yr_data)) grp_cols <- c(grp_cols, "scenario")
     if ("model" %in% names(yr_data)) grp_cols <- c(grp_cols, "model")
     
@@ -431,6 +432,7 @@ blend_wind_power_timeseries <- function(region_id, tech_mix_mode, wind_type, ds_
       dplyr::mutate(area_km2 = ifelse(is.na(area_km2), 1, area_km2))
     
     agg_cols <- c("Year")
+    if ("Month" %in% names(final_blended)) agg_cols <- c(agg_cols, "Month")
     if ("scenario" %in% names(final_blended)) agg_cols <- c(agg_cols, "scenario")
     if ("model" %in% names(final_blended)) agg_cols <- c(agg_cols, "model")
     
