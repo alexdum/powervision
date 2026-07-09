@@ -167,7 +167,11 @@ server <- function(input, output, session) {
     if (map_loaded() && !is.null(current_boundaries())) {
       bbox <- sf::st_bbox(current_boundaries())
       maplibre_proxy("map") %>%
-        fit_bounds(bbox, padding = list(top = 50, bottom = 50, left = 320, right = 50))
+        fit_bounds(
+          c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
+          animate = TRUE,
+          padding = list(top = 40, bottom = 40, left = 320, right = 40)
+        )
     }
   })
 
