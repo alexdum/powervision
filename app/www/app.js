@@ -798,6 +798,9 @@ $(document).ready(function () {
     $mapProjToggle.removeClass('toggle-right');
     $('#map_projection').val('globe').trigger('change');
     Shiny.setInputValue('map_projection', 'globe');
+    
+    // Reset sidebar scroll to top
+    $('.sidebar-scroll-area').animate({ scrollTop: 0 }, 300);
   });
 
 });

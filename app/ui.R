@@ -61,14 +61,8 @@ ui <- page_fillable(
     style = "position: fixed; top: 18px; left: 18px; width: 290px; z-index: 1000;",
     `aria-label` = "Map Configuration Panel",
 
-    # ── Scrollable controls area ───────────────────────────────────────────────
-    # All controls live in this scrollable zone. When projection controls expand,
-    # only this area scrolls — the legend footer stays pinned at the bottom.
+    # ── Pinned Brand Header ────────────────────────────────────────────────────
     div(
-      class = "sidebar-scroll-area",
-
-      # Brand header
-      div(
       class = "app-brand",
       div(class = "brand-icon", HTML("&#9889;")), # ⚡ lightning
       div(
@@ -85,7 +79,13 @@ ui <- page_fillable(
       )
     ),
 
-    # ── CARD 1: Core Data ──────────────────────────────────────────────────────
+    # ── Scrollable controls area ───────────────────────────────────────────────
+    # All controls live in this scrollable zone. When projection controls expand,
+    # only this area scrolls — the legend footer stays pinned at the bottom.
+    div(
+      class = "sidebar-scroll-area",
+
+      # ── CARD 1: Core Data ──────────────────────────────────────────────────────
     div(
       class = "filter-card",
       div(class = "filter-card-header", bsicons::bs_icon("database-fill"), " Core Data"),

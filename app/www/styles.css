@@ -286,7 +286,7 @@ html.shiny-busy #global-shiny-loader {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 20px 18px 8px;
+  padding: 18px 18px 8px;
 
   /* Thin styled scrollbar */
   scrollbar-width: thin;
@@ -309,14 +309,15 @@ html.shiny-busy #global-shiny-loader {
 #control-panel::-webkit-scrollbar-track  { background: transparent; }
 #control-panel::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.18); border-radius: 2px; }
 
-/* App branding inside the panel */
+/* Pinned App branding inside the panel */
 #control-panel .app-brand {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 18px;
-  padding-bottom: 14px;
+  padding: 18px 18px 14px;
   border-bottom: 1px solid var(--border-dark);
+  background: rgba(10, 15, 35, 0.4);
 }
 
 #control-panel .app-brand .brand-icon {
