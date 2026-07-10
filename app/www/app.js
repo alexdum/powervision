@@ -223,6 +223,33 @@ $(document).ready(function () {
   // R calls: session$sendCustomMessage("toggle_stats_drawer", list(show = TRUE/FALSE))
   // This adds/removes the .is-visible class which drives the CSS translateY transition.
   // --------------------------------------------------------------------------
+  function updateDrawerState() {
+    var drawer = document.getElementById('stats-drawer');
+    var isExpanded = drawer && drawer.classList.contains('expanded');
+    var isVisible = drawer && drawer.classList.contains('is-visible');
+    
+    var vh = window.innerHeight;
+    var bottomPadding = 60;
+    if (isVisible) {
+       bottomPadding = isExpanded ? (vh * 0.65) + 20 : (vh * 0.40) + 20;
+    }
+    
+    if (bottomPadding > vh - 150) {
+       bottomPadding = vh - 150;
+    }
+    
+    Shiny.setInputValue('drawer_state', {
+      expanded: isExpanded,
+      visible: isVisible,
+      bottom_padding: Math.max(60, Math.round(bottomPadding)),
+      vh: vh,
+      nonce: Math.random()
+    });
+  }
+
+  $(window).on('resize', updateDrawerState);
+  $(document).on('shiny:connected', updateDrawerState);
+
   Shiny.addCustomMessageHandler('toggle_stats_drawer', function (msg) {
     var drawer = document.getElementById('stats-drawer');
     if (!drawer) return;
@@ -231,6 +258,7 @@ $(document).ready(function () {
     } else {
       drawer.classList.remove('is-visible');
     }
+    updateDrawerState();
   });
 
   // Vanilla JS Event Delegation for Drawer Actions
@@ -244,6 +272,7 @@ $(document).ready(function () {
         drawer.classList.remove('expanded');
       }
       Shiny.setInputValue('drawer_closed', Math.random());
+      updateDrawerState();
     }
     
     // Handle Expand Button
@@ -253,6 +282,7 @@ $(document).ready(function () {
       if (drawer) {
         drawer.classList.toggle('expanded');
       }
+      updateDrawerState();
       // Wait for CSS transition then trigger Plotly redraw
       setTimeout(function() {
         window.dispatchEvent(new Event('resize'));

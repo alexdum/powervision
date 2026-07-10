@@ -954,6 +954,18 @@ server <- function(input, output, session) {
 
       message(sprintf("  Zooming to clicked region: %s", props$name))
 
+      # Calculate dynamic padding based on current window/drawer state
+      # The stats drawer covers ~40vh (collapsed) or ~65vh (expanded).
+      bottom_pad <- 420
+      if (!is.null(input$drawer_state)) {
+        vh <- if (!is.null(input$drawer_state$vh)) input$drawer_state$vh else 1000
+        is_expanded <- if (!is.null(input$drawer_state$expanded)) input$drawer_state$expanded else FALSE
+        
+        bottom_pad <- if (is_expanded) (vh * 0.65) + 20 else (vh * 0.40) + 20
+        bottom_pad <- min(bottom_pad, vh - 150)
+        bottom_pad <- max(60, bottom_pad)
+      }
+
       maplibre_proxy("map") %>%
         clear_layer("zone-highlight") %>%
         add_line_layer(
@@ -967,14 +979,40 @@ server <- function(input, output, session) {
         fit_bounds(
           c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
           animate = TRUE,
-          # bottom = 420 pushes the polygon into the upper ~60% of the viewport,
-          # keeping it visible above the 40vh stats drawer. left = 340 clears
+          # dynamic bottom padding pushes the polygon into the upper viewport,
+          # keeping it visible above the stats drawer. left = 340 clears
           # the control panel. maxZoom = 7 keeps the view "one level out" for small regions.
-          padding = list(top = 60, bottom = 420, left = 340, right = 60),
+          padding = list(top = 60, bottom = bottom_pad, left = 340, right = 60),
           maxZoom = 7.0
         )
     }
   })
+
+  # ----------------------------------------------------------------------------
+  # Dynamic Map Zoom on Drawer Resize
+  # ----------------------------------------------------------------------------
+  # When the drawer is expanded, collapsed, or the window is resized, we must
+  # re-fit the map bounds to keep the selected region visible in the remaining viewport.
+  observeEvent(input$drawer_state, {
+    req(map_loaded(), clicked_region())
+    
+    # We only care if the drawer is visible and we need to re-fit bounds.
+    if (!isTRUE(input$drawer_state$visible)) return()
+    
+    props <- clicked_region()
+    highlight_geom <- current_boundaries() %>% filter(zone_id == props$zone_id)
+    if (nrow(highlight_geom) == 0) return()
+    
+    bbox <- sf::st_bbox(highlight_geom)
+    
+    maplibre_proxy("map") %>%
+      fit_bounds(
+        c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
+        animate = TRUE,
+        padding = list(top = 60, bottom = input$drawer_state$bottom_padding, left = 340, right = 60),
+        maxZoom = 7.0
+      )
+  }, ignoreInit = TRUE)
 
   # ----------------------------------------------------------------------------
   # Basemap Style Controller
