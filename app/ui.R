@@ -5,6 +5,7 @@
 # Author: Climate Research & Spatial Analysis Team (Code for Earth 2026)
 # ==============================================================================
 
+
 ui <- page_fillable(
   # Padding removed so map bleeds edge-to-edge
   padding = 0,
