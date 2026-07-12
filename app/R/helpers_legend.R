@@ -82,7 +82,8 @@ compute_legend_params <- function(var_meta, is_precip,
 
   if (use_anomaly_legend) {
     # ── Anomaly legend: diverging palette, symmetric around 0 ──────────────
-    palette <- if (is_precip) anomaly_palette_precipitation else anomaly_palette_temperature
+    is_any_wind <- grepl("Wind", var_meta$label, ignore.case = TRUE)
+    palette <- if (is_precip) anomaly_palette_precipitation else if (is_any_wind) anomaly_palette_wind else anomaly_palette_temperature
     display_unit <- if (is_precip) "%" else var_meta$unit
 
     # Compute anomaly range by applying per-region baselines to the current data

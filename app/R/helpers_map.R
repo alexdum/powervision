@@ -67,7 +67,8 @@ update_map_choropleth <- function(
           dplyr::mutate(Value = Value - baseline_value)
       }
     }
-    palette <- if (is_precip) anomaly_palette_precipitation else anomaly_palette_temperature
+    is_any_wind <- grepl("Wind", var_label, ignore.case = TRUE)
+    palette <- if (is_precip) anomaly_palette_precipitation else if (is_any_wind) anomaly_palette_wind else anomaly_palette_temperature
   }
 
   period_label <- if (use_period) paste0(projection_period, " period mean") else ""

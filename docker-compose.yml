@@ -9,6 +9,7 @@ services:
       - "3838:3838"
     volumes:
       - ./logs:/var/log/shiny-server
+      - ./app/www/data/pecd:/srv/shiny-server/powervision/www/data/pecd:ro
     environment:
       - PECD_GEOJSON_VERSION=mixed
     deploy:

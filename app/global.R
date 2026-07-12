@@ -241,46 +241,39 @@ climate_variables <- list(
   "2m_temperature" = list(
     label = "2m Temperature",
     unit = "°C",
-    palette = c(
-      "#2166ac",
-      "#67a9cf",
-      "#d1e5f0",
-      "#fddbc7",
-      "#ef8a62",
-      "#b2182b"
-    ) # Diverging Blue-to-Red
+    palette = c("#FFFECB", "#ECAC54", "#D85F4D", "#663329", "#191900") # Lajolla (reversed)
   ),
   "total_precipitation" = list(
     label = "Total Precipitation",
     unit = "mm",
-    palette = c("#f7fbff", "#c6dbef", "#6baed6", "#2171b5", "#08306b") # Single-hue Blues
+    palette = c("#FFFFFF", "#A2B0CA", "#4F7ABB", "#14385A", "#000000") # Oslo (reversed)
   ),
   "surface_solar_radiation_downwards" = list(
-    label = "Solar Radiation",
+    label = "Surface Solar Radiation",
     unit = "W/m²",
-    palette = c("#1a1a2e", "#e67e22", "#f39c12", "#f1c40f", "#ffeaa7") # Dark navy to glowing orange/yellow
+    palette = c("#FFFECB", "#ECAC54", "#D85F4D", "#663329", "#191900") # Lajolla (reversed)
   ),
   "10m_wind_speed" = list(
     label = "10m Wind Speed",
     unit = "m/s",
-    palette = c("#f0f9e8", "#bae4bc", "#7bccc4", "#43a2ca", "#0868ac") # Multi-hue Blue-Green
+    palette = c("#001959", "#215F61", "#818231", "#F19D6B", "#F9CCF9") # Batlow
   ),
   "100m_wind_speed" = list(
     label = "100m Wind Speed",
     unit = "m/s",
-    palette = c("#f0f9e8", "#bae4bc", "#7bccc4", "#43a2ca", "#0868ac") # Multi-hue Blue-Green
+    palette = c("#001959", "#215F61", "#818231", "#F19D6B", "#F9CCF9") # Batlow
   ),
   "wind_power_onshore" = list(
     label = "Wind Power Onshore (CF)",
     unit = "CF",
-    palette = c("#f0f9e8", "#bae4bc", "#7bccc4", "#43a2ca", "#0868ac"),
+    palette = c("#001959", "#215F61", "#818231", "#F19D6B", "#F9CCF9"),
     is_wind_power = TRUE,
     wind_type = "onshore"
   ),
   "wind_power_offshore" = list(
     label = "Wind Power Offshore (CF)",
     unit = "CF",
-    palette = c("#f0f9e8", "#bae4bc", "#7bccc4", "#43a2ca", "#0868ac"),
+    palette = c("#001959", "#215F61", "#818231", "#F19D6B", "#F9CCF9"),
     is_wind_power = TRUE,
     wind_type = "offshore"
   )
@@ -435,7 +428,7 @@ for (level_code in names(spatial_levels)) {
 # Variables that have projection data available in PECD v4.2
 # --- Constants for Projections ---
 # Define which variables and spatial levels actually have projection data available
-projection_available_variables <- c("2m_temperature", "total_precipitation", "wind_power_onshore", "wind_power_offshore", "surface_solar_radiation_downwards")
+projection_available_variables <- c("2m_temperature", "total_precipitation", "wind_power_onshore", "wind_power_offshore", "surface_solar_radiation_downwards", "10m_wind_speed", "100m_wind_speed")
 
 # Detect which spatial levels actually have projection data in the parquet store.
 # This is computed at startup rather than hard-coded so that newly downloaded
@@ -490,26 +483,24 @@ climate_model_labels <- c(
 # negative values (cooler/drier) on the left and positive (warmer/wetter) right.
 # ==============================================================================
 
-# Temperature anomaly: blue (cooler) → white (no change) → red (warmer)
+# Temperature anomaly: blue (colder) → grey (no change) → red (warmer)
 anomaly_palette_temperature <- c(
-  "#2166ac",
-  "#67a9cf",
-  "#d1e5f0",
-  "#f7f7f7",
-  "#fddbc7",
-  "#ef8a62",
-  "#b2182b"
+  "#001260", "#06558B", "#71A7C4", 
+  "#EBE5E0", 
+  "#D29773", "#AA4613", "#590007"
 )
 
-# Precipitation anomaly: brown (drier) → white (no change) → teal (wetter)
+# Precipitation anomaly: brown (drier) → grey (no change) → blue (wetter)
 anomaly_palette_precipitation <- c(
-  "#8c510a",
-  "#d8b365",
-  "#f6e8c3",
-  "#f5f5f5",
-  "#c7eae5",
-  "#5ab4ac",
-  "#01665e"
+  "#262600", "#70703E", "#C5C58E", 
+  "#EAEDEB", 
+  "#8BA6C1", "#305D8C", "#2C194C"
+)
+
+anomaly_palette_wind <- c(
+  "#001260", "#06558B", "#71A7C4", 
+  "#EBE5E0", 
+  "#D29773", "#AA4613", "#590007"
 )
 
 # Caching historical maximum years per variable and spatial level
