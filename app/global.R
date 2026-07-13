@@ -264,27 +264,27 @@ climate_variables <- list(
     palette = c("#001959", "#215F61", "#818231", "#F19D6B", "#F9CCF9") # Batlow
   ),
   "wind_power_onshore" = list(
-    label = "Wind Power Onshore (CF)",
+    label = "Wind Power Onshore",
     unit = "CF",
     palette = c("#001959", "#215F61", "#818231", "#F19D6B", "#F9CCF9"),
     is_wind_power = TRUE,
     wind_type = "onshore"
   ),
   "wind_power_offshore" = list(
-    label = "Wind Power Offshore (CF)",
+    label = "Wind Power Offshore",
     unit = "CF",
     palette = c("#001959", "#215F61", "#818231", "#F19D6B", "#F9CCF9"),
     is_wind_power = TRUE,
     wind_type = "offshore"
   ),
   "solar_power_csp" = list(
-    label = "Concentrated Solar Power (CF)",
+    label = "Concentrated Solar Power",
     unit = "CF",
     palette = c("#FFFFFF", "#BEB897", "#A8815E", "#984D50", "#4C0000"),
     is_solar = TRUE
   ),
   "solar_power_pv" = list(
-    label = "Solar Photovoltaic (CF)",
+    label = "Solar Photovoltaic",
     unit = "CF",
     palette = c("#FFFFFF", "#BEB897", "#A8815E", "#984D50", "#4C0000"),
     is_solar = TRUE

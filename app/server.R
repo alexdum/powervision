@@ -237,19 +237,19 @@ server <- function(input, output, session) {
     choices_list <- list("Climate Variables" = base_choices)
     if (show_energy) {
       energy_choices <- c(
-        "Wind Power Onshore (CF)" = "wind_power_onshore",
-        "Wind Power Offshore (CF)" = "wind_power_offshore"
+        "Wind Power Onshore" = "wind_power_onshore",
+        "Wind Power Offshore" = "wind_power_offshore"
       )
       
       # Optional polish: Only show onshore for onshore zones, offshore for offshore zones
       if (sp == "P2ON") {
         energy_choices <- c(
-          "Wind Power Onshore (CF)" = "wind_power_onshore",
-          "Concentrated Solar Power (CF)" = "solar_power_csp",
-          "Solar Photovoltaic (CF)" = "solar_power_pv"
+          "Wind Power Onshore" = "wind_power_onshore",
+          "Concentrated Solar Power" = "solar_power_csp",
+          "Solar Photovoltaic" = "solar_power_pv"
         )
       } else if (sp == "P2OF") {
-        energy_choices <- energy_choices["Wind Power Offshore (CF)"]
+        energy_choices <- energy_choices["Wind Power Offshore"]
       }
       
       choices_list[["Energy Indicators"]] <- energy_choices
