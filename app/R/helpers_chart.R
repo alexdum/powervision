@@ -1142,6 +1142,79 @@ build_all_scenarios_timeseries_chart <- function(
     )
   }
 
+  if (use_anomaly) {
+    ref_years <- as.integer(strsplit(reference_period, "-")[[1]])
+    ref_start <- ref_years[1]
+    ref_end <- ref_years[2]
+
+    chart_shapes <- c(
+      chart_shapes,
+      list(
+        list(
+          type = "line",
+          x0 = 0,
+          x1 = 1,
+          xref = "paper",
+          y0 = 0,
+          y1 = 0,
+          line = list(
+            color = "rgba(255, 255, 255, 0.40)",
+            width = 1.5,
+            dash = "dash"
+          )
+        ),
+        list(
+          type = "rect",
+          x0 = ref_start,
+          x1 = ref_end,
+          y0 = 0,
+          y1 = 1,
+          yref = "paper",
+          fillcolor = "rgba(56, 189, 248, 0.06)",
+          line = list(
+            color = "rgba(56, 189, 248, 0.20)",
+            width = 1
+          )
+        )
+      )
+    )
+
+    ref_band_midpoint <- (ref_start + ref_end) / 2
+    chart_annotations <- c(
+      chart_annotations,
+      list(
+        list(
+          x = 0.01,
+          xref = "paper",
+          y = 0,
+          text = "Baseline",
+          showarrow = FALSE,
+          font = list(
+            family = "Inter, sans-serif",
+            size = 9,
+            color = "rgba(255, 255, 255, 0.45)"
+          ),
+          xanchor = "left",
+          yanchor = "bottom",
+          yshift = 4
+        ),
+        list(
+          x = ref_band_midpoint,
+          y = 0.98,
+          yref = "paper",
+          text = reference_period,
+          showarrow = FALSE,
+          font = list(
+            family = "Inter, sans-serif",
+            size = 9,
+            color = "rgba(56, 189, 248, 0.50)"
+          ),
+          xanchor = "center"
+        )
+      )
+    )
+  }
+
   p <- p %>%
     layout(
       shapes = chart_shapes,
