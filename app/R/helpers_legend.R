@@ -233,7 +233,7 @@ build_legend_ui <- function(legend_params) {
     div(
       class = "legend-gradient-bar",
       style = sprintf(
-        "background: %s; height: 12px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); margin: 6px 0 4px 0;",
+        "background: %s; height: 12px; border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15); margin: 6px 0 4px 0;",
         gradient_css
       )
     ),
