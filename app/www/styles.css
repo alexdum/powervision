@@ -1740,13 +1740,15 @@ code {
 }
 
 /* ---------------------------------------------------------------------------- */
-/* Technology Mix Dropdown                                                      */
+/* Technology & Solar Mix Dropdowns                                             */
 /* ---------------------------------------------------------------------------- */
-.tech-mix-wrapper {
+.tech-mix-wrapper,
+.solar-tech-wrapper {
   margin-top: -8px;
   margin-bottom: 12px;
 }
-.tech-mix-wrapper .form-group {
+.tech-mix-wrapper .form-group,
+.solar-tech-wrapper .form-group {
   margin-bottom: 0;
 }
 

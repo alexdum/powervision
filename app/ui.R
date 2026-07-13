@@ -164,6 +164,25 @@ ui <- page_fillable(
         width = "100%"
       )
     ),
+
+    # ── Section: Solar Technology (Only visible for Solar variables) ────────────────
+    div(
+      id = "solar-tech-wrapper",
+      class = "solar-tech-wrapper",
+      style = "display: none;", # Hidden by default, toggled via JS
+      selectInput(
+        inputId = "solar_technology",
+        label = span(
+          "Solar Technology",
+          tooltip(
+            bsicons::bs_icon("info-circle", size = "0.85em"),
+            "Select the specific solar technology to display."
+          )
+        ),
+        choices = c("Loading..." = ""), # Will be populated by server.R dynamically
+        width = "100%"
+      )
+    ),
     ), # End Card 1
 
     # ── CARD 2: Time & Projections ─────────────────────────────────────────────

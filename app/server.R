@@ -90,7 +90,7 @@ server <- function(input, output, session) {
       } else {
         # Query all 6 models for the selected scenario + year.
         # Only read Region + Value — we only need these for the per-region median.
-        df_raw <- query_arrow_dataset(
+        df_raw <- query_arrow_dataset(solar_tech = input$solar_technology, 
           proj_annual_ds, proj_seasonal_ds, proj_monthly_ds, temp_mode,
           var_name, sp_level,
           year = sel_year, scenario_val = input$ssp_scenario,
@@ -129,7 +129,7 @@ server <- function(input, output, session) {
         return(df_raw |> dplyr::select(Region, Value))
       } else {
         # Only read Region + Value — that's all the map choropleth needs.
-        query_arrow_dataset(
+        query_arrow_dataset(solar_tech = input$solar_technology, 
           hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
           var_name, sp_level,
           year = sel_year,
@@ -146,6 +146,7 @@ server <- function(input, output, session) {
     updateSelectInput(session, "spatial_level", selected = "NUT0")
     updateSelectInput(session, "climate_variable", selected = "2m_temperature")
     updateSelectInput(session, "technology_mix", selected = "dynamic")
+    updateSelectInput(session, "solar_technology", selected = "")
     updateSelectInput(session, "temporal_mode", selected = "Annual")
     updateSliderInput(session, "selected_year", value = 2021)
     updateSelectInput(session, "historical_period", selected = "1981-2010")
@@ -181,6 +182,25 @@ server <- function(input, output, session) {
   observeEvent(input$climate_variable, {
     is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
     session$sendCustomMessage("toggle_tech_mix_controls", list(show = is_wind))
+    
+    is_solar <- input$climate_variable %in% c("solar_power_csp", "solar_power_pv")
+    session$sendCustomMessage("toggle_solar_tech_controls", list(show = is_solar))
+    
+    if (input$climate_variable == "solar_power_csp") {
+      updateSelectInput(session, "solar_technology", choices = c(
+        "Pre-dispatch, no storage" = "40",
+        "Dispatched, no storage" = "41",
+        "Pre-dispatch, 7-hours of storage" = "42",
+        "Dispatched, 7-hours of storage" = "43"
+      ))
+    } else if (input$climate_variable == "solar_power_pv") {
+      updateSelectInput(session, "solar_technology", choices = c(
+        "Industrial rooftop" = "60",
+        "Residential rooftop" = "61",
+        "Utility-scale fixed" = "62",
+        "Utility-scale 1-axis tracking" = "63"
+      ))
+    }
     
     # NUTS 0 deprecation warning
     if (is_wind && !is.null(input$spatial_level) && input$spatial_level == "NUT0") {
@@ -223,7 +243,11 @@ server <- function(input, output, session) {
       
       # Optional polish: Only show onshore for onshore zones, offshore for offshore zones
       if (sp == "P2ON") {
-        energy_choices <- energy_choices["Wind Power Onshore (CF)"]
+        energy_choices <- c(
+          "Wind Power Onshore (CF)" = "wind_power_onshore",
+          "Concentrated Solar Power (CF)" = "solar_power_csp",
+          "Solar Photovoltaic (CF)" = "solar_power_pv"
+        )
       } else if (sp == "P2OF") {
         energy_choices <- energy_choices["Wind Power Offshore (CF)"]
       }
@@ -479,7 +503,7 @@ server <- function(input, output, session) {
     } else {
       # Query ALL regions for the reference period using centralized helper
       # Only read Region + Value — we just need per-region means.
-      df_ref <- query_arrow_dataset(
+      df_ref <- query_arrow_dataset(solar_tech = input$solar_technology, 
         hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
         var_name, sp_level,
         year_start = ref_start, year_end = ref_end,
@@ -554,7 +578,7 @@ server <- function(input, output, session) {
         )
       } else {
         # Only read Region + Value — we compute per-region mean over the period.
-        df_raw <- query_arrow_dataset(
+        df_raw <- query_arrow_dataset(solar_tech = input$solar_technology, 
           hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
           var_name, sp_level,
           year_start = period_start, year_end = period_end,
@@ -596,7 +620,7 @@ server <- function(input, output, session) {
         )
       } else {
         # Need Region + Value + model — we group by model first, then take median.
-        df_raw <- query_arrow_dataset(
+        df_raw <- query_arrow_dataset(solar_tech = input$solar_technology, 
           proj_annual_ds, proj_seasonal_ds, proj_monthly_ds, temp_mode,
           var_name, sp_level,
           year_start = period_start, year_end = period_end,
@@ -747,7 +771,8 @@ server <- function(input, output, session) {
       technology_mix = input$technology_mix,
       spatial_level = input$spatial_level,
       polygon_opacity = isolate(input$polygon_opacity),
-      view_mode = view_mode
+      view_mode = view_mode,
+      solar_tech = input$solar_technology
     )
   })
 
@@ -1237,7 +1262,7 @@ server <- function(input, output, session) {
     show_proj <- isTRUE(input$show_projections == "1")
     proj_period <- if (show_proj) input$projection_period else input$historical_period
 
-    var_meta <- climate_variables[[input$climate_variable]]
+    var_meta <- enrich_var_meta(climate_variables[[input$climate_variable]], input$solar_technology)
     is_precip <- (input$climate_variable == "total_precipitation")
 
     # Check display mode
@@ -1385,7 +1410,7 @@ server <- function(input, output, session) {
       )
       if (!is.null(df_region)) df_region <- df_region |> dplyr::select(Year, Value)
     } else {
-      df_region <- query_arrow_dataset(
+      df_region <- query_arrow_dataset(solar_tech = input$solar_technology, 
         hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
         var_name, sp_level,
         target_region = target_region,
@@ -1518,7 +1543,7 @@ server <- function(input, output, session) {
       }
     } else {
       # Standard path: query a single variable directly from Arrow
-      df <- query_arrow_dataset(
+      df <- query_arrow_dataset(solar_tech = input$solar_technology, 
         ds_annual = hist_monthly_ds, ds_seasonal = hist_seasonal_ds, ds_monthly = hist_monthly_ds,
         temporal_mode = "Annual",
         var_name = params$query_var,
@@ -1536,7 +1561,7 @@ server <- function(input, output, session) {
   projection_seasonality_data <- reactive({
     req(input$show_projections == "1")
     params <- seasonality_query_params()
-    df <- query_arrow_dataset(
+    df <- query_arrow_dataset(solar_tech = input$solar_technology, 
       ds_annual = proj_monthly_ds, ds_seasonal = proj_seasonal_ds, ds_monthly = proj_monthly_ds,
       temporal_mode = "Annual",
       var_name = params$query_var,
@@ -1554,7 +1579,7 @@ server <- function(input, output, session) {
   all_scenarios_projection_seasonality_data <- reactive({
     req(input$show_projections == "1")
     params <- seasonality_query_params()
-    df <- query_arrow_dataset(
+    df <- query_arrow_dataset(solar_tech = input$solar_technology, 
       ds_annual = proj_monthly_ds, ds_seasonal = proj_seasonal_ds, ds_monthly = proj_monthly_ds,
       temporal_mode = "Annual",
       var_name = params$query_var,
@@ -1609,7 +1634,7 @@ server <- function(input, output, session) {
     } else {
       # Query all 6 models for the chosen scenario using centralized helper.
       # Read Year, Value, and model for both ensemble stats and spaghetti plots.
-      df_proj <- query_arrow_dataset(
+      df_proj <- query_arrow_dataset(solar_tech = input$solar_technology, 
         proj_annual_ds, proj_seasonal_ds, proj_monthly_ds, temp_mode,
         var_name, sp_level,
         target_region = target_region, scenario_val = scenario,
@@ -1676,7 +1701,7 @@ server <- function(input, output, session) {
         scenario_val = scenarios
       )
     } else {
-      df_proj <- query_arrow_dataset(
+      df_proj <- query_arrow_dataset(solar_tech = input$solar_technology, 
         proj_annual_ds, proj_seasonal_ds, proj_monthly_ds, temp_mode,
         var_name, sp_level,
         target_region = target_region, scenario_val = scenarios,
@@ -1765,7 +1790,7 @@ server <- function(input, output, session) {
     }
 
     # Get variable metadata and choose the chart accent color
-    var_meta <- climate_variables[[var_name]]
+    var_meta <- enrich_var_meta(climate_variables[[var_name]], input$solar_technology)
     accent_color <- tail(var_meta$palette, 1)
     if (accent_color %in% c("#f7fbff", "#ffeaa7")) {
       accent_color <- "#38bdf8" # Sky blue accent
@@ -1851,7 +1876,7 @@ server <- function(input, output, session) {
     req(region_data)
 
     var_name <- input$climate_variable
-    var_meta <- climate_variables[[var_name]]
+    var_meta <- enrich_var_meta(climate_variables[[var_name]], input$solar_technology)
     temp_mode <- input$temporal_mode
     target_region <- region_data[["zone_id"]]
     sp_level <- spatial_level_to_parquet[input$spatial_level]
@@ -1977,7 +2002,7 @@ server <- function(input, output, session) {
     region_name <- region_data[["name"]]
     
     var_name <- input$climate_variable
-    var_meta <- climate_variables[[var_name]]
+    var_meta <- enrich_var_meta(climate_variables[[var_name]], input$solar_technology)
     ssp <- input$ssp_scenario
     # ref_period is set below depending on view_mode
     
@@ -2059,7 +2084,7 @@ server <- function(input, output, session) {
     region_name <- region_data[["name"]]
     
     var_name <- input$climate_variable
-    var_meta <- climate_variables[[var_name]]
+    var_meta <- enrich_var_meta(climate_variables[[var_name]], input$solar_technology)
     
     view_mode <- if (!is.null(input$projection_view_mode)) input$projection_view_mode else "year"
     ref_period <- if (!is.null(input$historical_period)) input$historical_period else "1991-2020"

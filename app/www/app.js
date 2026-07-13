@@ -755,6 +755,17 @@ $(document).ready(function () {
   });
 
   // --------------------------------------------------------------------------
+  // Solar Tech Controls — Toggle visibility
+  // --------------------------------------------------------------------------
+  Shiny.addCustomMessageHandler('toggle_solar_tech_controls', function (msg) {
+    if (msg.show) {
+      $('#solar-tech-wrapper').slideDown(200);
+    } else {
+      $('#solar-tech-wrapper').slideUp(200);
+    }
+  });
+
+  // --------------------------------------------------------------------------
   // Reset Custom JS Toggles (from Reset Button)
   // --------------------------------------------------------------------------
   Shiny.addCustomMessageHandler('reset_custom_toggles', function(msg) {

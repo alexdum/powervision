@@ -12,9 +12,10 @@ update_map_choropleth <- function(
   session, geom_data, clim_data, baseline_df,
   climate_variable, selected_year, display_mode, 
   show_projections, projection_period, historical_period, 
-  technology_mix, spatial_level, polygon_opacity, view_mode
+  technology_mix, spatial_level, polygon_opacity, view_mode,
+  solar_tech = NULL
 ) {
-  var_meta <- climate_variables[[climate_variable]]
+  var_meta <- enrich_var_meta(climate_variables[[climate_variable]], solar_tech)
   palette <- var_meta$palette
   var_label <- var_meta$label
   var_unit <- var_meta$unit

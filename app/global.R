@@ -276,8 +276,45 @@ climate_variables <- list(
     palette = c("#001959", "#215F61", "#818231", "#F19D6B", "#F9CCF9"),
     is_wind_power = TRUE,
     wind_type = "offshore"
+  ),
+  "solar_power_csp" = list(
+    label = "Concentrated Solar Power (CF)",
+    unit = "CF",
+    palette = c("#FFFFFF", "#BEB897", "#A8815E", "#984D50", "#4C0000"),
+    is_solar = TRUE
+  ),
+  "solar_power_pv" = list(
+    label = "Solar Photovoltaic (CF)",
+    unit = "CF",
+    palette = c("#FFFFFF", "#BEB897", "#A8815E", "#984D50", "#4C0000"),
+    is_solar = TRUE
   )
 )
+
+get_solar_tech_name <- function(tech_code) {
+  techs <- c(
+    "40" = "Pre-dispatch, no storage",
+    "41" = "Dispatched, no storage",
+    "42" = "Pre-dispatch, 7-hours of storage",
+    "43" = "Dispatched, 7-hours of storage",
+    "60" = "Industrial rooftop",
+    "61" = "Residential rooftop",
+    "62" = "Utility-scale fixed",
+    "63" = "Utility-scale 1-axis tracking"
+  )
+  if (as.character(tech_code) %in% names(techs)) return(techs[[as.character(tech_code)]])
+  return(NULL)
+}
+
+enrich_var_meta <- function(var_meta, solar_tech) {
+  if (isTRUE(var_meta$is_solar) && !is.null(solar_tech) && solar_tech != "") {
+    tech_name <- get_solar_tech_name(solar_tech)
+    if (!is.null(tech_name)) {
+      var_meta$label <- paste0(var_meta$label, " — ", tech_name)
+    }
+  }
+  return(var_meta)
+}
 
 # Open Hive-partitioned PECD datasets as lazy Arrow connections.
 # No data is read into RAM at startup — Arrow only scans the folder structure.

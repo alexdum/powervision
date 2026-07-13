@@ -64,7 +64,16 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mod
                                 var_name, sp_level,
                                 year = NULL, year_start = NULL, year_end = NULL,
                                 target_region = NULL, scenario_val = NULL,
-                                select_cols = NULL) {
+                                select_cols = NULL, solar_tech = NULL) {
+
+  # If a solar variable is selected, append the technology number from the dropdown
+  if (!is.null(solar_tech) && solar_tech != "") {
+    if (var_name == "solar_power_csp") {
+      var_name <- paste0("solar_concentrated_", solar_tech)
+    } else if (var_name == "solar_power_pv") {
+      var_name <- paste0("solar_photovoltaic_", solar_tech)
+    }
+  }
 
   # Pick the correct dataset based on temporal mode.
   ds <- if (temporal_mode == "Annual") {
