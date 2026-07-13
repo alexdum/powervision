@@ -103,7 +103,9 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mod
   # "AL00"), but the GeoJSON zone_ids still include "_OFF". Strip it here so the
   # Arrow filter matches correctly.
   if (!is.null(target_region)) {
-    target_region <- sub("_OFF$", "", target_region)
+    if (sp_level == "szof") {
+      target_region <- sub("_OFF$", "", target_region)
+    }
     query <- query |> dplyr::filter(Region == !!target_region)
   }
 
