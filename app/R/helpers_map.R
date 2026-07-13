@@ -166,10 +166,11 @@ update_map_choropleth <- function(
   colors <- rep("#33415533", nrow(df_build))
 
   if (any(finite_mask)) {
-    min_val <- min(vals[finite_mask])
-    max_val <- max(vals[finite_mask])
+    # Tidy bounds
+    min_val <- floor(min(vals[finite_mask]))
+    max_val <- ceiling(max(vals[finite_mask]))
 
-    if (use_anomaly_map) {
+    if (use_anomaly_map || climate_variable == "2m_temperature") {
       abs_max <- max(abs(min_val), abs(max_val))
       if (abs_max < 0.1) abs_max <- 0.1
       if (is_precip && abs_max > 200) abs_max <- 200

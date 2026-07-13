@@ -241,7 +241,7 @@ climate_variables <- list(
   "2m_temperature" = list(
     label = "2m Temperature",
     unit = "°C",
-    palette = c("#FFFECB", "#ECAC54", "#D85F4D", "#663329", "#191900") # Lajolla (reversed)
+    palette = c("#0B194C", "#5285AD", "#ECE388", "#BD4F36", "#61001E") # Roma (reversed)
   ),
   "total_precipitation" = list(
     label = "Total Precipitation",

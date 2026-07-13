@@ -140,10 +140,39 @@ compute_legend_params <- function(var_meta, is_precip,
     # ── Absolute legend: sequential palette ──────────────────────────────────
     palette <- var_meta$palette
     display_unit <- var_meta$unit
-    min_val <- min(vals)
-    max_val <- max(vals)
-    label_min <- sprintf("%s %s", format(round(min_val, 1), big.mark = ","), display_unit)
-    label_max <- sprintf("%s %s", format(round(max_val, 1), big.mark = ","), display_unit)
+    
+    # Tidy bounds
+    true_min <- floor(min(vals))
+    true_max <- ceiling(max(vals))
+
+    if (var_meta$label == "2m Temperature") {
+      # Anchored symmetric bounds
+      abs_max <- max(abs(true_min), abs(true_max))
+      if (abs_max < 0.1) abs_max <- 0.1
+      sym_min <- -abs_max
+      sym_max <- abs_max
+      
+      # Generate the full 256 color lookup table
+      color_fn <- grDevices::colorRampPalette(palette)
+      n_colors <- 256
+      color_lut <- color_fn(n_colors)
+      
+      # Extract only the colors between true_min and true_max
+      start_idx <- round((true_min - sym_min) / (sym_max - sym_min) * (n_colors - 1)) + 1
+      end_idx   <- round((true_max - sym_min) / (sym_max - sym_min) * (n_colors - 1)) + 1
+      start_idx <- max(1, min(n_colors, start_idx))
+      end_idx   <- max(1, min(n_colors, end_idx))
+      
+      # Create a new CSS gradient slice
+      step_indices <- round(seq(start_idx, end_idx, length.out = min(10, max(2, end_idx - start_idx + 1))))
+      palette <- color_lut[step_indices]
+      
+      label_min <- sprintf("%s %s", format(true_min, big.mark = ","), display_unit)
+      label_max <- sprintf("%s %s", format(true_max, big.mark = ","), display_unit)
+    } else {
+      label_min <- sprintf("%s %s", format(true_min, big.mark = ","), display_unit)
+      label_max <- sprintf("%s %s", format(true_max, big.mark = ","), display_unit)
+    }
 
     # Build title — include SSP for projections, ERA5 for historical periods
     if (is_projection_data) {

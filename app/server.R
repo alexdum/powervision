@@ -1268,6 +1268,15 @@ server <- function(input, output, session) {
       return(div(class = "legend-no-data", "No data available for legend"))
     }
 
+    bounds <- current_boundaries()
+    if (!is.null(bounds)) {
+      active_zones <- bounds$zone_id
+      if (input$spatial_level == "SZOF") {
+        active_zones <- sub("_OFF$", "", active_zones)
+      }
+      clim_data <- clim_data %>% dplyr::filter(Region %in% active_zones)
+    }
+
     vals <- clim_data$Value[is.finite(clim_data$Value)]
     if (length(vals) == 0) {
       return(div(class = "legend-no-data", "No data available for legend"))
