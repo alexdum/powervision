@@ -336,7 +336,7 @@ build_region_timeseries_chart <- function(
           line = list(color = proj_line_color, width = 2.5, dash = 'dash'),
           text = ~ paste0(
             "<b>Projection Median</b>: ", round(median_val, 2), " ", hover_unit,
-            "<br><span style='font-size:10px; color:#94a3b8;'>Range: ", round(min_val, 2), " \u2013 ", round(max_val, 2), "</span>"
+            "<br><span style='font-size:10px; color:#94a3b8;'>Very Likely Range (5-95%): ", round(min_val, 2), " \u2013 ", round(max_val, 2), "</span>"
           ),
           hovertemplate = "%{text}<extra></extra>"
         )

@@ -1657,8 +1657,8 @@ server <- function(input, output, session) {
       dplyr::group_by(Year) |>
       dplyr::summarise(
         median_val = median(Value, na.rm = TRUE),
-        min_val    = min(Value, na.rm = TRUE),
-        max_val    = max(Value, na.rm = TRUE),
+        min_val    = quantile(Value, probs = 0.05, na.rm = TRUE, names = FALSE),
+        max_val    = quantile(Value, probs = 0.95, na.rm = TRUE, names = FALSE),
         .groups = "drop"
       ) |>
       dplyr::arrange(Year)
