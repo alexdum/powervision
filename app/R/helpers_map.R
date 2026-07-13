@@ -23,8 +23,19 @@ update_map_choropleth <- function(
   df_build <- sf::st_drop_geometry(geom_data)
   
   if (!is.null(clim_data) && nrow(clim_data) > 0) {
-    df_build <- df_build %>%
-      dplyr::left_join(clim_data, by = c("zone_id" = "Region"))
+    # SZOF normalization: The processing pipeline stripped the "_OFF" suffix from
+    # offshore study zone region IDs in the parquet data, but the SZOF GeoJSON
+    # still uses zone_ids with the "_OFF" suffix (e.g., "AL00_OFF", "FR00_OFF").
+    # We create a temporary join key that strips "_OFF" so the left_join matches.
+    if (spatial_level == "SZOF") {
+      df_build$join_key <- sub("_OFF$", "", df_build$zone_id)
+      df_build <- df_build %>%
+        dplyr::left_join(clim_data, by = c("join_key" = "Region"))
+      df_build$join_key <- NULL
+    } else {
+      df_build <- df_build %>%
+        dplyr::left_join(clim_data, by = c("zone_id" = "Region"))
+    }
   } else {
     df_build$Value <- NA_real_
   }
@@ -52,8 +63,16 @@ update_map_choropleth <- function(
 
   if (use_anomaly_map) {
     if (!is.null(baseline_df) && nrow(baseline_df) > 0) {
-      df_build <- df_build %>%
-        dplyr::left_join(baseline_df, by = c("zone_id" = "Region"))
+      # Same SZOF _OFF normalization as the clim_data join above
+      if (spatial_level == "SZOF") {
+        df_build$join_key <- sub("_OFF$", "", df_build$zone_id)
+        df_build <- df_build %>%
+          dplyr::left_join(baseline_df, by = c("join_key" = "Region"))
+        df_build$join_key <- NULL
+      } else {
+        df_build <- df_build %>%
+          dplyr::left_join(baseline_df, by = c("zone_id" = "Region"))
+      }
 
       if (is_precip) {
         df_build <- df_build %>%

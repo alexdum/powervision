@@ -97,8 +97,13 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mod
     query <- query |> dplyr::filter(Year >= !!year_start, Year <= !!year_end)
   }
 
-  # Optional: filter to a single region (used by chart and baseline reactives)
+  # Optional: filter to a single region (used by chart and baseline reactives).
+  # SZOF normalization: the processing pipeline stripped the "_OFF" suffix from
+  # offshore study zone region IDs in the parquet data (e.g., "AL00_OFF" became
+  # "AL00"), but the GeoJSON zone_ids still include "_OFF". Strip it here so the
+  # Arrow filter matches correctly.
   if (!is.null(target_region)) {
+    target_region <- sub("_OFF$", "", target_region)
     query <- query |> dplyr::filter(Region == !!target_region)
   }
 

@@ -889,7 +889,10 @@ server <- function(input, output, session) {
     clim_data <- isolate(if (isTRUE(view_mode == "period")) period_averaged_climate_data() else filtered_climate_data())
     
     if (!is.null(clim_data)) {
-      region_row <- clim_data[clim_data$Region == props$zone_id, ]
+      # SZOF normalization: parquet Region values have _OFF stripped, but GeoJSON
+      # zone_ids still include it. Use a normalized key for lookup.
+      lookup_id <- sub("_OFF$", "", props$zone_id)
+      region_row <- clim_data[clim_data$Region == lookup_id, ]
       if (nrow(region_row) == 0 || all(is.na(region_row$Value))) {
         message(sprintf("Ignoring click on %s: No data available", props$name))
         return()
