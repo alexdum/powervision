@@ -891,7 +891,10 @@ server <- function(input, output, session) {
     if (!is.null(clim_data)) {
       # SZOF normalization: parquet Region values have _OFF stripped, but GeoJSON
       # zone_ids still include it. Use a normalized key for lookup.
-      lookup_id <- sub("_OFF$", "", props$zone_id)
+      lookup_id <- props$zone_id
+      if (isolate(input$spatial_level) == "SZOF") {
+        lookup_id <- sub("_OFF$", "", lookup_id)
+      }
       region_row <- clim_data[clim_data$Region == lookup_id, ]
       if (nrow(region_row) == 0 || all(is.na(region_row$Value))) {
         message(sprintf("Ignoring click on %s: No data available", props$name))
