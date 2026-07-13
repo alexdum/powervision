@@ -251,7 +251,7 @@ climate_variables <- list(
   "surface_solar_radiation_downwards" = list(
     label = "Surface Solar Radiation",
     unit = "W/m²",
-    palette = c("#FFFECB", "#ECAC54", "#D85F4D", "#663329", "#191900") # Lajolla (reversed)
+    palette = c("#FFFFFF", "#BEB897", "#A8815E", "#984D50", "#4C0000") # Bilbao (reversed)
   ),
   "10m_wind_speed" = list(
     label = "10m Wind Speed",
