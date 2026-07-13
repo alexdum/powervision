@@ -168,8 +168,13 @@ update_map_choropleth <- function(
 
   if (any(finite_mask)) {
     # Tidy bounds
-    min_val <- floor(min(vals[finite_mask]))
-    max_val <- ceiling(max(vals[finite_mask]))
+    if (var_unit == "CF") {
+      min_val <- floor(min(vals[finite_mask]) * 100) / 100
+      max_val <- ceiling(max(vals[finite_mask]) * 100) / 100
+    } else {
+      min_val <- floor(min(vals[finite_mask]))
+      max_val <- ceiling(max(vals[finite_mask]))
+    }
 
     if (use_anomaly_map || climate_variable == "2m_temperature") {
       abs_max <- max(abs(min_val), abs(max_val))

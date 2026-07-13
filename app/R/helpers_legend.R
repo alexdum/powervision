@@ -142,8 +142,13 @@ compute_legend_params <- function(var_meta, is_precip,
     display_unit <- var_meta$unit
     
     # Tidy bounds
-    true_min <- floor(min(vals))
-    true_max <- ceiling(max(vals))
+    if (display_unit == "CF") {
+      true_min <- floor(min(vals) * 100) / 100
+      true_max <- ceiling(max(vals) * 100) / 100
+    } else {
+      true_min <- floor(min(vals))
+      true_max <- ceiling(max(vals))
+    }
 
     if (var_meta$label == "2m Temperature") {
       # Anchored symmetric bounds
