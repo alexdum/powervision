@@ -7,6 +7,14 @@
 
 $(document).ready(function () {
 
+  Shiny.addCustomMessageHandler('toggle_time_filters', function(should_hide) {
+    if (should_hide) {
+      $('#time-filters-card').hide();
+    } else {
+      $('#time-filters-card').show();
+    }
+  });
+
   // --------------------------------------------------------------------------
   // PMTiles Protocol Registration
   // --------------------------------------------------------------------------

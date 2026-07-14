@@ -187,6 +187,7 @@ ui <- page_fillable(
 
     # ── CARD 2: Time & Projections ─────────────────────────────────────────────
     div(
+      id = "time-filters-card",
       class = "filter-card",
       div(class = "filter-card-header", bsicons::bs_icon("clock-history"), " Time & Scenarios"),
 

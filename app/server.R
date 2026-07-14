@@ -59,6 +59,16 @@ server <- function(input, output, session) {
     # Provide a default value for tech mix since it might not be initialized immediately
     tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
 
+    # Static Categorical Interceptors
+    if (var_name == "wind_resource_group_onshore") {
+      df_out <- data.frame(Region = onshore_resource_groups$Region, Value = onshore_resource_groups$ResourceGroup, variable = var_name, SpatialLevel = sp_level)
+      return(if (sp_level != "p2on") df_out[0, ] else df_out)
+    }
+    if (var_name == "wind_resource_group_offshore") {
+      df_out <- data.frame(Region = offshore_resource_groups$Region, Value = offshore_resource_groups$ResourceGroup, variable = var_name, SpatialLevel = sp_level)
+      return(if (sp_level != "p2of") df_out[0, ] else df_out)
+    }
+
     # Determine whether to use projection data.
     # Standard variables: year > hist_max_year with projections ON.
     # Dynamic wind: use projection data for future years, but historical years
@@ -177,6 +187,31 @@ server <- function(input, output, session) {
   })
 
   # ----------------------------------------------------------------------------
+  # Toggle Time Filters for Categorical Variables
+  # ----------------------------------------------------------------------------
+  observeEvent(input$climate_variable, {
+    var_meta <- climate_variables[[input$climate_variable]]
+    is_cat <- isTRUE(var_meta$is_categorical)
+    session$sendCustomMessage("toggle_time_filters", is_cat)
+    
+    if (is_cat) {
+      clicked_region(NULL)
+      session$sendCustomMessage("toggle_stats_drawer", list(show = FALSE))
+      maplibre_proxy("map") %>% clear_layer("zone-highlight")
+      
+      if (map_loaded() && !is.null(current_boundaries())) {
+        bbox <- sf::st_bbox(current_boundaries())
+        maplibre_proxy("map") %>%
+          fit_bounds(
+            unname(c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]])),
+            animate = TRUE,
+            padding = list(top = 40, bottom = 40, left = 320, right = 40)
+          )
+      }
+    }
+  })
+
+  # ----------------------------------------------------------------------------
   # Wind Power UI Observers
   # ----------------------------------------------------------------------------
   observeEvent(input$climate_variable, {
@@ -236,20 +271,18 @@ server <- function(input, output, session) {
     
     choices_list <- list("Climate Variables" = base_choices)
     if (show_energy) {
-      energy_choices <- c(
-        "Wind Power Onshore" = "wind_power_onshore",
-        "Wind Power Offshore" = "wind_power_offshore"
-      )
-      
-      # Optional polish: Only show onshore for onshore zones, offshore for offshore zones
       if (sp == "P2ON") {
         energy_choices <- c(
           "Wind Power Onshore" = "wind_power_onshore",
           "Concentrated Solar Power" = "solar_power_csp",
-          "Solar Photovoltaic" = "solar_power_pv"
+          "Solar Photovoltaic" = "solar_power_pv",
+          "Wind Resource Group" = "wind_resource_group_onshore"
         )
       } else if (sp == "P2OF") {
-        energy_choices <- energy_choices["Wind Power Offshore"]
+        energy_choices <- c(
+          "Wind Power Offshore" = "wind_power_offshore",
+          "Wind Resource Group" = "wind_resource_group_offshore"
+        )
       }
       
       choices_list[["Energy Indicators"]] <- energy_choices
@@ -556,6 +589,16 @@ server <- function(input, output, session) {
     is_wind_power <- var_name %in% c("wind_power_onshore", "wind_power_offshore")
     wind_type <- if(var_name == "wind_power_onshore") "onshore" else "offshore"
     tech_mix_mode <- if (!is.null(input$technology_mix)) input$technology_mix else "dynamic"
+
+    # Static Categorical Interceptors
+    if (var_name == "wind_resource_group_onshore") {
+      df_out <- data.frame(Region = onshore_resource_groups$Region, Value = onshore_resource_groups$ResourceGroup, variable = var_name, SpatialLevel = sp_level)
+      return(if (sp_level != "p2on") df_out[0, ] else df_out)
+    }
+    if (var_name == "wind_resource_group_offshore") {
+      df_out <- data.frame(Region = offshore_resource_groups$Region, Value = offshore_resource_groups$ResourceGroup, variable = var_name, SpatialLevel = sp_level)
+      return(if (sp_level != "p2of") df_out[0, ] else df_out)
+    }
 
     # Decide whether this is a historical or projected period.
     # Dynamic wind now uses blended historical data (fixed_2025 tech via
@@ -900,6 +943,12 @@ server <- function(input, output, session) {
   # Polygon Click / Highlight Handler
   # ----------------------------------------------------------------------------
   observeEvent(input$map_feature_click, {
+    # Disable clicks for categorical maps (e.g. static wind resource groups)
+    var_meta <- climate_variables[[input$climate_variable]]
+    if (isTRUE(var_meta$is_categorical)) {
+      return()
+    }
+    
     click <- input$map_feature_click
     if (is.null(click)) return()
 
@@ -1268,6 +1317,7 @@ server <- function(input, output, session) {
     # Check display mode
     show_proj <- isTRUE(input$show_projections == "1")
     use_anomaly_legend <- (show_proj && isTRUE(input$display_mode == "anomaly"))
+    if (isTRUE(var_meta$is_categorical)) use_anomaly_legend <- FALSE
     use_period <- isTRUE(view_mode == "period")
     sel_year <- as.integer(input$selected_year)
 
@@ -1305,7 +1355,15 @@ server <- function(input, output, session) {
       clim_data <- clim_data %>% dplyr::filter(Region %in% active_zones)
     }
 
-    vals <- clim_data$Value[is.finite(clim_data$Value)]
+    var_meta <- climate_variables[[input$climate_variable]]
+    is_categorical <- isTRUE(var_meta$is_categorical)
+
+    if (is_categorical) {
+      vals <- clim_data$Value[!is.na(clim_data$Value) & clim_data$Value != ""]
+    } else {
+      vals <- clim_data$Value[is.finite(as.numeric(clim_data$Value))]
+    }
+
     if (length(vals) == 0) {
       return(div(class = "legend-no-data", "No data available for legend"))
     }

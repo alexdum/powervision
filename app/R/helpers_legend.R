@@ -70,6 +70,15 @@ compute_legend_params <- function(var_meta, is_precip,
                                   reference_period, clim_data,
                                   baseline_df) {
 
+  is_categorical <- isTRUE(var_meta$is_categorical)
+  if (is_categorical) {
+    return(list(
+      is_categorical = TRUE,
+      palette = var_meta$palette,
+      title = var_meta$label
+    ))
+  }
+
   # Convert numeric month to month name for the legend title
   display_temporal <- temporal_mode
   if (temporal_mode %in% as.character(1:12)) {
@@ -215,6 +224,35 @@ compute_legend_params <- function(var_meta, is_precip,
 #   renderUI output.
 # ------------------------------------------------------------------------------
 build_legend_ui <- function(legend_params) {
+
+  if (isTRUE(legend_params$is_categorical)) {
+    # Build a discrete flexbox legend
+    color_blocks <- lapply(names(legend_params$palette), function(level_name) {
+      color_hex <- legend_params$palette[[level_name]]
+      div(
+        style = "display: flex; align-items: center; margin-right: 12px; margin-top: 4px;",
+        div(style = sprintf("width: 12px; height: 12px; border-radius: 2px; background-color: %s; margin-right: 6px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);", color_hex)),
+        span(style = "font-size: 0.75rem; color: #94a3b8;", level_name)
+      )
+    })
+    
+    return(div(
+      class = "choropleth-legend-container",
+      div(
+        class = "legend-title",
+        style = "font-weight: 600; font-size: 0.8rem; color: #e2e8f0; margin-bottom: 2px; font-family: Inter, sans-serif;",
+        legend_params$title
+      ),
+      div(
+        style = "font-size: 0.7rem; color: #94a3b8; margin-bottom: 6px; font-family: Inter, sans-serif; line-height: 1.2;",
+        "Classification based on regional wind potential from the Copernicus PECD dataset."
+      ),
+      div(
+        style = "display: flex; flex-wrap: wrap;",
+        color_blocks
+      )
+    ))
+  }
 
   # Construct CSS linear gradient from the palette color vector
   gradient_css <- paste0(

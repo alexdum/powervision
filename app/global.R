@@ -283,6 +283,18 @@ climate_variables <- list(
     palette = c("#FFFFFF", "#BEB897", "#A8815E", "#984D50", "#4C0000"),
     is_solar = TRUE
   ),
+  "wind_resource_group_onshore" = list(
+    label = "Wind Resource Group",
+    unit = "",
+    palette = c("Very high"="#d73027", "High"="#fc8d59", "Medium"="#fee090", "Low"="#91bfdb"),
+    is_categorical = TRUE
+  ),
+  "wind_resource_group_offshore" = list(
+    label = "Wind Resource Group",
+    unit = "",
+    palette = c("Offshore_high"="#d73027", "Offshore_low"="#91bfdb"),
+    is_categorical = TRUE
+  ),
   "solar_power_pv" = list(
     label = "Solar Photovoltaic",
     unit = "CF",

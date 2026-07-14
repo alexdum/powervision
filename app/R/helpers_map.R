@@ -42,6 +42,7 @@ update_map_choropleth <- function(
   }
 
   use_anomaly_map <- (show_projections && isTRUE(display_mode == "anomaly"))
+  if (isTRUE(var_meta$is_categorical)) use_anomaly_map <- FALSE
   is_precip <- (climate_variable == "total_precipitation")
   sel_year <- as.integer(selected_year)
   use_period <- isTRUE(view_mode == "period")
@@ -145,7 +146,15 @@ update_map_choropleth <- function(
         )
       )
   } else {
-    df_build <- df_build %>%
+    is_categorical <- isTRUE(climate_variables[[climate_variable]]$is_categorical)
+
+    tooltip_value_html <- if (is_categorical) {
+      ifelse(is.na(df_build$Value) | df_build$Value == "", "No Data", as.character(df_build$Value))
+    } else {
+      ifelse(is.na(df_build$Value), "No Data", paste0(format(round(as.numeric(df_build$Value), 2), big.mark = ","), " ", var_unit))
+    }
+
+    df_build <- df_build |>
       dplyr::mutate(
         tooltip_html = paste0(
           "<div class='map-tooltip-content' style='font-family: Inter, sans-serif; padding: 4px;'>",
@@ -153,7 +162,7 @@ update_map_choropleth <- function(
           "  <div class='tooltip-metric' style='margin-top: 4px; font-size: 0.8rem;'>",
           "    <span class='tooltip-metric-label' style='color: #94a3b8;'>", var_label, ":</span> ",
           "    <span class='tooltip-metric-value' style='font-weight: 500; color: #38bdf8;'>",
-                 ifelse(is.na(Value), "No Data", paste0(format(round(Value, 2), big.mark = ","), " ", var_unit)),
+                 tooltip_value_html,
           "    </span>",
           "  </div>",
           wind_mix_html,
@@ -163,39 +172,52 @@ update_map_choropleth <- function(
   }
 
   vals <- df_build$Value
-  finite_mask <- is.finite(vals)
   colors <- rep("#33415533", nrow(df_build))
 
-  if (any(finite_mask)) {
-    # Tidy bounds
-    if (var_unit == "CF") {
-      min_val <- floor(min(vals[finite_mask]) * 100) / 100
-      max_val <- ceiling(max(vals[finite_mask]) * 100) / 100
-    } else {
-      min_val <- floor(min(vals[finite_mask]))
-      max_val <- ceiling(max(vals[finite_mask]))
+  is_categorical <- isTRUE(climate_variables[[climate_variable]]$is_categorical)
+
+  if (is_categorical) {
+    valid_mask <- !is.na(vals) & vals != ""
+    if (any(valid_mask)) {
+      cat_colors <- sapply(vals[valid_mask], function(v) {
+        if (v %in% names(palette)) palette[[v]] else "#33415533"
+      })
+      colors[valid_mask] <- cat_colors
     }
+  } else {
+    finite_mask <- is.finite(as.numeric(vals))
+    if (any(finite_mask)) {
+      numeric_vals <- as.numeric(vals[finite_mask])
+      # Tidy bounds
+      if (var_unit == "CF") {
+        min_val <- floor(min(numeric_vals) * 100) / 100
+        max_val <- ceiling(max(numeric_vals) * 100) / 100
+      } else {
+        min_val <- floor(min(numeric_vals))
+        max_val <- ceiling(max(numeric_vals))
+      }
 
-    if (use_anomaly_map || climate_variable == "2m_temperature") {
-      abs_max <- max(abs(min_val), abs(max_val))
-      if (abs_max < 0.1) abs_max <- 0.1
-      if (is_precip && abs_max > 200) abs_max <- 200
-      min_val <- -abs_max
-      max_val <- abs_max
+      if (use_anomaly_map || climate_variable == "2m_temperature") {
+        abs_max <- max(abs(min_val), abs(max_val))
+        if (abs_max < 0.1) abs_max <- 0.1
+        if (is_precip && abs_max > 200) abs_max <- 200
+        min_val <- -abs_max
+        max_val <- abs_max
+      }
+
+      if (min_val == max_val) {
+        min_val <- min_val - 0.1
+        max_val <- max_val + 0.1
+      }
+
+      color_fn <- grDevices::colorRampPalette(palette)
+      n_colors <- 256
+      color_lut <- color_fn(n_colors)
+
+      indices <- round((numeric_vals - min_val) / (max_val - min_val) * (n_colors - 1)) + 1
+      indices <- pmax(1, pmin(n_colors, indices))
+      colors[finite_mask] <- color_lut[indices]
     }
-
-    if (min_val == max_val) {
-      min_val <- min_val - 0.1
-      max_val <- max_val + 0.1
-    }
-
-    color_fn <- grDevices::colorRampPalette(palette)
-    n_colors <- 256
-    color_lut <- color_fn(n_colors)
-
-    indices <- round((vals[finite_mask] - min_val) / (max_val - min_val) * (n_colors - 1)) + 1
-    indices <- pmax(1, pmin(n_colors, indices))
-    colors[finite_mask] <- color_lut[indices]
   }
 
   tooltip_list <- as.list(df_build$tooltip_html)
