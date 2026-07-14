@@ -18,6 +18,9 @@ An interactive spatial dashboard produced during the ECMWF Code for Earth 2026 <
 ### Energy Variables
 * Wind Power Onshore (Capacity Factor)
 * Wind Power Offshore (Capacity Factor)
+* Concentrated Solar Power (Capacity Factor)
+* Solar Photovoltaic (Capacity Factor)
+* Wind Resource Group (Categorical Map)
 
 ### Basemap Layers
 * **OpenFreeMap Positron & Bright** — Vector tile basemaps optimized for clean spatial visualization, powered by OpenStreetMap data.
