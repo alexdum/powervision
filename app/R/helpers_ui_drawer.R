@@ -32,7 +32,7 @@ build_region_stats_cards <- function(region, spatial_level, show_projections, pr
 
   area_txt <- "N/A"
   if (!is.null(region$area_km2) && !is.na(region$area_km2)) {
-    area_txt <- sprintf("%s km\u00b2", format(round(as.numeric(region$area_km2)), big.mark = ","))
+    area_txt <- sprintf("%s km\u00b2", format(round(as.numeric(region$area_km2)), big.mark = ",", trim = TRUE))
   }
 
   parent_txt <- "\u2014"

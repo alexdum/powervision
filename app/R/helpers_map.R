@@ -137,7 +137,7 @@ update_map_choropleth <- function(
           "    <span class='tooltip-metric-value' style='font-weight: 500; color: #38bdf8;'>",
                  ifelse(is.na(Value), "No Data",
                         paste0(ifelse(Value >= 0, "+", ""),
-                               format(round(Value, 2), big.mark = ","), " ", display_unit)),
+                               format(round(Value, 2), big.mark = ",", trim = TRUE), " ", display_unit)),
           "    </span>",
           "  </div>",
           "  <div style='margin-top: 2px; font-size: 0.7rem; color: #64748b;'>vs ", ref_label, " baseline</div>",
@@ -151,7 +151,7 @@ update_map_choropleth <- function(
     tooltip_value_html <- if (is_categorical) {
       ifelse(is.na(df_build$Value) | df_build$Value == "", "No Data", as.character(df_build$Value))
     } else {
-      ifelse(is.na(df_build$Value), "No Data", paste0(format(round(as.numeric(df_build$Value), 2), big.mark = ","), " ", var_unit))
+      ifelse(is.na(df_build$Value), "No Data", paste0(format(round(as.numeric(df_build$Value), 2), big.mark = ",", trim = TRUE), " ", var_unit))
     }
 
     df_build <- df_build |>
@@ -214,7 +214,20 @@ update_map_choropleth <- function(
       n_colors <- 256
       color_lut <- color_fn(n_colors)
 
-      indices <- round((numeric_vals - min_val) / (max_val - min_val) * (n_colors - 1)) + 1
+      if (grepl("^hydropower_", climate_variable)) {
+        # Logarithmic breaks (pseudo-log) for highly skewed hydropower data
+        pseudo_log <- function(x) sign(x) * log10(abs(x) + 1)
+        log_vals <- pseudo_log(numeric_vals)
+        log_min <- pseudo_log(min_val)
+        log_max <- pseudo_log(max_val)
+        if (log_min == log_max) {
+          indices <- rep(1, length(log_vals))
+        } else {
+          indices <- round((log_vals - log_min) / (log_max - log_min) * (n_colors - 1)) + 1
+        }
+      } else {
+        indices <- round((numeric_vals - min_val) / (max_val - min_val) * (n_colors - 1)) + 1
+      }
       indices <- pmax(1, pmin(n_colors, indices))
       colors[finite_mask] <- color_lut[indices]
     }

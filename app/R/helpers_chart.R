@@ -214,7 +214,7 @@ build_region_timeseries_chart <- function(
         line = list(color = "#94a3b8", width = 2),
         marker = list(color = "#94a3b8", size = 4),
         hovertemplate = paste0(
-          "<b>Historical</b>: %{y:.2f} ",
+          "<b>Historical</b>: %{y:,.2f} ",
           hover_unit,
           "<extra></extra>"
         )
@@ -287,7 +287,7 @@ build_region_timeseries_chart <- function(
           line = list(color = nuance_colors[i], width = 1.5),
           opacity = 0.85,
           hovertemplate = paste0(
-            "<b>", mdl_tidy, "</b>: %{y:.2f} ",
+            "<b>", mdl_tidy, "</b>: %{y:,.2f} ",
             hover_unit, "<extra></extra>"
           )
         )
@@ -304,7 +304,7 @@ build_region_timeseries_chart <- function(
         line = list(color = "#ffffff", width = 3, dash = 'dash'),
         text = ~ paste0(
           "Year: ", Year,
-          "<br>Median projection: ", round(median_val, 2), " ", hover_unit
+          "<br>Median projection: ", format(round(median_val, 2), big.mark=",", trim=TRUE), " ", hover_unit
         ),
         hoverinfo = 'text'
       )
@@ -335,8 +335,8 @@ build_region_timeseries_chart <- function(
           name = 'Projection Median',
           line = list(color = proj_line_color, width = 2.5, dash = 'dash'),
           text = ~ paste0(
-            "<b>Projection Median</b>: ", round(median_val, 2), " ", hover_unit,
-            "<br><span style='font-size:10px; color:#94a3b8;'>Very Likely Range (5-95%): ", round(min_val, 2), " \u2013 ", round(max_val, 2), "</span>"
+            "<b>Projection Median</b>: ", format(round(median_val, 2), big.mark=",", trim=TRUE), " ", hover_unit,
+            "<br><span style='font-size:10px; color:#94a3b8;'>Very Likely Range (5-95%): ", format(round(min_val, 2), big.mark=",", trim=TRUE), " \u2013 ", format(round(max_val, 2), big.mark=",", trim=TRUE), "</span>"
           ),
           hovertemplate = "%{text}<extra></extra>"
         )
@@ -521,7 +521,8 @@ build_region_timeseries_chart <- function(
         tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
         gridcolor = "rgba(255, 255, 255, 0.05)",
         zeroline = FALSE,
-        showspikes = FALSE
+        showspikes = FALSE,
+        type = if (grepl("^hydropower_", var_name) && !use_anomaly) "log" else NULL
       ),
       shapes = chart_shapes,
       annotations = chart_annotations,
@@ -767,7 +768,8 @@ build_seasonality_plotly <- function(
         tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
         gridcolor = "rgba(255, 255, 255, 0.05)",
         zerolinecolor = "rgba(255, 255, 255, 0.1)",
-        showspikes = FALSE
+        showspikes = FALSE,
+        type = if (grepl("^hydropower_", var_name)) "log" else NULL
       ),
       boxmode = "group",
       plot_bgcolor = "rgba(0,0,0,0)",
@@ -1064,7 +1066,7 @@ build_all_scenarios_timeseries_chart <- function(
         line = list(color = "#94a3b8", width = 2),
         marker = list(color = "#94a3b8", size = 4),
         hovertemplate = paste0(
-          "<b>Historical</b>: %{y:.2f} ",
+          "<b>Historical</b>: %{y:,.2f} ",
           hover_unit,
           "<extra></extra>"
         )
@@ -1092,7 +1094,7 @@ build_all_scenarios_timeseries_chart <- function(
           name = s_label,
           line = list(color = s_color, width = 2),
           hovertemplate = paste0(
-            "<b>", s_label, "</b>: %{y:.2f} ",
+            "<b>", s_label, "</b>: %{y:,.2f} ",
             hover_unit,
             "<extra></extra>"
           )
@@ -1262,7 +1264,8 @@ build_all_scenarios_timeseries_chart <- function(
         ),
         tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
         gridcolor = "rgba(255, 255, 255, 0.05)",
-        zerolinecolor = "rgba(255, 255, 255, 0.2)"
+        zerolinecolor = "rgba(255, 255, 255, 0.2)",
+        type = if (grepl("^hydropower_", var_name) && !use_anomaly) "log" else NULL
       )
     ) %>%
     config(
@@ -1449,7 +1452,8 @@ build_all_scenarios_seasonality_chart <- function(
           font = list(family = "Inter, sans-serif", color = "#cbd5e1", size = 12)
         ),
         tickfont = list(family = "Inter, sans-serif", color = "#94a3b8"),
-        gridcolor = "rgba(255, 255, 255, 0.05)"
+        gridcolor = "rgba(255, 255, 255, 0.05)",
+        type = if (grepl("^hydropower_", var_name)) "log" else NULL
       ),
       hovermode = "closest"
     ) %>%

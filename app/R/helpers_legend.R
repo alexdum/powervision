@@ -130,8 +130,8 @@ compute_legend_params <- function(var_meta, is_precip,
     }
 
     # Signed min/max labels for the diverging scale
-    label_min <- sprintf("-%s %s", format(round(abs_max, 1), big.mark = ","), display_unit)
-    label_max <- sprintf("+%s %s", format(round(abs_max, 1), big.mark = ","), display_unit)
+    label_min <- sprintf("-%s %s", format(round(abs_max, 1), big.mark = ",", trim = TRUE), display_unit)
+    label_max <- sprintf("+%s %s", format(round(abs_max, 1), big.mark = ",", trim = TRUE), display_unit)
 
     # Build title with context — show SSP for projections, ERA5 for historical periods
     if (is_projection_data) {
@@ -181,11 +181,11 @@ compute_legend_params <- function(var_meta, is_precip,
       step_indices <- round(seq(start_idx, end_idx, length.out = min(10, max(2, end_idx - start_idx + 1))))
       palette <- color_lut[step_indices]
       
-      label_min <- sprintf("%s %s", format(true_min, big.mark = ","), display_unit)
-      label_max <- sprintf("%s %s", format(true_max, big.mark = ","), display_unit)
+      label_min <- sprintf("%s %s", format(true_min, big.mark = ",", trim = TRUE), display_unit)
+      label_max <- sprintf("%s %s", format(true_max, big.mark = ",", trim = TRUE), display_unit)
     } else {
-      label_min <- sprintf("%s %s", format(true_min, big.mark = ","), display_unit)
-      label_max <- sprintf("%s %s", format(true_max, big.mark = ","), display_unit)
+      label_min <- sprintf("%s %s", format(true_min, big.mark = ",", trim = TRUE), display_unit)
+      label_max <- sprintf("%s %s", format(true_max, big.mark = ",", trim = TRUE), display_unit)
     }
 
     # Build title — include SSP for projections, ERA5 for historical periods

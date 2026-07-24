@@ -8,19 +8,26 @@ An interactive spatial dashboard produced during the ECMWF Code for Earth 2026 <
 * **ENTSO-E** — Bidding zone boundaries (P2ON, P2OF)
 * **Study Zones** — Fine-grained onshore and offshore zones (SZON, SZOF)
 
-### Climate Variables
+### Climate Variables (Available across all map tiers)
 * 2m Air Temperature (TA)
-* Population-Weighted Temperature (TAW)
 * Total Precipitation (TP)
 * Surface Solar Radiation Downwards (GHI)
 * 10m & 100m Wind Speed (WS10, WS100)
 
-### Energy Variables
-* Wind Power Onshore (Capacity Factor)
-* Wind Power Offshore (Capacity Factor)
-* Concentrated Solar Power (Capacity Factor)
-* Solar Photovoltaic (Capacity Factor)
-* Wind Resource Group (Categorical Map)
+### Energy Variables (Available only at specific spatial tiers)
+* **P2ON (Pan-European Onshore)**
+  * Wind Power Onshore (Capacity Factor)
+  * Concentrated Solar Power (Capacity Factor)
+  * Solar Photovoltaic (Capacity Factor)
+  * Wind Resource Group (Categorical Map)
+* **P2OF (Pan-European Offshore)**
+  * Wind Power Offshore (Capacity Factor)
+  * Wind Resource Group (Categorical Map)
+* **SZON (Study Zones Onshore)**
+  * Hydropower Reservoir (Generation & Inflow)
+  * Hydropower Run-of-River (Generation & Inflow)
+  * Hydropower Run-of-River w/ Pondage (Generation & Inflow)
+  * Hydropower Open-Loop Pumped Storage (Inflow)
 
 ### Basemap Layers
 * **OpenFreeMap Positron & Bright** — Vector tile basemaps optimized for clean spatial visualization, powered by OpenStreetMap data.

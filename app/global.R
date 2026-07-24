@@ -300,6 +300,41 @@ climate_variables <- list(
     unit = "CF",
     palette = c("#FFFFFF", "#BEB897", "#A8815E", "#984D50", "#4C0000"),
     is_solar = TRUE
+  ),
+  "hydropower_run_of_river_generation" = list(
+    label = "Hydro: RoR Generation",
+    unit = "GWh",
+    palette = c("#2C194C", "#28578E", "#7D8EDC", "#CAC6F4", "#FFFFFF") # Devon
+  ),
+  "hydropower_reservoir_inflow" = list(
+    label = "Hydro: Reservoir Inflow",
+    unit = "GWh",
+    palette = c("#2C194C", "#28578E", "#7D8EDC", "#CAC6F4", "#FFFFFF")
+  ),
+  "hydropower_open_loop_pumped_storage_inflow" = list(
+    label = "Hydro: Pumped Storage Inflow",
+    unit = "GWh",
+    palette = c("#2C194C", "#28578E", "#7D8EDC", "#CAC6F4", "#FFFFFF")
+  ),
+  "hydropower_reservoir_generation" = list(
+    label = "Hydro: Reservoir Generation",
+    unit = "GWh",
+    palette = c("#2C194C", "#28578E", "#7D8EDC", "#CAC6F4", "#FFFFFF")
+  ),
+  "hydropower_run_of_river_inflow" = list(
+    label = "Hydro: RoR Inflow",
+    unit = "GWh",
+    palette = c("#2C194C", "#28578E", "#7D8EDC", "#CAC6F4", "#FFFFFF")
+  ),
+  "hydropower_run_of_river_with_pondage_generation" = list(
+    label = "Hydro: RoR w/ Pondage Gen",
+    unit = "GWh",
+    palette = c("#2C194C", "#28578E", "#7D8EDC", "#CAC6F4", "#FFFFFF")
+  ),
+  "hydropower_run_of_river_with_pondage_inflow" = list(
+    label = "Hydro: RoR w/ Pondage Inflow",
+    unit = "GWh",
+    palette = c("#2C194C", "#28578E", "#7D8EDC", "#CAC6F4", "#FFFFFF")
   )
 )
 

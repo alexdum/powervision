@@ -265,9 +265,9 @@ server <- function(input, output, session) {
     )
     
     # PECD v4.2 deprecates NUT0 aggregation for energy variables due to inaccuracy.
-    # We also hide them for SZON/SZOF because the raw parquet data maps those regions into P2ON/P2OF.
-    # Therefore, wind power is ONLY officially supported and shown on P2ON and P2OF.
-    show_energy <- (sp %in% c("P2ON", "P2OF"))
+    # We hide wind/solar for SZON/SZOF because the raw parquet data maps those regions into P2ON/P2OF.
+    # Hydropower, however, is explicitly mapped to SZON.
+    show_energy <- (sp %in% c("P2ON", "P2OF", "SZON"))
     
     choices_list <- list("Climate Variables" = base_choices)
     if (show_energy) {
@@ -282,6 +282,16 @@ server <- function(input, output, session) {
         energy_choices <- c(
           "Wind Power Offshore" = "wind_power_offshore",
           "Wind Resource Group" = "wind_resource_group_offshore"
+        )
+      } else if (sp == "SZON") {
+        energy_choices <- c(
+          "Hydro: RoR Generation" = "hydropower_run_of_river_generation",
+          "Hydro: Reservoir Inflow" = "hydropower_reservoir_inflow",
+          "Hydro: Pumped Storage Inflow" = "hydropower_open_loop_pumped_storage_inflow",
+          "Hydro: Reservoir Generation" = "hydropower_reservoir_generation",
+          "Hydro: RoR Inflow" = "hydropower_run_of_river_inflow",
+          "Hydro: RoR w/ Pondage Gen" = "hydropower_run_of_river_with_pondage_generation",
+          "Hydro: RoR w/ Pondage Inflow" = "hydropower_run_of_river_with_pondage_inflow"
         )
       }
       

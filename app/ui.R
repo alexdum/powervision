@@ -132,7 +132,14 @@ ui <- page_fillable(
         ),
         "Energy Indicators" = c(
           "Wind Power Onshore (CF)" = "wind_power_onshore",
-          "Wind Power Offshore (CF)" = "wind_power_offshore"
+          "Wind Power Offshore (CF)" = "wind_power_offshore",
+          "Hydro: RoR Generation" = "hydropower_run_of_river_generation",
+          "Hydro: Reservoir Inflow" = "hydropower_reservoir_inflow",
+          "Hydro: Pumped Storage Inflow" = "hydropower_open_loop_pumped_storage_inflow",
+          "Hydro: Reservoir Generation" = "hydropower_reservoir_generation",
+          "Hydro: RoR Inflow" = "hydropower_run_of_river_inflow",
+          "Hydro: RoR w/ Pondage Gen" = "hydropower_run_of_river_with_pondage_generation",
+          "Hydro: RoR w/ Pondage Inflow" = "hydropower_run_of_river_with_pondage_inflow"
         )
       ),
       selected = "2m_temperature"
