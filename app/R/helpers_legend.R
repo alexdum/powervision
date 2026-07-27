@@ -130,8 +130,9 @@ compute_legend_params <- function(var_meta, is_precip,
     }
 
     # Signed min/max labels for the diverging scale
-    label_min <- sprintf("-%s %s", format(round(abs_max, 1), big.mark = ",", trim = TRUE), display_unit)
-    label_max <- sprintf("+%s %s", format(round(abs_max, 1), big.mark = ",", trim = TRUE), display_unit)
+    decimals <- if (display_unit == "CF") 3 else 1
+    label_min <- sprintf("-%s %s", format(round(abs_max, decimals), nsmall = decimals, big.mark = ",", trim = TRUE), display_unit)
+    label_max <- sprintf("+%s %s", format(round(abs_max, decimals), nsmall = decimals, big.mark = ",", trim = TRUE), display_unit)
 
     # Build title with context — show SSP for projections, ERA5 for historical periods
     if (is_projection_data) {
@@ -152,8 +153,8 @@ compute_legend_params <- function(var_meta, is_precip,
     
     # Tidy bounds
     if (display_unit == "CF") {
-      true_min <- floor(min(vals) * 100) / 100
-      true_max <- ceiling(max(vals) * 100) / 100
+      true_min <- floor(min(vals) * 1000) / 1000
+      true_max <- ceiling(max(vals) * 1000) / 1000
     } else {
       true_min <- floor(min(vals))
       true_max <- ceiling(max(vals))
@@ -181,11 +182,13 @@ compute_legend_params <- function(var_meta, is_precip,
       step_indices <- round(seq(start_idx, end_idx, length.out = min(10, max(2, end_idx - start_idx + 1))))
       palette <- color_lut[step_indices]
       
-      label_min <- sprintf("%s %s", format(true_min, big.mark = ",", trim = TRUE), display_unit)
-      label_max <- sprintf("%s %s", format(true_max, big.mark = ",", trim = TRUE), display_unit)
+      decimals <- if (display_unit == "CF") 3 else 0
+      label_min <- sprintf("%s %s", format(round(true_min, decimals), nsmall = decimals, big.mark = ",", trim = TRUE), display_unit)
+      label_max <- sprintf("%s %s", format(round(true_max, decimals), nsmall = decimals, big.mark = ",", trim = TRUE), display_unit)
     } else {
-      label_min <- sprintf("%s %s", format(true_min, big.mark = ",", trim = TRUE), display_unit)
-      label_max <- sprintf("%s %s", format(true_max, big.mark = ",", trim = TRUE), display_unit)
+      decimals <- if (display_unit == "CF") 3 else 0
+      label_min <- sprintf("%s %s", format(round(true_min, decimals), nsmall = decimals, big.mark = ",", trim = TRUE), display_unit)
+      label_max <- sprintf("%s %s", format(round(true_max, decimals), nsmall = decimals, big.mark = ",", trim = TRUE), display_unit)
     }
 
     # Build title — include SSP for projections, ERA5 for historical periods

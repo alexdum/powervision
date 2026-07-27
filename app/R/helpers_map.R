@@ -125,6 +125,8 @@ update_map_choropleth <- function(
     time_title <- paste0(time_title, " (Proj)")
   }
 
+  decimals <- if (var_unit == "CF" && display_unit != "%") 3 else 2
+
   if (use_anomaly_map) {
     ref_label <- historical_period
     df_build <- df_build %>%
@@ -137,7 +139,7 @@ update_map_choropleth <- function(
           "    <span class='tooltip-metric-value' style='font-weight: 500; color: #38bdf8;'>",
                  ifelse(is.na(Value), "No Data",
                         paste0(ifelse(Value >= 0, "+", ""),
-                               format(round(Value, 2), big.mark = ",", trim = TRUE), " ", display_unit)),
+                               format(round(Value, decimals), nsmall = decimals, big.mark = ",", trim = TRUE), " ", display_unit)),
           "    </span>",
           "  </div>",
           "  <div style='margin-top: 2px; font-size: 0.7rem; color: #64748b;'>vs ", ref_label, " baseline</div>",
@@ -151,7 +153,7 @@ update_map_choropleth <- function(
     tooltip_value_html <- if (is_categorical) {
       ifelse(is.na(df_build$Value) | df_build$Value == "", "No Data", as.character(df_build$Value))
     } else {
-      ifelse(is.na(df_build$Value), "No Data", paste0(format(round(as.numeric(df_build$Value), 2), big.mark = ",", trim = TRUE), " ", var_unit))
+      ifelse(is.na(df_build$Value), "No Data", paste0(format(round(as.numeric(df_build$Value), decimals), nsmall = decimals, big.mark = ",", trim = TRUE), " ", var_unit))
     }
 
     df_build <- df_build |>
@@ -190,8 +192,8 @@ update_map_choropleth <- function(
       numeric_vals <- as.numeric(vals[finite_mask])
       # Tidy bounds
       if (var_unit == "CF") {
-        min_val <- floor(min(numeric_vals) * 100) / 100
-        max_val <- ceiling(max(numeric_vals) * 100) / 100
+        min_val <- floor(min(numeric_vals) * 1000) / 1000
+        max_val <- ceiling(max(numeric_vals) * 1000) / 1000
       } else {
         min_val <- floor(min(numeric_vals))
         max_val <- ceiling(max(numeric_vals))
