@@ -327,11 +327,19 @@ server <- function(input, output, session) {
   })
 
   # Toggle Solar Anomaly controls based on variable type and display mode
+  # The Solar Anomaly Type control (absolute vs relative %) only makes sense
+  # when ALL THREE conditions are met:
+  #   1. A solar variable is selected (is_solar)
+  #   2. Display mode is set to "anomaly" (is_anomaly)
+  #   3. Climate projections are toggled ON (show_proj)
+  # If projections are off, the display_mode Shiny input may still be stuck
+  # at "anomaly" from a previous state, so we must guard against that here.
   observe({
-    req(input$climate_variable, input$display_mode)
+    req(input$climate_variable, input$display_mode, !is.null(input$show_projections))
     is_solar <- isTRUE(climate_variables[[input$climate_variable]]$is_solar)
     is_anomaly <- isTRUE(input$display_mode == "anomaly")
-    session$sendCustomMessage("toggle_solar_anomaly_controls", list(show = is_solar && is_anomaly))
+    show_proj <- isTRUE(input$show_projections == "1")
+    session$sendCustomMessage("toggle_solar_anomaly_controls", list(show = is_solar && is_anomaly && show_proj))
   })
 
   # Reactive flag to centralize relative anomaly logic

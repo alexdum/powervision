@@ -153,8 +153,7 @@ ui <- page_fillable(
     # ── Section: Technology Mix (Only visible for Wind Power) ──────────────────
     div(
       id = "tech-mix-wrapper",
-      class = "tech-mix-wrapper",
-      style = "display: none;", # Hidden by default, toggled via JS
+      class = "tech-mix-wrapper collapsed-control",
       selectInput(
         inputId = "technology_mix",
         label = span(
@@ -180,8 +179,7 @@ ui <- page_fillable(
     # ── Section: Solar Technology (Only visible for Solar variables) ────────────────
     div(
       id = "solar-tech-wrapper",
-      class = "solar-tech-wrapper",
-      style = "display: none;", # Hidden by default, toggled via JS
+      class = "solar-tech-wrapper collapsed-control",
       selectInput(
         inputId = "solar_technology",
         label = span(
@@ -196,8 +194,7 @@ ui <- page_fillable(
       ),
       div(
         id = "solar-anomaly-type-wrapper",
-        class = "form-group shiny-input-container mt-3",
-        style = "display: none;",
+        class = "form-group shiny-input-container mt-3 collapsed-control",
         tags$label(
           class = "control-label",
           "Solar Anomaly Type",

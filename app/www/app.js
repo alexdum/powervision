@@ -9,9 +9,9 @@ $(document).ready(function () {
 
   Shiny.addCustomMessageHandler('toggle_time_filters', function(should_hide) {
     if (should_hide) {
-      $('#time-filters-card').hide();
+      $('#time-filters-card').addClass('collapsed-control');
     } else {
-      $('#time-filters-card').show();
+      $('#time-filters-card').removeClass('collapsed-control');
     }
   });
 
@@ -587,6 +587,11 @@ $(document).ready(function () {
       $container.removeClass('toggle-right');
       $('#scenario-selector-wrapper').removeClass('is-visible');
       $('#display-mode-wrapper').removeClass('is-visible');
+      // Defensively hide the Solar Anomaly Type dropdown — anomalies are a
+      // projection-only feature, so this control must never be visible when
+      // projections are off. The server-side observer will also catch this,
+      // but hiding immediately here prevents a brief flash of stale UI.
+      $('#solar-anomaly-type-wrapper').addClass('collapsed-control');
     }
 
     // Push the value into Shiny's input binding
@@ -594,11 +599,11 @@ $(document).ready(function () {
 
     // Dynamically show/hide the All Scenarios tabs
     if (String(newValue) === '1') {
-      $('a[data-value="all_trends"]').parent().show();
-      $('a[data-value="all_seasonality"]').parent().show();
+      $('a[data-value="all_trends"]').parent().removeClass('collapsed-control');
+      $('a[data-value="all_seasonality"]').parent().removeClass('collapsed-control');
     } else {
-      $('a[data-value="all_trends"]').parent().hide();
-      $('a[data-value="all_seasonality"]').parent().hide();
+      $('a[data-value="all_trends"]').parent().addClass('collapsed-control');
+      $('a[data-value="all_seasonality"]').parent().addClass('collapsed-control');
       // Auto-switch to trends tab if an all_scenarios tab was active
       if ($('a[data-value="all_trends"]').parent().hasClass('active') || 
           $('a[data-value="all_seasonality"]').parent().hasClass('active')) {
@@ -610,8 +615,8 @@ $(document).ready(function () {
   // Ensure tabs are hidden on initial load if projections are off
   $(document).on('shiny:connected', function(event) {
     if ($('#show_projections').val() === '0') {
-      $('a[data-value="all_trends"]').parent().hide();
-      $('a[data-value="all_seasonality"]').parent().hide();
+      $('a[data-value="all_trends"]').parent().addClass('collapsed-control');
+      $('a[data-value="all_seasonality"]').parent().addClass('collapsed-control');
     }
   });
 
@@ -695,11 +700,11 @@ $(document).ready(function () {
     if (newValue === 'period') {
       $container.addClass('toggle-right');
       // Hide the year slider — it's replaced by the period dropdown
-      $('#selected_year').closest('.form-group').slideUp(200);
+      $('#selected_year').closest('.form-group').addClass('collapsed-control');
     } else {
       $container.removeClass('toggle-right');
       // Show the year slider again
-      $('#selected_year').closest('.form-group').slideDown(200);
+      $('#selected_year').closest('.form-group').removeClass('collapsed-control');
     }
 
     // Push the value into Shiny's input binding
@@ -729,7 +734,8 @@ $(document).ready(function () {
       $('#scenario-selector-wrapper').removeClass('is-visible');
       $('#projection-style-wrapper').removeClass('is-visible');
       $('#display-mode-wrapper').removeClass('is-visible');
-      $('#projection-period-wrapper').hide();
+      $('#projection-period-wrapper').addClass('collapsed-control');
+      $('#solar-anomaly-type-wrapper').addClass('collapsed-control');
       
       // Reset display mode to absolute (default)
       var $modeToggle = $('#display-mode-toggle');
@@ -747,7 +753,7 @@ $(document).ready(function () {
       Shiny.setInputValue('projection_view_mode', 'year');
       
       // Restore year slider if it was hidden by period mode
-      $('#selected_year').closest('.form-group').slideDown(200);
+      $('#selected_year').closest('.form-group').removeClass('collapsed-control');
     }
   });
 
@@ -756,9 +762,9 @@ $(document).ready(function () {
   // --------------------------------------------------------------------------
   Shiny.addCustomMessageHandler('toggle_tech_mix_controls', function (msg) {
     if (msg.show) {
-      $('#tech-mix-wrapper').slideDown(200);
+      $('#tech-mix-wrapper').removeClass('collapsed-control');
     } else {
-      $('#tech-mix-wrapper').slideUp(200);
+      $('#tech-mix-wrapper').addClass('collapsed-control');
     }
   });
 
@@ -767,17 +773,17 @@ $(document).ready(function () {
   // --------------------------------------------------------------------------
   Shiny.addCustomMessageHandler('toggle_solar_tech_controls', function (msg) {
     if (msg.show) {
-      $('#solar-tech-wrapper').slideDown(200);
+      $('#solar-tech-wrapper').removeClass('collapsed-control');
     } else {
-      $('#solar-tech-wrapper').slideUp(200);
+      $('#solar-tech-wrapper').addClass('collapsed-control');
     }
   });
 
   Shiny.addCustomMessageHandler('toggle_solar_anomaly_controls', function (msg) {
     if (msg.show) {
-      $('#solar-anomaly-type-wrapper').slideDown(200);
+      $('#solar-anomaly-type-wrapper').removeClass('collapsed-control');
     } else {
-      $('#solar-anomaly-type-wrapper').slideUp(200);
+      $('#solar-anomaly-type-wrapper').addClass('collapsed-control');
     }
   });
 
@@ -792,6 +798,8 @@ $(document).ready(function () {
     $viewToggle.removeClass('toggle-right');
     $('#projection_view_mode').val('year').trigger('change');
     Shiny.setInputValue('projection_view_mode', 'year');
+    $('#selected_year').closest('.form-group').removeClass('collapsed-control');
+    $('#projection-period-wrapper').addClass('collapsed-control');
     
     // Reset projection show to '0'
     var $projToggle = $('#projection-show-toggle');
@@ -802,9 +810,11 @@ $(document).ready(function () {
     Shiny.setInputValue('show_projections', '0');
     $('#scenario-selector-wrapper').removeClass('is-visible');
     $('#display-mode-wrapper').removeClass('is-visible');
+    $('#projection-style-wrapper').removeClass('is-visible');
+    $('#solar-anomaly-type-wrapper').addClass('collapsed-control');
     
-    $('a[data-value="all_trends"]').parent().hide();
-    $('a[data-value="all_seasonality"]').parent().hide();
+    $('a[data-value="all_trends"]').parent().addClass('collapsed-control');
+    $('a[data-value="all_seasonality"]').parent().addClass('collapsed-control');
     if ($('a[data-value="all_trends"]').parent().hasClass('active') || 
         $('a[data-value="all_seasonality"]').parent().hasClass('active')) {
       $('a[data-value="trends"]').tab('show');
