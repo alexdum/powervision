@@ -181,7 +181,7 @@ server <- function(input, output, session) {
         fit_bounds(
           c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
           animate = TRUE,
-          padding = list(top = 40, bottom = 40, left = 320, right = 40)
+          padding = list(top = 40, bottom = 40, left = if (isTRUE(input$is_mobile)) 16 else 320, right = 40)
         )
     }
   })
@@ -205,7 +205,7 @@ server <- function(input, output, session) {
           fit_bounds(
             unname(c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]])),
             animate = TRUE,
-            padding = list(top = 40, bottom = 40, left = 320, right = 40)
+            padding = list(top = 40, bottom = 40, left = if (isTRUE(input$is_mobile)) 16 else 320, right = 40)
           )
       }
     }
@@ -885,7 +885,7 @@ server <- function(input, output, session) {
         animate = TRUE,
         # Padding offsets for UI panels: 320px left padding keeps full tier map center-right,
         # away from control-panel overlay. top/bottom/right have minor breathing room.
-        padding = list(top = 40, bottom = 40, left = 320, right = 40)
+        padding = list(top = 40, bottom = 40, left = if (isTRUE(input$is_mobile)) 16 else 320, right = 40)
       )
   }, ignoreInit = TRUE)
 
@@ -961,7 +961,7 @@ server <- function(input, output, session) {
           fit_bounds(
             c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
             animate = TRUE,
-            padding = list(top = 80, bottom = 220, left = 340, right = 80),
+            padding = list(top = 80, bottom = 220, left = if (isTRUE(input$is_mobile)) 40 else 340, right = 80),
             maxZoom = 7.0
           )
         return()
@@ -974,7 +974,7 @@ server <- function(input, output, session) {
       fit_bounds(
         c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
         animate = TRUE,
-        padding = list(top = 40, bottom = 40, left = 320, right = 40)
+        padding = list(top = 40, bottom = 40, left = if (isTRUE(input$is_mobile)) 16 else 320, right = 40)
       )
   })
 
@@ -1058,7 +1058,7 @@ server <- function(input, output, session) {
         # Bounding-box center — guaranteed to work for any geometry
         bbox <- sf::st_bbox(highlight_geom)
         centroid_lon <- (bbox[["xmin"]] + bbox[["xmax"]]) / 2
-        centroid_lat <- (bbox[["ymin"]] + bbox[["ymax"]]) / 2
+        centroid_lat <- (bbox[["ymin"]] + bbox[["ymax"]] ) / 2
         message(sprintf("  [WARN] Using bbox center for %s", props$name))
       }
 
@@ -1101,7 +1101,7 @@ server <- function(input, output, session) {
           # dynamic bottom padding pushes the polygon into the upper viewport,
           # keeping it visible above the stats drawer. left = 340 clears
           # the control panel. maxZoom = 7 keeps the view "one level out" for small regions.
-          padding = list(top = 60, bottom = bottom_pad, left = 340, right = 60),
+          padding = list(top = 60, bottom = bottom_pad, left = if (isTRUE(input$is_mobile)) 40 else 340, right = 60),
           maxZoom = 7.0
         )
     }
@@ -1128,7 +1128,7 @@ server <- function(input, output, session) {
       fit_bounds(
         c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
         animate = TRUE,
-        padding = list(top = 60, bottom = input$drawer_state$bottom_padding, left = 340, right = 60),
+        padding = list(top = 60, bottom = input$drawer_state$bottom_padding, left = if (isTRUE(input$is_mobile)) 40 else 340, right = 60),
         maxZoom = 7.0
       )
   }, ignoreInit = TRUE)
@@ -1257,7 +1257,7 @@ server <- function(input, output, session) {
             c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
             animate = TRUE,
             # Maintain same padded offset zoom when homing on a selected polygon
-            padding = list(top = 80, bottom = 220, left = 340, right = 80),
+            padding = list(top = 80, bottom = 220, left = if (isTRUE(input$is_mobile)) 40 else 340, right = 80),
             maxZoom = 7.0
           )
         return()
@@ -1272,7 +1272,7 @@ server <- function(input, output, session) {
         c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
         animate = TRUE,
         # Default Europe zoom respects control panel overlay
-        padding = list(top = 40, bottom = 40, left = 320, right = 40)
+        padding = list(top = 40, bottom = 40, left = if (isTRUE(input$is_mobile)) 16 else 320, right = 40)
       )
   })
 
@@ -1297,7 +1297,7 @@ server <- function(input, output, session) {
         c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
         animate = TRUE,
         # Default Europe/tier zoom respects left control panel overlay
-        padding = list(top = 40, bottom = 40, left = 320, right = 40)
+        padding = list(top = 40, bottom = 40, left = if (isTRUE(input$is_mobile)) 16 else 320, right = 40)
       )
   })
 
@@ -1936,7 +1936,7 @@ server <- function(input, output, session) {
     # Build the complete time-series chart using the helper function.
     # This handles anomaly transformation, title generation, Plotly traces,
     # projection overlay, annotation shapes, and dark-theme layout.
-    build_region_timeseries_chart(
+    p <- build_region_timeseries_chart(
       df_region        = df_region,
       var_name         = var_name,
       var_meta         = var_meta,
@@ -1954,6 +1954,9 @@ server <- function(input, output, session) {
       reference_period = input$historical_period,
       hide_historical_line = hide_hist
     )
+    
+    if (isTRUE(input$is_mobile)) p <- p |> layout(showlegend = FALSE)
+    p
 
     }, error = function(e) {
       message(sprintf("  *** Chart render ERROR: %s", conditionMessage(e)))
@@ -2008,7 +2011,7 @@ server <- function(input, output, session) {
       }
     }
 
-    build_all_scenarios_timeseries_chart(
+    p <- build_all_scenarios_timeseries_chart(
       df_region = df_region,
       var_name = var_name,
       var_meta = var_meta,
@@ -2021,6 +2024,9 @@ server <- function(input, output, session) {
       display_mode = input$display_mode,
       is_relative_anomaly = is_relative_anomaly_flag()
     )
+    
+    if (isTRUE(input$is_mobile)) p <- p |> layout(showlegend = FALSE)
+    p
   })
 
   observeEvent(input$climate_variable, {
@@ -2160,7 +2166,7 @@ server <- function(input, output, session) {
       df_proj <- projection_seasonality_data()
     }
 
-    build_seasonality_plotly(
+    p <- build_seasonality_plotly(
       df_hist = df_hist,
       df_proj = df_proj,
       var_name = var_name,
@@ -2171,6 +2177,9 @@ server <- function(input, output, session) {
       accent_color = tail(var_meta$palette, 1),
       hist_note = tech_note
     )
+    
+    if (isTRUE(input$is_mobile)) p <- p |> layout(showlegend = FALSE)
+    p
   })
 
   # -------------------------------------------------------------------------
@@ -2217,7 +2226,7 @@ server <- function(input, output, session) {
       df_proj <- all_scenarios_projection_seasonality_data()
     }
 
-    build_all_scenarios_seasonality_chart(
+    p <- build_all_scenarios_seasonality_chart(
       df_hist = df_hist,
       df_proj = df_proj,
       var_name = var_name,
@@ -2227,6 +2236,9 @@ server <- function(input, output, session) {
       reference_period = ref_period,
       target_period = target_period
     )
+    
+    if (isTRUE(input$is_mobile)) p <- p |> layout(showlegend = FALSE)
+    p
   })
 
 

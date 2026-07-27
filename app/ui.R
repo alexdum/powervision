@@ -61,10 +61,26 @@ ui <- page_fillable(
     tags$span("Processing data...")
   ),
 
-  # ── LEFT: Glassmorphism Control Panel ────────────────────────────────────────
-  tags$aside(
-    id = "control-panel",
-    class = "shiny-absolute-panel",
+  # ── Mobile Menu Trigger ──────────────────────────────────────────────────────
+  tags$button(
+    id = "mobile-menu-btn",
+    class = "mobile-menu-btn btn-map-ctrl",
+    `aria-expanded` = "false",
+    `aria-controls` = "drawer",
+    type = "button",
+    bsicons::bs_icon("list", size = "1.5rem"),
+    tags$span(class = "sr-only", "Open menu")
+  ),
+
+  # ── LEFT: Glassmorphism Control Panel (Navigation Drawer) ────────────────────
+  tags$div(
+    id = "drawer",
+    popover = "manual",
+    tags$div(
+      id = "drawer-scroller",
+      tags$aside(
+        id = "control-panel",
+        class = "shiny-absolute-panel",
     `aria-label` = "Map Configuration Panel",
 
     # ── Pinned Brand Header ────────────────────────────────────────────────────
@@ -572,6 +588,9 @@ ui <- page_fillable(
         tags$br(),
         "Eurostat GISCO NUTS 2021"
       )
+    )
+  ),
+      tags$div(class = "drawer-spacer")
     )
   ),
 

@@ -968,25 +968,90 @@ html.shiny-busy #global-shiny-loader {
     /* On mobile the left panel is not visible, so the drawer goes full-width again */
     left: 0;
     border-radius: 0;
-    height: 60vh;
-    max-height: 60vh;
-    padding: 14px 18px;
+    height: 70vh;
+    max-height: 70vh;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Hide the expand button on mobile so it stays exactly 70vh and doesn't eclipse the map controls */
+  #drawer-expand-btn {
+    display: none !important;
   }
 
   #stats-drawer .drawer-body-layout {
     flex-direction: column;
-    gap: 16px;
-    overflow-y: auto;
+    gap: 8px;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+  }
+
+  #stats-drawer .drawer-chart-column {
+    order: -1;
+    flex: 1;
+    height: auto;
+    min-height: 0;
   }
 
   #stats-drawer .drawer-sidebar-column {
     width: 100%;
+    flex-shrink: 0;
     overflow-y: visible;
   }
 
-  #stats-drawer .drawer-chart-column {
-    height: 280px;
-    flex-shrink: 0;
+  /* Make the metric grid a horizontal scrollable row */
+  #stats-drawer .metric-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    gap: 8px;
+    padding-bottom: 4px;
+  }
+
+  .metric-card {
+    flex: 0 0 130px; /* Smaller width */
+    padding: 6px 10px; /* Tighter padding */
+    scroll-snap-align: start;
+  }
+  
+  .metric-card .metric-label {
+    font-size: 0.55em;
+    margin-bottom: 2px;
+  }
+  
+  .metric-card .metric-value {
+    font-size: 0.8em;
+  }
+
+  /* Prevent tabs from wrapping and stacking vertically on mobile */
+  #stats-drawer .nav-pills {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    width: 100%;
+    margin-bottom: 6px;
+  }
+
+  #stats-drawer .nav-pills::-webkit-scrollbar {
+    display: none; /* Hide scrollbar for a cleaner look */
+  }
+
+  #stats-drawer .nav-pills > li {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  #stats-drawer .nav-pills > li > a,
+  #stats-drawer .nav-pills .nav-link {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    white-space: nowrap;
   }
 }
 
@@ -1852,3 +1917,151 @@ li.collapsed-control {
 *::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+/* ==========================================================================
+   Navigation Drawer (Mobile < 768px) & Desktop Fallback
+   ========================================================================== */
+
+/* Desktop (>= 768px): Reset drawer markup so it doesn't break absolute panels */
+@media (min-width: 768px) {
+  #mobile-menu-btn {
+    display: none !important;
+  }
+  
+  #drawer-scroller {
+    display: contents !important;
+  }
+  
+  #drawer {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+  
+  #drawer::backdrop {
+    display: none !important;
+  }
+  
+  #drawer .drawer-spacer {
+    display: none !important;
+  }
+}
+
+/* Mobile (< 768px): Enable navigation drawer pattern */
+@media (max-width: 767px) {
+  #mobile-menu-btn {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    z-index: 999;
+  }
+  
+  #control-panel {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    width: 300px !important; /* Slightly wider on mobile for touch targets */
+    height: 100%;
+    max-height: none !important;
+    border-radius: 0;
+    border-left: none;
+    border-top: none;
+    border-bottom: none;
+  }
+  
+  @supports (animation-timeline: scroll()) {
+    @property --drawer-backdrop {
+      syntax: '<number>';
+      inherits: true;
+      initial-value: 0;
+    }
+
+    @keyframes drawer-backdrop-fade {
+      from { --drawer-backdrop: 1; }
+      to { --drawer-backdrop: 0; }
+    }
+  }
+  
+  #drawer {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    inset: 0;
+    max-width: none;
+    max-height: none;
+    width: auto;
+    height: auto;
+    pointer-events: none; /* Passes clicks through except for children */
+    
+    timeline-scope: --drawer-fade;
+    animation: drawer-backdrop-fade linear;
+    animation-timeline: --drawer-fade;
+  }
+  
+  /* CRITICAL: Fix for native popover display bug when using flex/grid */
+  #drawer:not(:popover-open) {
+    display: none !important;
+  }
+
+  #drawer::backdrop {
+    background: rgba(0, 0, 0, calc(0.6 * var(--drawer-backdrop, 0)));
+    backdrop-filter: blur(calc(4px * var(--drawer-backdrop, 0)));
+    -webkit-backdrop-filter: blur(calc(4px * var(--drawer-backdrop, 0)));
+    pointer-events: none; /* Let clicks pass through backdrop to #drawer-scroller */
+  }
+
+  #drawer-scroller {
+    position: relative;
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-initial-target: nearest;
+    scrollbar-width: none; /* Hide scrollbar */
+    pointer-events: auto; /* Catch scroll events and clicks */
+    
+    scroll-timeline: --drawer-fade x;
+  }
+  #drawer-scroller::-webkit-scrollbar {
+    display: none;
+  }
+
+  #control-panel {
+    scroll-snap-align: start;
+    width: 300px;
+    height: 100vh;
+    flex-shrink: 0;
+  }
+
+  .drawer-spacer {
+    width: 100vw;
+    height: 1px;
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
+
+  /* Move the right map controls to the bottom on mobile */
+  #right-btn-col {
+    top: auto !important;
+    bottom: 32px !important;
+    right: 50% !important;
+    transform: translateX(50%) !important;
+    flex-direction: row !important;
+    transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  /* Dodge the stats drawer when it opens on mobile */
+  body:has(#stats-drawer.is-visible) #right-btn-col {
+    bottom: calc(70vh + 16px) !important;
+  }
+}
+

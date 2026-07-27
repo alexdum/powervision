@@ -237,9 +237,14 @@ $(document).ready(function () {
     var isVisible = drawer && drawer.classList.contains('is-visible');
     
     var vh = window.innerHeight;
-    var bottomPadding = 60;
+    var bottomPadding = window.innerWidth < 768 ? 90 : 60;
     if (isVisible) {
-       bottomPadding = isExpanded ? (vh * 0.65) + 20 : (vh * 0.40) + 20;
+       if (window.innerWidth < 768) {
+         // Drawer takes 70vh. Add 80px to clear the drawer AND the map controllers sitting above it.
+         bottomPadding = (vh * 0.70) + 80;
+       } else {
+         bottomPadding = isExpanded ? (vh * 0.65) + 20 : (vh * 0.40) + 20;
+       }
     }
     
     if (bottomPadding > vh - 150) {
@@ -840,5 +845,80 @@ $(document).ready(function () {
     $('.sidebar-scroll-area').animate({ scrollTop: 0 }, 300);
   });
 
-});
+  // --------------------------------------------------------------------------
+  // Navigation Drawer for Mobile
+  // --------------------------------------------------------------------------
+  const openBtn = document.getElementById('mobile-menu-btn');
+  const drawer = document.getElementById('drawer');
+  const scroller = document.getElementById('drawer-scroller');
+  const sheet = document.getElementById('control-panel');
 
+  if (openBtn && drawer && scroller && sheet) {
+    async function openDrawer() {
+      drawer.showPopover();
+      
+      if (!CSS.supports('scroll-initial-target', 'nearest')) {
+        scroller.scrollTo({left: scroller.offsetWidth, behavior: 'instant'});
+        await new Promise((r) =>
+          requestAnimationFrame(() => requestAnimationFrame(r))
+        );
+      }
+      scroller.scrollTo({left: 0, behavior: 'auto'});
+    }
+
+    function closeDrawer() {
+      scroller.scrollTo({left: scroller.offsetWidth, behavior: 'auto'});
+    }
+
+    function onDrawerOpened() {
+      openBtn.setAttribute('aria-expanded', 'true');
+      sheet.focus();
+    }
+
+    function onDrawerClosed() {
+      drawer.hidePopover();
+      openBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    const visibleThreshold = 1 / window.innerWidth;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries.at(-1);
+        if (entry.intersectionRatio < visibleThreshold) onDrawerClosed();
+        if (entry.intersectionRatio === 1) onDrawerOpened();
+      },
+      {root: drawer, threshold: [visibleThreshold, 1]}
+    );
+    observer.observe(sheet);
+
+    openBtn.addEventListener('click', openDrawer);
+
+    drawer.addEventListener('click', (event) => {
+      if (!sheet.contains(event.target)) closeDrawer();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      // For some browsers, checking :popover-open or falling back
+      var isOpen = drawer.matches && drawer.matches(':popover-open') || drawer.classList.contains('\\:popover-open');
+      if (event.key === 'Escape') {
+         closeDrawer();
+      }
+    });
+    
+    // Polyfill for scroll-driven animations fade if unsupported
+    if (!CSS.supports('animation-timeline', 'scroll()')) {
+      scroller.addEventListener('scroll', () => {
+        const ratio = Math.max(0, 1 - scroller.scrollLeft / sheet.offsetWidth);
+        drawer.style.setProperty('--drawer-backdrop', ratio);
+      });
+    }
+  }
+
+  // Mobile viewport detection
+  function updateMobileState() {
+    Shiny.setInputValue('is_mobile', window.innerWidth < 768);
+  }
+  window.addEventListener('resize', updateMobileState);
+  updateMobileState();
+
+});
