@@ -13,7 +13,7 @@ update_map_choropleth <- function(
   climate_variable, selected_year, display_mode, 
   show_projections, projection_period, historical_period, 
   technology_mix, spatial_level, polygon_opacity, view_mode,
-  solar_tech = NULL
+  solar_tech = NULL, is_relative_anomaly = FALSE
 ) {
   var_meta <- enrich_var_meta(climate_variables[[climate_variable]], solar_tech)
   palette <- var_meta$palette
@@ -61,7 +61,7 @@ update_map_choropleth <- function(
     is_projection_year <- (sel_year > hist_max_year || is_dynamic_wind)
   }
 
-  display_unit <- if (use_anomaly_map && is_precip) "%" else var_unit
+  display_unit <- if (use_anomaly_map && is_relative_anomaly) "%" else var_unit
 
   if (use_anomaly_map) {
     if (!is.null(baseline_df) && nrow(baseline_df) > 0) {
@@ -76,7 +76,7 @@ update_map_choropleth <- function(
           dplyr::left_join(baseline_df, by = c("zone_id" = "Region"))
       }
 
-      if (is_precip) {
+      if (is_relative_anomaly) {
         df_build <- df_build %>%
           dplyr::mutate(Value = ifelse(
             is.na(baseline_value) | abs(baseline_value) < 1.0,
@@ -199,8 +199,10 @@ update_map_choropleth <- function(
 
       if (use_anomaly_map || climate_variable == "2m_temperature") {
         abs_max <- max(abs(min_val), abs(max_val))
-        if (abs_max < 0.1) abs_max <- 0.1
+        # Apply a soft cap for very extreme outliers (e.g. AWI model desert greening)
         if (is_precip && abs_max > 200) abs_max <- 200
+        # Wait, actually is_relative_anomaly should be capped at 200% instead of just precip
+        if (is_relative_anomaly && abs_max > 200) abs_max <- 200
         min_val <- -abs_max
         max_val <- abs_max
       }

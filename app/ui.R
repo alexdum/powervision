@@ -193,8 +193,30 @@ ui <- page_fillable(
         ),
         choices = c("Loading..." = ""), # Will be populated by server.R dynamically
         width = "100%"
+      ),
+      div(
+        id = "solar-anomaly-type-wrapper",
+        class = "form-group shiny-input-container mt-3",
+        style = "display: none;",
+        tags$label(
+          class = "control-label",
+          "Solar Anomaly Type",
+          span(
+            class = "info-icon-wrapper",
+            tooltip(
+              bsicons::bs_icon("info-circle", size = "0.85em"),
+              "Compute anomalies as absolute differences or relative percentages."
+            )
+          )
+        ),
+        radioButtons(
+          inputId = "solar_anomaly_type",
+          label = NULL,
+          choices = c("Absolute" = "absolute", "Relative (%)" = "relative"),
+          selected = "absolute",
+          inline = TRUE
+        )
       )
-    ),
     ), # End Card 1
 
     # ── CARD 2: Time & Projections ─────────────────────────────────────────────

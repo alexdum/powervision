@@ -773,6 +773,14 @@ $(document).ready(function () {
     }
   });
 
+  Shiny.addCustomMessageHandler('toggle_solar_anomaly_controls', function (msg) {
+    if (msg.show) {
+      $('#solar-anomaly-type-wrapper').slideDown(200);
+    } else {
+      $('#solar-anomaly-type-wrapper').slideUp(200);
+    }
+  });
+
   // --------------------------------------------------------------------------
   // Reset Custom JS Toggles (from Reset Button)
   // --------------------------------------------------------------------------

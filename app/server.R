@@ -326,6 +326,26 @@ server <- function(input, output, session) {
     session$sendCustomMessage("set_projection_forced", list(force_on = FALSE))
   })
 
+  # Toggle Solar Anomaly controls based on variable type and display mode
+  observe({
+    req(input$climate_variable, input$display_mode)
+    is_solar <- isTRUE(var_metadata[[input$climate_variable]]$is_solar)
+    is_anomaly <- isTRUE(input$display_mode == "anomaly")
+    session$sendCustomMessage("toggle_solar_anomaly_controls", list(show = is_solar && is_anomaly))
+  })
+
+  # Reactive flag to centralize relative anomaly logic
+  is_relative_anomaly_flag <- reactive({
+    req(input$climate_variable)
+    var_name <- input$climate_variable
+    var_meta <- var_metadata[[var_name]]
+    is_solar <- isTRUE(var_meta$is_solar)
+    is_precip <- (var_name == "total_precipitation")
+    solar_anomaly_type <- if (!is.null(input$solar_anomaly_type)) input$solar_anomaly_type else "absolute"
+    
+    is_precip || (is_solar && solar_anomaly_type == "relative")
+  })
+
   # ----------------------------------------------------------------------------
   # Dynamic Year Slider Bounds based on Spatial Tier + Projection State
   # ----------------------------------------------------------------------------
@@ -825,7 +845,8 @@ server <- function(input, output, session) {
       spatial_level = input$spatial_level,
       polygon_opacity = isolate(input$polygon_opacity),
       view_mode = view_mode,
-      solar_tech = input$solar_technology
+      solar_tech = input$solar_technology,
+      is_relative_anomaly = is_relative_anomaly_flag()
     )
   })
 
@@ -1393,7 +1414,8 @@ server <- function(input, output, session) {
       ssp_scenario       = input$ssp_scenario,
       reference_period   = input$historical_period,
       clim_data          = clim_data,
-      baseline_df        = baseline_df
+      baseline_df        = baseline_df,
+      is_relative_anomaly = is_relative_anomaly_flag()
     )
 
     # Build and return the legend UI tags
@@ -1919,6 +1941,7 @@ server <- function(input, output, session) {
       projection_style = if(is.null(input$projection_style)) "band" else input$projection_style,
       baseline         = baseline,
       display_mode     = input$display_mode,
+      is_relative_anomaly = is_relative_anomaly_flag(),
       ssp_scenario     = input$ssp_scenario,
       reference_period = input$historical_period,
       hide_historical_line = hide_hist
@@ -1987,7 +2010,8 @@ server <- function(input, output, session) {
       hide_historical_line = hide_hist,
       reference_period = input$historical_period,
       baseline = baseline,
-      display_mode = input$display_mode
+      display_mode = input$display_mode,
+      is_relative_anomaly = is_relative_anomaly_flag()
     )
   })
 
@@ -2276,7 +2300,8 @@ server <- function(input, output, session) {
         historical_period = input$historical_period,
         projection_period = input$projection_period,
         var_name = input$climate_variable,
-        region_id = region[["zone_id"]]
+        region_id = region[["zone_id"]],
+        is_relative_anomaly = is_relative_anomaly_flag()
       )
 
       write.csv(df_combined, file, row.names = FALSE)

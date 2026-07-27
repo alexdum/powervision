@@ -68,7 +68,7 @@ compute_legend_params <- function(var_meta, is_precip,
                                   time_label, is_projection_data,
                                   use_period, ssp_scenario,
                                   reference_period, clim_data,
-                                  baseline_df) {
+                                  baseline_df, is_relative_anomaly = FALSE) {
 
   is_categorical <- isTRUE(var_meta$is_categorical)
   if (is_categorical) {
@@ -93,7 +93,7 @@ compute_legend_params <- function(var_meta, is_precip,
     # ── Anomaly legend: diverging palette, symmetric around 0 ──────────────
     is_any_wind <- grepl("Wind", var_meta$label, ignore.case = TRUE)
     palette <- if (is_precip) anomaly_palette_precipitation else if (is_any_wind) anomaly_palette_wind else anomaly_palette_temperature
-    display_unit <- if (is_precip) "%" else var_meta$unit
+    display_unit <- if (is_relative_anomaly) "%" else var_meta$unit
 
     # Compute anomaly range by applying per-region baselines to the current data
     if (!is.null(baseline_df) && nrow(baseline_df) > 0) {
@@ -101,9 +101,9 @@ compute_legend_params <- function(var_meta, is_precip,
       df_with_baseline <- clim_data |>
         dplyr::left_join(baseline_df, by = "Region")
 
-      if (is_precip) {
-        # Precipitation: relative (%) anomaly — guard against near-zero baselines
-        # (threshold 1.0 mm) and clamp to ±200% to match the map renderer
+      if (is_relative_anomaly) {
+        # Relative (%) anomaly — guard against near-zero baselines
+        # (threshold 1.0) and clamp to ±200% to match the map renderer
         anomaly_vals <- ifelse(
           is.na(df_with_baseline$baseline_value) | abs(df_with_baseline$baseline_value) < 1.0,
           NA_real_,
@@ -112,7 +112,7 @@ compute_legend_params <- function(var_meta, is_precip,
             -200), 200)
         )
       } else {
-        # Temperature: absolute anomaly
+        # Absolute anomaly
         anomaly_vals <- df_with_baseline$Value - df_with_baseline$baseline_value
       }
 

@@ -7,7 +7,8 @@ library(dplyr)
 
 generate_wysiwyg_export_csv <- function(
   df_hist, df_proj, active_tab, display_mode, 
-  historical_period, projection_period, var_name, region_id
+  historical_period, projection_period, var_name, region_id,
+  is_relative_anomaly = FALSE
 ) {
   
   baseline <- NULL
@@ -40,8 +41,13 @@ generate_wysiwyg_export_csv <- function(
     }
   } else {
     if (isTRUE(display_mode == "anomaly") && !is.null(baseline)) {
-      if (!is.null(df_hist)) df_hist$Value <- df_hist$Value - baseline
-      if (!is.null(df_proj)) df_proj$Value <- df_proj$Value - baseline
+      if (is_relative_anomaly) {
+        if (!is.null(df_hist)) df_hist$Value <- (df_hist$Value - baseline) / baseline * 100
+        if (!is.null(df_proj)) df_proj$Value <- (df_proj$Value - baseline) / baseline * 100
+      } else {
+        if (!is.null(df_hist)) df_hist$Value <- df_hist$Value - baseline
+        if (!is.null(df_proj)) df_proj$Value <- df_proj$Value - baseline
+      }
     }
     if (!is.null(df_hist)) {
       df_hist$Source <- "Historical (ERA5)"

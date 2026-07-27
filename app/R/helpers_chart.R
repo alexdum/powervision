@@ -81,6 +81,7 @@ build_region_timeseries_chart <- function(
   projection_style = "band",
   baseline,
   display_mode,
+  is_relative_anomaly = FALSE,
   ssp_scenario,
   reference_period,
   hide_historical_line = FALSE
@@ -99,11 +100,6 @@ build_region_timeseries_chart <- function(
     isTRUE(display_mode == "anomaly") &&
     !is.null(baseline) &&
     is.finite(baseline))
-
-  # Precipitation uses relative (%) anomalies because a 10mm departure means
-  # very different things in a desert vs a rainforest. Temperature and other
-  # variables use absolute departures (same unit as the original).
-  is_relative_anomaly <- (var_name == "total_precipitation")
 
   # --------------------------------------------------------------------------
   # Apply anomaly transformation if active
@@ -995,7 +991,8 @@ build_all_scenarios_timeseries_chart <- function(
   hide_historical_line = FALSE,
   reference_period = "",
   baseline = NULL,
-  display_mode = "absolute"
+  display_mode = "absolute",
+  is_relative_anomaly = FALSE
 ) {
   var_label <- var_meta$label
   var_unit <- var_meta$unit
@@ -1004,8 +1001,7 @@ build_all_scenarios_timeseries_chart <- function(
   # Apply anomaly transformation if active
   # --------------------------------------------------------------------------
   use_anomaly <- (isTRUE(display_mode == "anomaly") && !is.null(baseline) && is.finite(baseline))
-  is_relative_anomaly <- (var_name == "total_precipitation")
-
+  
   if (use_anomaly) {
     if (is_relative_anomaly) {
       if (abs(baseline) > 0.001) {
