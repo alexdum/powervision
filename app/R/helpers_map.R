@@ -79,7 +79,7 @@ update_map_choropleth <- function(
       if (is_relative_anomaly) {
         df_build <- df_build %>%
           dplyr::mutate(Value = ifelse(
-            is.na(baseline_value) | abs(baseline_value) < 1.0,
+            is.na(baseline_value) | abs(baseline_value) < 0.001,
             NA_real_,
             pmin(pmax((Value - baseline_value) / baseline_value * 100, -200), 200)
           ))

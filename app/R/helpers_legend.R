@@ -103,9 +103,9 @@ compute_legend_params <- function(var_meta, is_precip,
 
       if (is_relative_anomaly) {
         # Relative (%) anomaly — guard against near-zero baselines
-        # (threshold 1.0) and clamp to ±200% to match the map renderer
+        # (threshold 0.001) and clamp to ±200% to match the map renderer
         anomaly_vals <- ifelse(
-          is.na(df_with_baseline$baseline_value) | abs(df_with_baseline$baseline_value) < 1.0,
+          is.na(df_with_baseline$baseline_value) | abs(df_with_baseline$baseline_value) < 0.001,
           NA_real_,
           pmin(pmax(
             (df_with_baseline$Value - df_with_baseline$baseline_value) / df_with_baseline$baseline_value * 100,
