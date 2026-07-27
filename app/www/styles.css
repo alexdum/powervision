@@ -1557,6 +1557,10 @@ code {
   scrollbar-color: rgba(255,255,255,0.15) transparent;
 }
 
+#about-modal:not([open]) {
+  display: none !important;
+}
+
 #about-modal::backdrop {
   background: rgba(0, 0, 0, 0.60);
   backdrop-filter: blur(4px);
