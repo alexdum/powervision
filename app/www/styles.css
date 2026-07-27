@@ -80,7 +80,7 @@ body:has(#projection-show-toggle .proj-toggle-option[data-value="1"].active):has
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
   background: radial-gradient(
-    ellipse at 50% 45%,
+    var(--in-oklch) ellipse at 50% 45%,
     rgba(59, 130, 246, 0.06) 0%,
     rgba(10, 15, 35, 0.18) 60%,
     rgba(10, 15, 35, 0.25) 100%
@@ -249,6 +249,17 @@ html.shiny-busy #global-shiny-loader {
   /* Spacing */
   --panel-radius: 14px;
   --card-radius:  10px;
+
+  /* Gradient Interpolation Fallbacks */
+  --in-oklab: ;
+  --in-oklch: ;
+}
+
+@supports (background: linear-gradient(in oklab, white, black)) {
+  :root {
+    --in-oklab: in oklab;
+    --in-oklch: in oklch;
+  }
 }
 
 /* ---------------------------------------------------------------------------- */
@@ -323,7 +334,7 @@ html.shiny-busy #global-shiny-loader {
 #control-panel .app-brand .brand-icon {
   width: 34px;
   height: 34px;
-  background: linear-gradient(135deg, var(--accent), #1e40af);
+  background: linear-gradient(135deg var(--in-oklch), var(--accent), #1e40af);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -447,7 +458,7 @@ html.shiny-busy #global-shiny-loader {
 
 .irs--shiny .irs-bar {
   height: 5px;
-  background: linear-gradient(90deg, var(--accent), #1d4ed8) !important;
+  background: linear-gradient(90deg var(--in-oklch), var(--accent), #1d4ed8) !important;
   border-top: none !important;
   border-bottom: none !important;
   border-radius: 3px;
@@ -640,6 +651,10 @@ html.shiny-busy #global-shiny-loader {
   border-color: var(--border-dark);
 }
 
+[popover]:is(:popover-open, .\:popover-open) {
+  display: block;
+}
+
 /* Radio buttons inside dark panel */
 .map-layer-popover .form-check-input {
   background-color: rgba(255,255,255,0.10) !important;
@@ -745,6 +760,7 @@ html.shiny-busy #global-shiny-loader {
   
   /* Optimize off-screen rendering */
   content-visibility: auto;
+  contain-intrinsic-block-size: auto 40vh;
 }
 
 #stats-drawer.expanded {
@@ -1611,11 +1627,11 @@ code {
   flex-shrink: 0;
 }
 
-.about-icon {
-  width: 44px;
-  height: 44px;
-  background: linear-gradient(135deg, var(--accent), #1e40af);
-  border-radius: 12px;
+.about-header .about-icon {
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg var(--in-oklch), var(--accent), #1e40af);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;

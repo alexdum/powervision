@@ -22,6 +22,10 @@ ui <- page_fillable(
       content = "PowerClimate Vision Explorer — Copernicus PECD v4.2 Interactive Spatial Dashboard"
     ),
     tags$title("PowerClimate Vision Explorer"),
+    tags$script(
+      type = "module",
+      HTML('if (!("popover" in HTMLElement.prototype)) { import("https://unpkg.com/@oddbird/popover-polyfill@latest/dist/popover.min.js"); }')
+    ),
     # Cache-busting: append file modification timestamp as version query string.
     # This guarantees browsers always fetch the latest CSS/JS after any rebuild,
     # without needing to manually bump version numbers.
