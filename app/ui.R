@@ -45,12 +45,14 @@ ui <- page_fillable(
   # The server sends show/hide messages; CSS handles animation.
   tags$div(
     id = "map-loading-shimmer",
+    `aria-hidden` = "true",
     tags$div(class = "map-spinner")
   ),
 
   # ── Global App Loader (Shiny Busy) ───────────────────────────────────────────
   tags$div(
     id = "global-shiny-loader",
+    `aria-hidden` = "true",
     tags$div(class = "shiny-spinner"),
     tags$span("Processing data...")
   ),
@@ -59,7 +61,6 @@ ui <- page_fillable(
   tags$aside(
     id = "control-panel",
     class = "shiny-absolute-panel",
-    style = "position: fixed; top: 18px; left: 18px; width: 290px; z-index: 1000;",
     `aria-label` = "Map Configuration Panel",
 
     # ── Pinned Brand Header ────────────────────────────────────────────────────
