@@ -967,6 +967,8 @@ html.shiny-busy #global-shiny-loader {
   #stats-drawer {
     /* On mobile the left panel is not visible, so the drawer goes full-width again */
     left: 0;
+    right: 0;
+    width: 100%;
     border-radius: 0;
     height: 70vh;
     max-height: 70vh;
