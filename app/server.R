@@ -329,7 +329,7 @@ server <- function(input, output, session) {
   # Toggle Solar Anomaly controls based on variable type and display mode
   observe({
     req(input$climate_variable, input$display_mode)
-    is_solar <- isTRUE(var_metadata[[input$climate_variable]]$is_solar)
+    is_solar <- isTRUE(climate_variables[[input$climate_variable]]$is_solar)
     is_anomaly <- isTRUE(input$display_mode == "anomaly")
     session$sendCustomMessage("toggle_solar_anomaly_controls", list(show = is_solar && is_anomaly))
   })
@@ -338,7 +338,7 @@ server <- function(input, output, session) {
   is_relative_anomaly_flag <- reactive({
     req(input$climate_variable)
     var_name <- input$climate_variable
-    var_meta <- var_metadata[[var_name]]
+    var_meta <- climate_variables[[var_name]]
     is_solar <- isTRUE(var_meta$is_solar)
     is_precip <- (var_name == "total_precipitation")
     solar_anomaly_type <- if (!is.null(input$solar_anomaly_type)) input$solar_anomaly_type else "absolute"

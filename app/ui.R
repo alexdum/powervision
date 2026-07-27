@@ -217,9 +217,10 @@ ui <- page_fillable(
           inline = TRUE
         )
       )
-    ), # End Card 1
+    )
+  ), # End Card 1
 
-    # ── CARD 2: Time & Projections ─────────────────────────────────────────────
+  # ── CARD 2: Time & Projections ─────────────────────────────────────────────
     div(
       id = "time-filters-card",
       class = "filter-card",
