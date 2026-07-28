@@ -89,7 +89,8 @@ update_map_choropleth <- function(
       }
     }
     is_any_wind <- grepl("Wind", var_label, ignore.case = TRUE)
-    palette <- if (is_precip) anomaly_palette_precipitation else if (is_any_wind) anomaly_palette_wind else anomaly_palette_temperature
+    is_hydro <- grepl("Hydro", var_label, ignore.case = TRUE)
+    palette <- if (is_precip) anomaly_palette_precipitation else if (is_any_wind) anomaly_palette_wind else if (is_hydro) anomaly_palette_hydropower else anomaly_palette_temperature
   }
 
   period_label <- if (use_period) paste0(projection_period, " period mean") else ""

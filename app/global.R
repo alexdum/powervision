@@ -601,6 +601,13 @@ anomaly_palette_wind <- c(
   "#D29773", "#AA4613", "#590007"
 )
 
+# Hydropower anomaly: red (less) → grey (no change) → blue (more)
+anomaly_palette_hydropower <- c(
+  "#590007", "#AA4613", "#D29773", 
+  "#EBE5E0", 
+  "#71A7C4", "#06558B", "#001260"
+)
+
 # Caching historical maximum years per variable and spatial level
 historical_max_years <- list()
 if (!is.null(hist_annual_ds)) {
