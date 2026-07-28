@@ -592,11 +592,11 @@ $(document).ready(function () {
       $container.removeClass('toggle-right');
       $('#scenario-selector-wrapper').removeClass('is-visible');
       $('#display-mode-wrapper').removeClass('is-visible');
-      // Defensively hide the Solar Anomaly Type dropdown — anomalies are a
+      // Defensively hide the Anomaly Type dropdown — anomalies are a
       // projection-only feature, so this control must never be visible when
       // projections are off. The server-side observer will also catch this,
       // but hiding immediately here prevents a brief flash of stale UI.
-      $('#solar-anomaly-type-wrapper').addClass('collapsed-control');
+      $('#anomaly-type-wrapper').addClass('collapsed-control');
     }
 
     // Push the value into Shiny's input binding
@@ -740,7 +740,7 @@ $(document).ready(function () {
       $('#projection-style-wrapper').removeClass('is-visible');
       $('#display-mode-wrapper').removeClass('is-visible');
       $('#projection-period-wrapper').addClass('collapsed-control');
-      $('#solar-anomaly-type-wrapper').addClass('collapsed-control');
+      $('#anomaly-type-wrapper').addClass('collapsed-control');
       
       // Reset display mode to absolute (default)
       var $modeToggle = $('#display-mode-toggle');
@@ -784,11 +784,11 @@ $(document).ready(function () {
     }
   });
 
-  Shiny.addCustomMessageHandler('toggle_solar_anomaly_controls', function (msg) {
+  Shiny.addCustomMessageHandler('toggle_anomaly_controls', function (msg) {
     if (msg.show) {
-      $('#solar-anomaly-type-wrapper').removeClass('collapsed-control');
+      $('#anomaly-type-wrapper').removeClass('collapsed-control');
     } else {
-      $('#solar-anomaly-type-wrapper').addClass('collapsed-control');
+      $('#anomaly-type-wrapper').addClass('collapsed-control');
     }
   });
 
@@ -816,7 +816,7 @@ $(document).ready(function () {
     $('#scenario-selector-wrapper').removeClass('is-visible');
     $('#display-mode-wrapper').removeClass('is-visible');
     $('#projection-style-wrapper').removeClass('is-visible');
-    $('#solar-anomaly-type-wrapper').addClass('collapsed-control');
+    $('#anomaly-type-wrapper').addClass('collapsed-control');
     
     $('a[data-value="all_trends"]').parent().addClass('collapsed-control');
     $('a[data-value="all_seasonality"]').parent().addClass('collapsed-control');

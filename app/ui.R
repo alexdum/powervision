@@ -209,11 +209,11 @@ ui <- page_fillable(
         width = "100%"
       ),
       div(
-        id = "solar-anomaly-type-wrapper",
+        id = "anomaly-type-wrapper",
         class = "form-group shiny-input-container mt-3 collapsed-control",
         tags$label(
           class = "control-label",
-          "Solar Anomaly Type",
+          "Anomaly Type",
           span(
             class = "info-icon-wrapper",
             tooltip(
@@ -223,7 +223,7 @@ ui <- page_fillable(
           )
         ),
         radioButtons(
-          inputId = "solar_anomaly_type",
+          inputId = "anomaly_type",
           label = NULL,
           choices = c("Absolute" = "absolute", "Relative (%)" = "relative"),
           selected = "absolute",

@@ -337,9 +337,11 @@ server <- function(input, output, session) {
   observe({
     req(input$climate_variable, input$display_mode, !is.null(input$show_projections))
     is_solar <- isTRUE(climate_variables[[input$climate_variable]]$is_solar)
+    is_hydro <- grepl("^hydropower_", input$climate_variable)
+    is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
     is_anomaly <- isTRUE(input$display_mode == "anomaly")
     show_proj <- isTRUE(input$show_projections == "1")
-    session$sendCustomMessage("toggle_solar_anomaly_controls", list(show = is_solar && is_anomaly && show_proj))
+    session$sendCustomMessage("toggle_anomaly_controls", list(show = (is_solar || is_hydro || is_wind) && is_anomaly && show_proj))
   })
 
   # Reactive flag to centralize relative anomaly logic
@@ -348,10 +350,12 @@ server <- function(input, output, session) {
     var_name <- input$climate_variable
     var_meta <- climate_variables[[var_name]]
     is_solar <- isTRUE(var_meta$is_solar)
+    is_hydro <- grepl("^hydropower_", var_name)
+    is_wind <- var_name %in% c("wind_power_onshore", "wind_power_offshore")
     is_precip <- (var_name == "total_precipitation")
-    solar_anomaly_type <- if (!is.null(input$solar_anomaly_type)) input$solar_anomaly_type else "absolute"
+    anomaly_type <- if (!is.null(input$anomaly_type)) input$anomaly_type else "absolute"
     
-    is_precip || (is_solar && solar_anomaly_type == "relative")
+    is_precip || ((is_solar || is_hydro || is_wind) && anomaly_type == "relative")
   })
 
   # ----------------------------------------------------------------------------

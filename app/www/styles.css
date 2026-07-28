@@ -1876,10 +1876,10 @@ li.collapsed-control {
   display: none !important;
 }
 
-.form-group, #tech-mix-wrapper, #solar-tech-wrapper, #solar-anomaly-type-wrapper, #projection-period-wrapper, #time-filters-card, li {
+.form-group, #tech-mix-wrapper, #solar-tech-wrapper, #anomaly-type-wrapper, #projection-period-wrapper, #time-filters-card, li {
   transition: max-height 0.3s ease-in-out, padding 0.3s ease-in-out, margin 0.3s ease-in-out, opacity 0.3s ease-in-out;
 }
-#time-filters-card, #tech-mix-wrapper, #solar-tech-wrapper, #solar-anomaly-type-wrapper, #projection-period-wrapper {
+#time-filters-card, #tech-mix-wrapper, #solar-tech-wrapper, #anomaly-type-wrapper, #projection-period-wrapper {
   max-height: 500px;
 }
 
