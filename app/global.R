@@ -512,7 +512,21 @@ for (level_code in names(spatial_levels)) {
 # Variables that have projection data available in PECD v4.2
 # --- Constants for Projections ---
 # Define which variables and spatial levels actually have projection data available
-projection_available_variables <- c("2m_temperature", "total_precipitation", "wind_power_onshore", "wind_power_offshore", "surface_solar_radiation_downwards", "10m_wind_speed", "100m_wind_speed", "solar_power_csp", "solar_power_pv")
+projection_available_variables <- c(
+  "2m_temperature", "total_precipitation",
+  "wind_power_onshore", "wind_power_offshore",
+  "surface_solar_radiation_downwards",
+  "10m_wind_speed", "100m_wind_speed",
+  "solar_power_csp", "solar_power_pv",
+  # Hydropower variables (PECD v4.2)
+  "hydropower_run_of_river_generation",
+  "hydropower_reservoir_inflow",
+  "hydropower_open_loop_pumped_storage_inflow",
+  "hydropower_reservoir_generation",
+  "hydropower_run_of_river_inflow",
+  "hydropower_run_of_river_with_pondage_generation",
+  "hydropower_run_of_river_with_pondage_inflow"
+)
 
 # Detect which spatial levels actually have projection data in the parquet store.
 # This is computed at startup rather than hard-coded so that newly downloaded
