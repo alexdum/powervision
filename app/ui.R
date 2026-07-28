@@ -207,28 +207,28 @@ ui <- page_fillable(
         ),
         choices = c("Loading..." = ""), # Will be populated by server.R dynamically
         width = "100%"
-      ),
-      div(
-        id = "anomaly-type-wrapper",
-        class = "form-group shiny-input-container mt-3 collapsed-control",
-        tags$label(
-          class = "control-label",
-          "Anomaly Type",
-          span(
-            class = "info-icon-wrapper",
-            tooltip(
-              bsicons::bs_icon("info-circle", size = "0.85em"),
-              "Compute anomalies as absolute differences or relative percentages."
-            )
+      )
+    ),
+    div(
+      id = "anomaly-type-wrapper",
+      class = "form-group shiny-input-container mt-3 collapsed-control",
+      tags$label(
+        class = "control-label",
+        "Anomaly Type",
+        span(
+          class = "info-icon-wrapper",
+          tooltip(
+            bsicons::bs_icon("info-circle", size = "0.85em"),
+            "Compute anomalies as absolute differences or relative percentages."
           )
-        ),
-        radioButtons(
-          inputId = "anomaly_type",
-          label = NULL,
-          choices = c("Absolute" = "absolute", "Relative (%)" = "relative"),
-          selected = "absolute",
-          inline = TRUE
         )
+      ),
+      radioButtons(
+        inputId = "anomaly_type",
+        label = NULL,
+        choices = c("Absolute" = "absolute", "Relative (%)" = "relative"),
+        selected = "absolute",
+        inline = TRUE
       )
     )
   ), # End Card 1
