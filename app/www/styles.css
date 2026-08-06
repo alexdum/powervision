@@ -1033,9 +1033,7 @@ html.shiny-busy #global-shiny-loader {
   }
 
   #stats-drawer .drawer-sidebar-column {
-    width: 100%;
-    flex-shrink: 0;
-    overflow-y: visible;
+    display: none !important;
   }
 
   /* Make the metric grid a horizontal scrollable row */
