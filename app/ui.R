@@ -247,7 +247,7 @@ ui <- page_fillable(
         "Temporal Filter",
         tooltip(
           bsicons::bs_icon("info-circle", size = "0.85em"),
-          "Select 'Annual' for full-year sum/mean, or choose a specific season or month."
+          "Select 'Annual' for full-year sum/mean, choose a specific season/month, or select 'Weather Scenarios (Daily)' to explore the 36 synthetic weather scenarios."
         )
       ),
       choices = list(
