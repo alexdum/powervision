@@ -1005,14 +1005,14 @@ html.shiny-busy #global-shiny-loader {
     right: 0;
     width: 100%;
     border-radius: 0;
-    height: 70vh;
-    max-height: 70vh;
+    height: 55vh;
+    max-height: 55vh;
     padding: 10px 14px;
     display: flex;
     flex-direction: column;
   }
 
-  /* Hide the expand button on mobile so it stays exactly 70vh and doesn't eclipse the map controls */
+  /* Hide the expand button on mobile so it stays exactly 55vh and doesn't eclipse the map controls */
   #drawer-expand-btn {
     display: none !important;
   }
