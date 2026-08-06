@@ -240,8 +240,8 @@ $(document).ready(function () {
     var bottomPadding = window.innerWidth < 768 ? 90 : 60;
     if (isVisible) {
        if (window.innerWidth < 768) {
-         // Drawer takes 70vh. Add 80px to clear the drawer AND the map controllers sitting above it.
-         bottomPadding = (vh * 0.70) + 80;
+         // Drawer takes 55vh. Add 80px to clear the drawer AND the map controllers sitting above it.
+         bottomPadding = (vh * 0.55) + 80;
        } else {
          bottomPadding = isExpanded ? (vh * 0.65) + 20 : (vh * 0.40) + 20;
        }

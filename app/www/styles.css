@@ -2152,7 +2152,7 @@ li.collapsed-control {
 
   /* Dodge the stats drawer when it opens on mobile */
   body:has(#stats-drawer.is-visible) #right-btn-col {
-    bottom: calc(55vh + 16px) !important;
+    bottom: calc(55vh + 8px) !important;
   }
 }
 
