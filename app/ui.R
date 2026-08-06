@@ -287,7 +287,7 @@ ui <- page_fillable(
           "Weather Scenario",
           tooltip(
             bsicons::bs_icon("info-circle", size = "0.85em"),
-            "Select one of the 15 ENTSO-E synthetic weather scenarios."
+            "Select one of the 36 ENTSO-E synthetic weather scenarios."
           )
         ),
         choices = c("Loading..." = ""),
