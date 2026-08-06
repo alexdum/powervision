@@ -38,15 +38,50 @@ body, html {
   transition: opacity 0.3s ease;
 }
 
-/* Historical Period is shown if we are in Period mode OR Anomaly mode */
-body:has(#view-mode-toggle .view-toggle-option[data-value="period"].active) #historical-period-wrapper,
-body:has(#display-mode-toggle .display-toggle-option[data-value="anomaly"].active) #historical-period-wrapper {
+/* Historical Period is shown if we are in Period mode OR Anomaly mode (when NOT in WS mode) */
+body:not(.is-ws-mode):not(:has(#temporal_mode option[value="WS"]:checked)):not(:has(#temporal_mode [value="WS"]:checked)):has(#view-mode-toggle .view-toggle-option[data-value="period"].active) #historical-period-wrapper,
+body:not(.is-ws-mode):not(:has(#temporal_mode option[value="WS"]:checked)):not(:has(#temporal_mode [value="WS"]:checked)):has(#display-mode-toggle .display-toggle-option[data-value="anomaly"].active) #historical-period-wrapper {
   display: block !important;
   opacity: 1;
 }
 
-/* Projection Period is shown ONLY if Projections are ON AND we are in Period mode */
-body:has(#projection-show-toggle .proj-toggle-option[data-value="1"].active):has(#view-mode-toggle .view-toggle-option[data-value="period"].active) #projection-period-wrapper {
+/* Projection Period is shown ONLY if Projections are ON AND we are in Period mode (when NOT in WS mode) */
+body:not(.is-ws-mode):not(:has(#temporal_mode option[value="WS"]:checked)):not(:has(#temporal_mode [value="WS"]:checked)):has(#projection-show-toggle .proj-toggle-option[data-value="1"].active):has(#view-mode-toggle .view-toggle-option[data-value="period"].active) #projection-period-wrapper {
+  display: block !important;
+  opacity: 1;
+}
+
+/* Weather Scenario Mode UI overrides — Force hide ALL non-WS controls */
+body.is-ws-mode .year-slider,
+body.is-ws-mode #view-mode-toggle,
+body.is-ws-mode #projection-controls,
+body.is-ws-mode #historical-period-wrapper,
+body.is-ws-mode #projection-period-wrapper,
+body.is-ws-mode #display-mode-wrapper,
+body:has(#temporal_mode option[value="WS"]:checked) .year-slider,
+body:has(#temporal_mode option[value="WS"]:checked) #view-mode-toggle,
+body:has(#temporal_mode option[value="WS"]:checked) #projection-controls,
+body:has(#temporal_mode option[value="WS"]:checked) #historical-period-wrapper,
+body:has(#temporal_mode option[value="WS"]:checked) #projection-period-wrapper,
+body:has(#temporal_mode option[value="WS"]:checked) #display-mode-wrapper,
+body:has(#temporal_mode [value="WS"]:checked) #historical-period-wrapper,
+body:has(#temporal_mode [value="WS"]:checked) #projection-period-wrapper,
+body.is-ws-mode #time-filters-card #historical-period-wrapper,
+body.is-ws-mode #time-filters-card #projection-period-wrapper,
+body:has(#temporal_mode option[value="WS"]:checked) #time-filters-card #historical-period-wrapper,
+body:has(#temporal_mode option[value="WS"]:checked) #time-filters-card #projection-period-wrapper {
+  display: none !important;
+  opacity: 0 !important;
+  max-height: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+body.is-ws-mode #ws-scenario-wrapper,
+body:has(#temporal_mode option[value="WS"]:checked) #ws-scenario-wrapper {
   display: block !important;
   opacity: 1;
 }
@@ -1247,6 +1282,40 @@ html.shiny-busy #global-shiny-loader {
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.15) !important;
 }
 
+/* Selected items in multi-select dropdown pills (Neutral slate glass styling) */
+.selectize-input .item {
+  background: rgba(30, 41, 59, 0.75) !important;
+  border: 1px solid rgba(148, 163, 184, 0.30) !important;
+  color: #e2e8f0 !important;
+  border-radius: 4px !important;
+  padding: 2px 8px !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  margin: 2px 4px 2px 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+.selectize-input .item.active {
+  background: rgba(51, 65, 85, 0.90) !important;
+  border-color: rgba(148, 163, 184, 0.50) !important;
+  color: #ffffff !important;
+}
+
+.selectize-input .item .remove {
+  border-left: 1px solid rgba(148, 163, 184, 0.30) !important;
+  margin-left: 6px !important;
+  padding-left: 6px !important;
+  color: rgba(203, 213, 225, 0.75) !important;
+  font-weight: bold !important;
+}
+
+.selectize-input .item .remove:hover {
+  color: #ffffff !important;
+  background: rgba(239, 68, 68, 0.40) !important;
+}
+
 .selectize-dropdown {
   background: rgba(10, 15, 35, 0.95) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
@@ -1537,8 +1606,30 @@ html.shiny-busy #global-shiny-loader {
   border-left-color: var(--danger);
 }
 
-.metric-card.accent-success {
-  border-left-color: var(--success);
+.metric-card.accent-warning {
+  border-left-color: #f59e0b;
+}
+
+.metric-card.ws-metric-card {
+  grid-column: 1 / -1 !important;
+  background: rgba(56, 189, 248, 0.07) !important;
+  border-left: 3px solid #38bdf8 !important;
+}
+
+.metric-card.ws-metric-card .metric-label {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.5px !important;
+  color: #cbd5e1 !important;
+  margin-bottom: 6px !important;
+}
+
+.metric-card.ws-metric-card .metric-value {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
 }
 
 .metric-card .metric-label {
@@ -2065,5 +2156,53 @@ li.collapsed-control {
   body:has(#stats-drawer.is-visible) #right-btn-col {
     bottom: calc(70vh + 16px) !important;
   }
+}
+
+
+/* ── Weather Scenario Mode: Stats Drawer Tab Overrides ────────────────────────
+ * When WS is selected in the temporal filter, the bottom stats drawer should
+ * ONLY show the "Weather Scenarios" tab. All other tabs are hidden.
+ *
+ * CRITICAL: We use visibility:hidden + height:0 instead of display:none because
+ * Bootstrap's .tab('show') silently fails on display:none elements. Shiny's
+ * tabsetPanel binding only updates input$drawer_tabs when it receives the
+ * shown.bs.tab event from Bootstrap — so the pills MUST remain in the DOM
+ * layout for programmatic tab switching to work.
+ * -------------------------------------------------------------------------- */
+
+/* Visually hide the entire tab navigation bar in WS mode */
+body:has(#temporal_mode option[value="WS"]:checked) #stats-drawer .nav-pills {
+  visibility: hidden !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ── Hide WS Tab pill when NOT in WS Mode ─────────────────────────────────── */
+body:not(:has(#temporal_mode option[value="WS"]:checked)) #stats-drawer .nav-pills > li > a[data-value="ws_cycle"],
+body:not(:has(#temporal_mode option[value="WS"]:checked)) #stats-drawer .nav-pills > li:has(a[data-value="ws_cycle"]) {
+  display: none !important;
+}
+
+/* ── WS Highlight Dropdown visibility ─────────────────────────────────────────
+ * Show the multi-select highlight dropdown ONLY when:
+ * 1) Temporal filter is set to WS
+ * AND
+ * 2) The bottom stats drawer plot is open (#stats-drawer.is-visible)
+ * -------------------------------------------------------------------------- */
+body.is-ws-mode:has(#stats-drawer.is-visible) #ws-highlight-wrapper,
+body:has(#temporal_mode option[value="WS"]:checked):has(#stats-drawer.is-visible) #ws-highlight-wrapper {
+  display: block !important;
+}
+
+body:not(.is-ws-mode) #ws-highlight-wrapper,
+body:not(:has(#stats-drawer.is-visible)) #ws-highlight-wrapper {
+  display: none !important;
+}
+
+.ws-highlight-wrapper {
+  margin-top: 10px;
 }
 

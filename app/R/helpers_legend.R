@@ -83,6 +83,8 @@ compute_legend_params <- function(var_meta, is_precip,
   display_temporal <- temporal_mode
   if (temporal_mode %in% as.character(1:12)) {
     display_temporal <- month.name[as.integer(temporal_mode)]
+  } else if (temporal_mode == "WS") {
+    display_temporal <- "Weather Scenario:"
   }
 
   # Extract raw finite values for range calculation

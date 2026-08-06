@@ -921,4 +921,62 @@ $(document).ready(function () {
   window.addEventListener('resize', updateMobileState);
   updateMobileState();
 
+  Shiny.addCustomMessageHandler('toggle_ws_selection', function(msg) {
+    var wrapper = document.getElementById('ws-highlight-wrapper');
+    if (wrapper) {
+      wrapper.style.display = msg.show ? '' : 'none';
+    }
+  });
+  // --------------------------------------------------------------------------
+  // WS Temporal Mode — Body Class Synchronization
+  // --------------------------------------------------------------------------
+  (function () {
+    function syncWsModeClass() {
+      var isWs = $('#temporal_mode').val() === 'WS';
+      $('body').toggleClass('is-ws-mode', isWs);
+      if (isWs) {
+        // Reset projection toggle buttons in DOM so projection period CSS rules stop matching
+        var $projToggle = $('#projection-show-toggle');
+        $projToggle.find('.proj-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+        $projToggle.find('.proj-toggle-option[data-value="0"]').addClass('active').attr('aria-pressed', 'true');
+        $projToggle.removeClass('toggle-right');
+
+        // Reset view mode to 'year'
+        var $viewToggle = $('#view-mode-toggle');
+        $viewToggle.find('.view-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+        $viewToggle.find('.view-toggle-option[data-value="year"]').addClass('active').attr('aria-pressed', 'true');
+        $viewToggle.removeClass('toggle-right');
+
+        // Reset display mode to 'absolute'
+        var $modeToggle = $('#display-mode-toggle');
+        $modeToggle.find('.display-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+        $modeToggle.find('.display-toggle-option[data-value="absolute"]').addClass('active').attr('aria-pressed', 'true');
+        $modeToggle.removeClass('toggle-right');
+
+        // Push reset values to Shiny
+        Shiny.setInputValue('show_projections', '0');
+        Shiny.setInputValue('projection_view_mode', 'year');
+        Shiny.setInputValue('display_mode', 'absolute');
+
+        // Explicitly collapse and hide period wrappers
+        $('#historical-period-wrapper, #projection-period-wrapper').addClass('collapsed-control').css({
+          'display': 'none',
+          'max-height': '0px',
+          'opacity': '0'
+        });
+      } else {
+        // Clean inline styles when exiting WS mode so CSS rules govern visibility
+        $('#historical-period-wrapper, #projection-period-wrapper').css({
+          'display': '',
+          'max-height': '',
+          'opacity': ''
+        });
+      }
+    }
+
+    $(document).on('change', '#temporal_mode', syncWsModeClass);
+    $(document).on('shiny:connected', syncWsModeClass);
+    $(document).ready(syncWsModeClass);
+  })();
+
 });

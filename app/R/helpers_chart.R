@@ -1639,3 +1639,152 @@ build_all_scenarios_seasonality_chart <- function(
 
   return(p)
 }
+
+# Helper for centered moving average smoothing with circular boundary wrapping (15-day window)
+smooth_ws_series <- function(x, window = 15) {
+  if (length(x) < window) return(x)
+  pad <- floor((window - 1) / 2)
+  # Circular padding: Dec 25-31 before Jan 1, Jan 1-7 after Dec 31
+  x_padded <- c(tail(x, pad), x, head(x, pad))
+  res <- stats::filter(x_padded, rep(1/window, window), sides = 2)
+  as.numeric(res[(pad + 1):(length(x) + pad)])
+}
+
+#' Build Weather Scenarios (WS) Annual Cycle Chart
+#' @param df_ws DataFrame with daily WS data (expected columns: WS, DayOfYear, Value)
+#' @param var_name Variable name key
+#' @param var_meta Enriched metadata for the variable (label, unit)
+#' @param region_name Name of the selected region
+#' @param highlighted_ws Vector of WS codes to highlight, or NULL
+build_ws_annual_cycle_chart <- function(df_ws, var_name, var_meta, region_name, highlighted_ws = NULL) {
+  var_label <- var_meta$label
+  var_unit  <- var_meta$unit
+  
+  title_main <- sprintf("WS Daily %s", var_label)
+  title_sub  <- sprintf("%s \u00b7 36 scenarios (ENTSO-E) \u00b7 SSP2-4.5", region_name)
+  
+  # Format dates for hover
+  if (!("DateStr" %in% names(df_ws))) {
+    df_ws$DateStr <- format(as.Date(df_ws$DayOfYear - 1, origin = "2023-01-01"), "%b %d")
+  }
+  
+  month_midpoints <- c(15, 46, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349)
+  month_labels    <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+  
+  ws_highlight_palette <- c(
+    "#38bdf8", "#f97316", "#a78bfa", "#34d399", "#fb7185", 
+    "#facc15", "#22d3ee", "#e879f9", "#4ade80", "#f472b6"
+  )
+  
+  # Apply 15-day centered moving average smoothing to eliminate synoptic weather noise
+  df_ws_smoothed <- df_ws
+  unique_ws_list <- unique(df_ws$WS)
+  for (code in unique_ws_list) {
+    idx_ws <- which(df_ws_smoothed$WS == code)
+    if (length(idx_ws) >= 15) {
+      df_ws_smoothed$Value[idx_ws] <- smooth_ws_series(df_ws_smoothed$Value[idx_ws], window = 15)
+    }
+  }
+  
+  p <- plot_ly(source = "ws_cycle")
+  
+  # Group background scenarios
+  bg_ws <- setdiff(unique(df_ws_smoothed$WS), highlighted_ws)
+  if (length(bg_ws) > 0) {
+    # Combine background scenarios into a single trace separated by NA rows.
+    # This guarantees Plotly treats it as 1 background path with hoverinfo='none',
+    # strictly preventing any background scenario from ever appearing in the hover window.
+    bg_list <- vector("list", length(bg_ws))
+    for (idx in seq_along(bg_ws)) {
+      ws_code <- bg_ws[idx]
+      sub_df <- df_ws_smoothed[df_ws_smoothed$WS == ws_code, c("DayOfYear", "Value")]
+      # Append NA row at the end to disconnect lines between scenarios
+      na_row <- data.frame(DayOfYear = NA_integer_, Value = NA_real_)
+      bg_list[[idx]] <- rbind(sub_df, na_row)
+    }
+    df_bg_single <- do.call(rbind, bg_list)
+
+    p <- p %>% add_trace(
+      data = df_bg_single,
+      x = ~DayOfYear,
+      y = ~Value,
+      type = "scatter",
+      mode = "lines",
+      line = list(color = "rgba(148, 163, 184, 0.15)", width = 1, shape = "spline"),
+      showlegend = FALSE,
+      hoverinfo = "none"
+    )
+  }
+  
+  # Group highlighted scenarios
+  if (!is.null(highlighted_ws) && length(highlighted_ws) > 0) {
+    # Ensure distinct colors consistently assigned to selected WS
+    for (i in seq_along(highlighted_ws)) {
+      ws_code <- highlighted_ws[i]
+      df_hl <- df_ws_smoothed[df_ws_smoothed$WS == ws_code, ]
+      
+      if (nrow(df_hl) > 0) {
+        color_idx <- ((i - 1) %% length(ws_highlight_palette)) + 1
+        hl_color <- ws_highlight_palette[color_idx]
+        display_label <- if (exists("get_ws_display_label")) get_ws_display_label(ws_code) else ws_code
+        
+        p <- p %>% add_trace(
+          data = df_hl,
+          x = ~DayOfYear,
+          y = ~Value,
+          type = "scatter",
+          mode = "lines",
+          name = display_label,
+          line = list(color = hl_color, width = 2.5, shape = "spline"),
+          showlegend = TRUE,
+          hovertemplate = paste0(
+            "<b><span style='color:", hl_color, "'>", display_label, "</span></b>: %{y:.1f} ", var_unit,
+            "<extra></extra>"
+          )
+        )
+      }
+    }
+  }
+  
+  y_label <- sprintf("%s (%s)", var_label, var_unit)
+  
+  p <- p %>% layout(
+    title = list(
+      text = paste0(title_main, "<br><sup style='color:#94a3b8'>", title_sub, "</sup>"),
+      font = list(family = "Inter, sans-serif", size = 14, color = "#e2e8f0"),
+      x = 0.05, xanchor = "left"
+    ),
+    paper_bgcolor = "rgba(0,0,0,0)",
+    plot_bgcolor = "rgba(0,0,0,0)",
+    font = list(family = "Inter, sans-serif", color = "#94a3b8"),
+    xaxis = list(
+      title = "",
+      tickmode = "array",
+      tickvals = month_midpoints,
+      ticktext = month_labels,
+      gridcolor = "rgba(148, 163, 184, 0.08)",
+      zerolinecolor = "rgba(148, 163, 184, 0.15)",
+      tickfont = list(size = 11)
+    ),
+    yaxis = list(
+      title = list(text = y_label, font = list(size = 12)),
+      gridcolor = "rgba(148, 163, 184, 0.08)",
+      zerolinecolor = "rgba(148, 163, 184, 0.15)",
+      tickfont = list(size = 11)
+    ),
+    legend = list(
+      orientation = "h", x = 0, y = -0.15,
+      font = list(size = 10, color = "#94a3b8"),
+      bgcolor = "rgba(0,0,0,0)"
+    ),
+    margin = list(l = 60, r = 20, t = 60, b = 50),
+    hovermode = "x unified"
+  ) %>%
+    config(
+      displayModeBar = "hover",
+      displaylogo = FALSE,
+      modeBarButtonsToRemove = c("select2d", "lasso2d", "hoverClosestCartesian", "hoverCompareCartesian", "toggleSpikelines")
+    )
+  
+  return(p)
+}

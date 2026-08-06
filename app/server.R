@@ -36,6 +36,8 @@ server <- function(input, output, session) {
     "boundary_2"
   })
 
+  updateSelectInput(session, "map_selected_ws", choices = get_ws_dropdown_choices(), selected = "WS01")
+
   # ----------------------------------------------------------------------------
   # Reactive Filtered Climate Data snapshot
   # ----------------------------------------------------------------------------
@@ -81,7 +83,22 @@ server <- function(input, output, session) {
     hist_max_year <- get_historical_max_year(var_name, sp_level)
     use_projection <- (show_proj && (sel_year > hist_max_year) && proj_data_exists)
 
-    if (use_projection) {
+    if (temp_mode == "WS") {
+      # ── Read WS Data for Choropleth ──────────────────────────────────────────
+      req(input$map_selected_ws)
+      if (input$map_selected_ws == "") return(NULL)
+
+      # NOTE: query_ws_annual_for_map currently does not support dynamic wind power blending.
+      # If wind power is selected, it will return NULL.
+      df_raw <- query_ws_annual_for_map(var_name, sp_level, input$map_selected_ws)
+      if (is.null(df_raw)) return(NULL)
+
+      df_raw$variable <- var_name
+      df_raw$SpatialLevel <- sp_level
+      df_raw$Year <- as.integer(gsub("WS", "", input$map_selected_ws)) # Use WS number as placeholder Year
+      return(df_raw)
+
+    } else if (use_projection) {
       # ── Read from projection dataset ─────────────────────────────────────────
       req(input$ssp_scenario)
 
@@ -220,6 +237,16 @@ server <- function(input, output, session) {
     
     is_solar <- input$climate_variable %in% c("solar_power_csp", "solar_power_pv")
     session$sendCustomMessage("toggle_solar_tech_controls", list(show = is_solar))
+    
+    is_climate <- input$climate_variable %in% c("2m_temperature", "total_precipitation", "surface_solar_radiation_downwards", "10m_wind_speed", "100m_wind_speed")
+    if (is_climate) {
+      showTab(inputId = "drawer_tabs", target = "ws_cycle")
+    } else {
+      hideTab(inputId = "drawer_tabs", target = "ws_cycle")
+      if (isTRUE(input$drawer_tabs == "ws_cycle")) {
+        updateTabsetPanel(session, "drawer_tabs", selected = "trends")
+      }
+    }
     
     if (input$climate_variable == "solar_power_csp") {
       updateSelectInput(session, "solar_technology", choices = c(
@@ -549,6 +576,7 @@ server <- function(input, output, session) {
   baseline_map_data <- reactive({
     req(input$show_projections == "1", input$display_mode == "anomaly")
     req(input$historical_period, input$climate_variable, input$temporal_mode, input$spatial_level)
+    req(input$temporal_mode != "WS")
 
     # Parse reference period
     ref_years <- as.integer(strsplit(input$historical_period, "-")[[1]])
@@ -614,6 +642,7 @@ server <- function(input, output, session) {
   # ----------------------------------------------------------------------------
   period_averaged_climate_data <- reactive({
     req(input$projection_view_mode == "period")
+    req(input$temporal_mode != "WS")
     show_proj <- isTRUE(input$show_projections == "1")
     map_period <- if (show_proj) input$projection_period else input$historical_period
     req(map_period)
@@ -829,10 +858,11 @@ server <- function(input, output, session) {
     geom_data <- isolate(current_boundaries())
     req(geom_data)
 
-    view_mode <- input$projection_view_mode            # "year" or "period"
-    show_proj <- isolate(isTRUE(input$show_projections == "1"))
-    display_mode_val <- input$display_mode
-    use_period <- isTRUE(view_mode == "period")
+    is_ws_mode <- (input$temporal_mode == "WS")
+    view_mode <- if (is_ws_mode) "year" else input$projection_view_mode
+    show_proj <- if (is_ws_mode) FALSE else isolate(isTRUE(input$show_projections == "1"))
+    display_mode_val <- if (is_ws_mode) "absolute" else input$display_mode
+    use_period <- (isTRUE(view_mode == "period") && !is_ws_mode)
 
     if (use_period) {
       clim_data <- period_averaged_climate_data()
@@ -840,7 +870,7 @@ server <- function(input, output, session) {
       clim_data <- filtered_climate_data()
     }
 
-    baseline_df <- if (show_proj && isTRUE(display_mode_val == "anomaly")) baseline_map_data() else NULL
+    baseline_df <- if (show_proj && isTRUE(display_mode_val == "anomaly") && !is_ws_mode) baseline_map_data() else NULL
 
     update_map_choropleth(
       session = session,
@@ -858,7 +888,9 @@ server <- function(input, output, session) {
       polygon_opacity = isolate(input$polygon_opacity),
       view_mode = view_mode,
       solar_tech = input$solar_technology,
-      is_relative_anomaly = is_relative_anomaly_flag()
+      is_relative_anomaly = is_relative_anomaly_flag(),
+      temporal_mode = input$temporal_mode,
+      selected_ws = input$map_selected_ws
     )
   })
 
@@ -1001,21 +1033,23 @@ server <- function(input, output, session) {
 
     props <- click$properties
     
-    # Check if the region has valid data before allowing selection
-    view_mode <- isolate(input$projection_view_mode)
-    clim_data <- isolate(if (isTRUE(view_mode == "period")) period_averaged_climate_data() else filtered_climate_data())
-    
-    if (!is.null(clim_data)) {
-      # SZOF normalization: parquet Region values have _OFF stripped, but GeoJSON
-      # zone_ids still include it. Use a normalized key for lookup.
-      lookup_id <- props$zone_id
-      if (isolate(input$spatial_level) == "SZOF") {
-        lookup_id <- sub("_OFF$", "", lookup_id)
-      }
-      region_row <- clim_data[clim_data$Region == lookup_id, ]
-      if (nrow(region_row) == 0 || all(is.na(region_row$Value))) {
-        message(sprintf("Ignoring click on %s: No data available", props$name))
-        return()
+    # Check if the region has valid data before allowing selection (skip in WS mode)
+    if (isolate(input$temporal_mode) != "WS") {
+      view_mode <- isolate(input$projection_view_mode)
+      clim_data <- isolate(if (isTRUE(view_mode == "period")) period_averaged_climate_data() else filtered_climate_data())
+      
+      if (!is.null(clim_data)) {
+        # SZOF normalization: parquet Region values have _OFF stripped, but GeoJSON
+        # zone_ids still include it. Use a normalized key for lookup.
+        lookup_id <- props$zone_id
+        if (isolate(input$spatial_level) == "SZOF") {
+          lookup_id <- sub("_OFF$", "", lookup_id)
+        }
+        region_row <- clim_data[clim_data$Region == lookup_id, ]
+        if (nrow(region_row) == 0 || all(is.na(region_row$Value))) {
+          message(sprintf("Ignoring click on %s: No data available", props$name))
+          return()
+        }
       }
     }
     
@@ -1024,6 +1058,9 @@ server <- function(input, output, session) {
 
     # Slide up the stats drawer
     session$sendCustomMessage("toggle_stats_drawer", list(show = TRUE))
+    if (input$temporal_mode == "WS") {
+      updateTabsetPanel(session, "drawer_tabs", selected = "ws_cycle")
+    }
 
     # Draw a crimson highlight border around the selected zone
     highlight_geom <- current_boundaries() %>% filter(zone_id == props$zone_id)
@@ -1329,11 +1366,41 @@ server <- function(input, output, session) {
   # Region Stats Drawer — metric cards rendered when a polygon is clicked
   # ----------------------------------------------------------------------------
   output$region_stats_cards <- renderUI({
+    temp_m <- input$temporal_mode
+
+    ws_df_val <- if (isTRUE(temp_m == "WS") && isTRUE(input$drawer_tabs == "ws_cycle")) {
+      tryCatch(ws_daily_data(), error = function(e) NULL)
+    } else NULL
+
+    clim_df_val <- if (temp_m != "WS") {
+      tryCatch({
+        v_mode <- input$projection_view_mode
+        if (isTRUE(v_mode == "period")) period_averaged_climate_data() else filtered_climate_data()
+      }, error = function(e) NULL)
+    } else NULL
+
+    base_df_val <- if (temp_m != "WS") {
+      tryCatch(baseline_map_data(), error = function(e) NULL)
+    } else NULL
+
     build_region_stats_cards(
       region = clicked_region(),
       spatial_level = input$spatial_level,
       show_projections = input$show_projections,
-      projection_style = isolate(input$projection_style)
+      projection_style = isolate(input$projection_style),
+      temporal_mode = temp_m,
+      map_selected_ws = input$map_selected_ws,
+      climate_variable = input$climate_variable,
+      ws_df = ws_df_val,
+      clim_df = clim_df_val,
+      base_df = base_df_val,
+      selected_year = input$selected_year,
+      historical_period = input$historical_period,
+      projection_period = input$projection_period,
+      projection_view_mode = input$projection_view_mode,
+      display_mode = input$display_mode,
+      ssp_scenario = input$ssp_scenario,
+      solar_technology = input$solar_technology
     )
   })
 
@@ -1357,11 +1424,11 @@ server <- function(input, output, session) {
     var_meta <- enrich_var_meta(climate_variables[[input$climate_variable]], input$solar_technology)
     is_precip <- (input$climate_variable == "total_precipitation")
 
-    # Check display mode
+    # Check display mode (force absolute view and non-period mode in WS mode)
     show_proj <- isTRUE(input$show_projections == "1")
-    use_anomaly_legend <- (show_proj && isTRUE(input$display_mode == "anomaly"))
+    use_anomaly_legend <- (show_proj && isTRUE(input$display_mode == "anomaly") && input$temporal_mode != "WS")
     if (isTRUE(var_meta$is_categorical)) use_anomaly_legend <- FALSE
-    use_period <- isTRUE(view_mode == "period")
+    use_period <- (isTRUE(view_mode == "period") && input$temporal_mode != "WS")
     sel_year <- as.integer(input$selected_year)
 
     # Determine if the current view shows projected data.
@@ -1373,7 +1440,9 @@ server <- function(input, output, session) {
     sp_level_pq <- spatial_level_to_parquet[input$spatial_level]
     hist_max_year <- get_historical_max_year(input$climate_variable, sp_level_pq)
 
-    if (use_period && !is.null(proj_period) && nchar(proj_period) > 0) {
+    if (input$temporal_mode == "WS") {
+      is_projection_data <- FALSE
+    } else if (use_period && !is.null(proj_period) && nchar(proj_period) > 0) {
       period_end_year <- as.integer(strsplit(proj_period, "-")[[1]][2])
       is_projection_data <- (period_end_year > hist_max_year)
     } else {
@@ -1381,7 +1450,11 @@ server <- function(input, output, session) {
     }
 
     # Build the year/period label for titles
-    time_label <- if (use_period) proj_period else as.character(input$selected_year)
+    if (input$temporal_mode == "WS" && !is.null(input$map_selected_ws) && input$map_selected_ws != "") {
+      time_label <- get_ws_display_label(input$map_selected_ws)
+    } else {
+      time_label <- if (use_period) proj_period else as.character(input$selected_year)
+    }
 
     # Get the current data range (use period data when in period mode)
     clim_data <- if (use_period) period_averaged_climate_data() else filtered_climate_data()
@@ -2266,7 +2339,9 @@ server <- function(input, output, session) {
       region_id <- if (!is.null(region)) region[["zone_id"]] else "unknown"
       
       tab_name <- "timeseries"
-      if (isTRUE(grepl("^all_seasonality", active_tab))) {
+      if (isTRUE(active_tab == "ws_cycle")) {
+        tab_name <- "weather_scenarios"
+      } else if (isTRUE(grepl("^all_seasonality", active_tab))) {
         tab_name <- "all_scenarios_seasonality"
       } else if (isTRUE(grepl("^all_trends", active_tab))) {
         tab_name <- "all_scenarios_timeseries"
@@ -2281,8 +2356,43 @@ server <- function(input, output, session) {
       region <- clicked_region()
       req(region, input$climate_variable, input$temporal_mode, input$spatial_level)
 
-      df_hist <- NULL
       active_tab <- input$drawer_tabs
+
+      # Weather Scenarios (WS) Export Handling
+      if (isTRUE(active_tab == "ws_cycle")) {
+        df_ws <- ws_daily_data()
+        req(df_ws)
+
+        map_ws <- input$map_selected_ws
+        extra_ws <- input$selected_ws
+        highlighted_ws <- unique(c(map_ws, extra_ws))
+        highlighted_ws <- highlighted_ws[nzchar(highlighted_ws)]
+
+        # Pre-map labels for unique WS codes for fast vector lookup (36 lookups vs 13,140)
+        unique_ws_codes <- unique(df_ws$WS)
+        ws_label_map <- setNames(
+          sapply(unique_ws_codes, function(code) {
+            if (exists("get_ws_display_label")) get_ws_display_label(code) else code
+          }),
+          unique_ws_codes
+        )
+
+        reg_name <- if (!is.null(region[["name"]])) region[["name"]] else region[["zone_id"]]
+
+        df_export <- df_ws %>%
+          dplyr::mutate(
+            Region = region[["zone_id"]],
+            Region_Name = reg_name,
+            Variable = input$climate_variable,
+            Scenario_Name = unname(ws_label_map[WS]),
+            Is_Highlighted = WS %in% highlighted_ws
+          ) %>%
+          dplyr::select(Region, Region_Name, Variable, WS, Scenario_Name, Is_Highlighted, DayOfYear, Month, Day, Value)
+
+        write.csv(df_export, file, row.names = FALSE)
+        return()
+      }
+
       show_proj <- isTRUE(input$show_projections == "1")
 
       df_hist <- NULL
@@ -2331,4 +2441,67 @@ server <- function(input, output, session) {
       write.csv(df_combined, file, row.names = FALSE)
     }
   )
+
+  # ----------------------------------------------------------------------------
+  # Weather Scenarios (WS) Daily Chart
+  # ----------------------------------------------------------------------------
+  # Populate the highlight multi-select dropdown with WS choices.
+  # We use observeEvent on temporal_mode to ensure the conditionalPanel has
+  # rendered the DOM element before we attempt to update it. The ignoreInit
+  # is FALSE so it also fires on first load.
+  observeEvent(input$temporal_mode, {
+    if (input$temporal_mode == "WS") {
+      choices <- get_ws_dropdown_choices()
+      updateSelectizeInput(session, "selected_ws", choices = choices, server = FALSE)
+      updateTabsetPanel(session, "drawer_tabs", selected = "ws_cycle")
+    } else {
+      if (isTRUE(input$drawer_tabs == "ws_cycle")) {
+        updateTabsetPanel(session, "drawer_tabs", selected = "trends")
+      }
+    }
+  }, ignoreInit = FALSE)
+
+  ws_daily_data <- reactive({
+    req(input$drawer_tabs == "ws_cycle")
+    region <- clicked_region()
+    req(region, input$climate_variable, input$spatial_level)
+    
+    var_name <- input$climate_variable
+    sp_level <- spatial_level_to_parquet[input$spatial_level]
+    target_region <- region$zone_id
+    
+    query_ws_daily(var_name, sp_level, target_region)
+  }) |> 
+    bindCache(input$climate_variable, input$spatial_level, if (!is.null(clicked_region())) clicked_region()$zone_id else "") |> 
+    bindEvent(input$drawer_tabs, input$climate_variable, input$spatial_level, clicked_region())
+
+  output$ws_annual_cycle <- renderPlotly({
+    req(input$drawer_tabs == "ws_cycle")
+    region <- clicked_region()
+    req(region)
+    
+    df_ws <- ws_daily_data()
+    req(df_ws)
+    
+    var_name <- input$climate_variable
+    var_meta <- enrich_var_meta(climate_variables[[var_name]], input$solar_technology)
+
+    # Combine the map-active WS (always highlighted) with any extra user picks
+    # from the left-panel multi-select. unique() prevents duplicates if the
+    # user also selects the map scenario in the highlight dropdown.
+    map_ws <- input$map_selected_ws   # single string or NULL
+    extra_ws <- input$selected_ws     # character vector or NULL
+    highlighted_ws <- unique(c(map_ws, extra_ws))
+    # Drop empty strings
+    highlighted_ws <- highlighted_ws[nzchar(highlighted_ws)]
+    if (length(highlighted_ws) == 0) highlighted_ws <- NULL
+    
+    build_ws_annual_cycle_chart(
+      df_ws = df_ws,
+      var_name = var_name,
+      var_meta = var_meta,
+      region_name = region$name,
+      highlighted_ws = highlighted_ws
+    )
+  })
 }

@@ -458,6 +458,65 @@ if (dir.exists(proj_monthly_path)) {
 }
 
 # ------------------------------------------------------------------------------
+# Weather Scenarios (WS) Daily Dataset — ENTSO-E ERAA 2027 / TYNDP 2028
+# ------------------------------------------------------------------------------
+# This dataset contains daily aggregations (365 days × 36 scenarios × all regions)
+# for the 36 ENTSO-E Weather Scenarios (WS01–WS36). All 36 are SSP2-4.5 projections,
+# each mapping to a specific climate model + year combination.
+# Schema: SpatialLevel | Region | WS | Model | DayOfYear | Month | Day | Value
+# Partitioned by: variable
+# Used by: WS annual cycle charts in the stats drawer
+# Created by: /data/cds/scripts/process_pecd_ws_daily.R
+# ------------------------------------------------------------------------------
+ws_daily_path <- "www/data/pecd/ws_daily"
+if (dir.exists(ws_daily_path)) {
+  ws_daily_ds <- arrow::open_dataset(ws_daily_path)
+  message(sprintf(
+    "  [OK] Weather Scenarios daily dataset connected (%d columns)",
+    ncol(ws_daily_ds)
+  ))
+} else {
+  ws_daily_ds <- NULL
+  message(
+    "  [INFO] Weather Scenarios daily dataset not yet available (will be created by process_pecd_ws_daily.R)"
+  )
+}
+
+# ------------------------------------------------------------------------------
+# Weather Scenarios Mapping Table (WS code → model + year)
+# ------------------------------------------------------------------------------
+# Maps each WS code (e.g. WS01) to its underlying climate model short code
+# (e.g. AWCM) and climate year (e.g. 2026). Used by the UI for dropdown labels
+# and by the map choropleth to query the correct annual projection data.
+# ------------------------------------------------------------------------------
+ws_mapping_path <- "www/data/ws/weather_scenarios.csv"
+if (file.exists(ws_mapping_path)) {
+  ws_mapping_table <- read.csv(ws_mapping_path, stringsAsFactors = FALSE)
+
+  # Build a lookup from WS short code (e.g. AWCM) to parquet model key
+  ws_model_lookup <- c(
+    "AWCM" = "awi_cm_1_1_mr",
+    "BCCS" = "bcc_csm2_mr",
+    "CMR5" = "cmcc_cm2_sr5",
+    "ECE3" = "ec_earth3",
+    "MEHR" = "mpi_esm1_2_hr",
+    "MRM2" = "mri_esm2_0"
+  )
+
+  # Add the full parquet model key as a column for easy lookups
+  ws_mapping_table$ModelKey <- ws_model_lookup[ws_mapping_table$ClimateModel]
+
+  message(sprintf(
+    "  [OK] Weather Scenarios mapping loaded: %d scenarios (models: %s)",
+    nrow(ws_mapping_table),
+    paste(unique(ws_mapping_table$ClimateModel), collapse = ", ")
+  ))
+} else {
+  ws_mapping_table <- NULL
+  message("  [INFO] Weather Scenarios mapping CSV not found at: ", ws_mapping_path)
+}
+
+# ------------------------------------------------------------------------------
 # Technology Mix Data Loading for Wind Power Blending
 # ------------------------------------------------------------------------------
 tech_mix_dir <- "www/data/technology_mix"

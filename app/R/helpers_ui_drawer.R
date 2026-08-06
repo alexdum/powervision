@@ -27,7 +27,14 @@ metric_card <- function(label, value, accent_class = "") {
 # ------------------------------------------------------------------------------
 # Generates the HTML for the region stats cards in the right drawer.
 # ------------------------------------------------------------------------------
-build_region_stats_cards <- function(region, spatial_level, show_projections, projection_style) {
+build_region_stats_cards <- function(region, spatial_level, show_projections, projection_style,
+                                      temporal_mode = "Annual", map_selected_ws = NULL,
+                                      climate_variable = NULL, ws_df = NULL,
+                                      clim_df = NULL, base_df = NULL,
+                                      selected_year = 2020, historical_period = "1991-2020",
+                                      projection_period = "2021-2040", projection_view_mode = "year",
+                                      display_mode = "absolute", ssp_scenario = "ssp2_4_5",
+                                      solar_technology = NULL) {
   if (is.null(region)) return(NULL)
 
   area_txt <- "N/A"
@@ -52,9 +59,115 @@ build_region_stats_cards <- function(region, spatial_level, show_projections, pr
     metric_card("Region Name",    region$name),
     metric_card("Zone ID",        sprintf("<code>%s</code>", region$zone_id), "accent-danger"),
     metric_card("Parent Zone",    sprintf("<code>%s</code>", parent_txt)),
-    metric_card("Spatial Tier",   display_level),
-    metric_card("Area",           area_txt, "accent-success")
+    metric_card("Spatial Tier",   display_level)
   )
+
+  # Weather Scenario Metric Card (when in WS mode)
+  if (temporal_mode == "WS" && !is.null(map_selected_ws) && map_selected_ws != "" && !is.null(ws_df) && nrow(ws_df) > 0) {
+    ws_sub <- ws_df[ws_df$WS == map_selected_ws, ]
+    if (nrow(ws_sub) > 0) {
+      var_meta <- if (!is.null(climate_variable) && climate_variable %in% names(climate_variables)) {
+        enrich_var_meta(climate_variables[[climate_variable]], solar_technology)
+      } else NULL
+      
+      unit_str <- if (!is.null(var_meta)) var_meta$unit else ""
+      is_extensive <- (climate_variable %in% c("total_precipitation") || grepl("^hydropower_", climate_variable))
+      
+      if (is_extensive) {
+        calc_val <- sum(ws_sub$Value, na.rm = TRUE)
+        calc_type <- "Annual Sum"
+      } else {
+        calc_val <- mean(ws_sub$Value, na.rm = TRUE)
+        calc_type <- "Annual Mean"
+      }
+      
+      val_fmt <- format(round(calc_val, 1), nsmall = 1, big.mark = ",", trim = TRUE)
+      val_display <- sprintf("%s %s", val_fmt, unit_str)
+      
+      ws_label <- if (exists("get_ws_display_label")) get_ws_display_label(map_selected_ws) else map_selected_ws
+      
+      ws_content <- HTML(sprintf(
+        "<div style='display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap;'><span style='color: #38bdf8; font-weight: 700; font-size: 1.05rem;'>%s</span><span style='font-size: 0.70rem; color: #94a3b8; font-weight: 500; text-transform: uppercase;'>%s</span></div>",
+        val_display, calc_type
+      ))
+      
+      cards <- c(cards, list(metric_card(ws_label, ws_content, "accent-warning ws-metric-card")))
+    }
+  } else if (temporal_mode != "WS" && !is.null(clim_df) && nrow(clim_df) > 0 && !is.null(climate_variable)) {
+    # Non-WS Summary Card for Annual, Monthly, and Seasonal modes
+    target_id <- region$zone_id
+    if (spatial_level == "SZOF") {
+      target_id <- sub("_OFF$", "", target_id)
+    }
+    
+    curr_row <- clim_df[clim_df$Region == target_id | clim_df$Region == region$zone_id, ]
+    if (nrow(curr_row) > 0) {
+      var_meta <- enrich_var_meta(climate_variables[[climate_variable]], solar_technology)
+      unit_str <- var_meta$unit
+      curr_val <- curr_row$Value[1]
+      
+      base_val <- NULL
+      if (!is.null(base_df) && nrow(base_df) > 0) {
+        b_row <- base_df[base_df$Region == target_id | base_df$Region == region$zone_id, ]
+        if (nrow(b_row) > 0) base_val <- b_row$baseline_value[1]
+      }
+      
+      time_hdr <- if (temporal_mode == "Annual") {
+        if (projection_view_mode == "period" && isTRUE(show_projections == "1")) {
+          sprintf("%s Period", projection_period)
+        } else {
+          sprintf("%s Annual", selected_year)
+        }
+      } else if (temporal_mode %in% as.character(1:12)) {
+        m_name <- month.name[as.integer(temporal_mode)]
+        if (projection_view_mode == "period" && isTRUE(show_projections == "1")) {
+          sprintf("%s (%s)", m_name, projection_period)
+        } else {
+          sprintf("%s %s", m_name, selected_year)
+        }
+      } else {
+        season_names <- c("DJF" = "Winter (DJF)", "MAM" = "Spring (MAM)", "JJA" = "Summer (JJA)", "SON" = "Autumn (SON)")
+        s_name <- if (temporal_mode %in% names(season_names)) season_names[[temporal_mode]] else temporal_mode
+        if (projection_view_mode == "period" && isTRUE(show_projections == "1")) {
+          sprintf("%s (%s)", s_name, projection_period)
+        } else {
+          sprintf("%s %s", s_name, selected_year)
+        }
+      }
+      
+      val_fmt <- if (is.finite(curr_val)) {
+        format(round(curr_val, 1), nsmall = 1, big.mark = ",", trim = TRUE)
+      } else "N/A"
+      
+      sub_info <- ""
+      if (!is.null(base_val) && is.finite(base_val) && is.finite(curr_val)) {
+        anom <- curr_val - base_val
+        anom_sign <- if (anom >= 0) "+" else ""
+        anom_fmt <- sprintf("%s%.1f %s", anom_sign, anom, unit_str)
+        base_fmt <- sprintf("%.1f %s", base_val, unit_str)
+        
+        anom_color <- if (anom >= 0) "#38bdf8" else "#f43f5e"
+        if (climate_variable == "total_precipitation") {
+          anom_color <- if (anom >= 0) "#34d399" else "#f59e0b"
+        }
+        
+        sub_info <- sprintf(
+          "<div style='font-size: 0.72rem; color: #94a3b8; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 4px;'><span>vs %s baseline (%s): </span><span style='color: %s; font-weight: 600;'>%s</span></div>",
+          historical_period, base_fmt, anom_color, anom_fmt
+        )
+      }
+      
+      card_label <- sprintf("%s SUMMARY", toupper(time_hdr))
+      card_content <- HTML(sprintf(
+        "<div><span style='color: #38bdf8; font-weight: 700; font-size: 1.05rem;'>%s %s</span>%s</div>",
+        val_fmt, unit_str, sub_info
+      ))
+      
+      cards <- c(cards, list(metric_card(card_label, card_content, "accent-info ws-metric-card")))
+    }
+  }
+
+  cards <- c(cards, list(metric_card("Area", area_txt, "accent-success")))
 
   if (isTRUE(show_projections == "1")) {
     current_val <- if (is.null(projection_style)) "band" else projection_style

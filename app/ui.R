@@ -133,6 +133,8 @@ ui <- page_fillable(
       selected = "NUT0"
     ),
 
+
+
     # ── Section: Climate Variable ──────────────────────────────────────────────
     selectInput(
       inputId = "climate_variable",
@@ -269,9 +271,53 @@ ui <- page_fillable(
           "October" = "10",
           "November" = "11",
           "December" = "12"
-        )
+        ),
+        "Weather Scenarios" = c("Weather Scenarios (Daily)" = "WS")
       ),
       selected = "Annual"
+    ),
+
+    div(
+      id = "ws-scenario-wrapper",
+      class = "ws-scenario-wrapper",
+      style = "display: none;", 
+      selectInput(
+        inputId = "map_selected_ws",
+        label = span(
+          "Weather Scenario",
+          tooltip(
+            bsicons::bs_icon("info-circle", size = "0.85em"),
+            "Select one of the 15 ENTSO-E synthetic weather scenarios."
+          )
+        ),
+        choices = c("Loading..." = ""),
+        selected = "",
+        width = "100%"
+      )
+    ),
+
+    div(
+      id = "ws-highlight-wrapper",
+      class = "ws-highlight-wrapper",
+      style = "display: none;",
+      selectizeInput(
+        inputId = "selected_ws",
+        label = span(
+          "Highlight Weather Scenarios",
+          tooltip(
+            bsicons::bs_icon("info-circle", size = "0.85em"),
+            "Select additional scenarios to highlight on the WS chart (the map scenario is always highlighted)."
+          )
+        ),
+        choices = NULL,
+        multiple = TRUE,
+        options = list(
+          placeholder = "Select WS to highlight...",
+          maxItems = 10,
+          plugins = list("remove_button")
+        ),
+        width = "100%"
+      )
     ),
 
     div(
@@ -802,6 +848,17 @@ ui <- page_fillable(
             title = "Multi-Scenario Annual Cycle",
             value = "all_seasonality",
             plotlyOutput("all_region_seasonality", height = "100%", width = "100%")
+          ),
+          tabPanel(
+            title = "Weather Scenarios",
+            value = "ws_cycle",
+            div(
+              style = "display: flex; flex-direction: column; height: 100%; gap: 6px;",
+              div(
+                style = "flex: 1; min-height: 0;",
+                plotlyOutput("ws_annual_cycle", height = "100%", width = "100%")
+              )
+            )
           )
         )
       )

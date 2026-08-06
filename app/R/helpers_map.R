@@ -13,7 +13,8 @@ update_map_choropleth <- function(
   climate_variable, selected_year, display_mode, 
   show_projections, projection_period, historical_period, 
   technology_mix, spatial_level, polygon_opacity, view_mode,
-  solar_tech = NULL, is_relative_anomaly = FALSE
+  solar_tech = NULL, is_relative_anomaly = FALSE,
+  temporal_mode = "Annual", selected_ws = NULL
 ) {
   var_meta <- enrich_var_meta(climate_variables[[climate_variable]], solar_tech)
   palette <- var_meta$palette
@@ -41,11 +42,11 @@ update_map_choropleth <- function(
     df_build$Value <- NA_real_
   }
 
-  use_anomaly_map <- (show_projections && isTRUE(display_mode == "anomaly"))
+  use_anomaly_map <- (show_projections && isTRUE(display_mode == "anomaly") && temporal_mode != "WS")
   if (isTRUE(var_meta$is_categorical)) use_anomaly_map <- FALSE
   is_precip <- (climate_variable == "total_precipitation")
   sel_year <- as.integer(selected_year)
-  use_period <- isTRUE(view_mode == "period")
+  use_period <- (isTRUE(view_mode == "period") && temporal_mode != "WS")
 
   is_wind <- climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
   tech_mix_mode_val <- if (!is.null(technology_mix)) technology_mix else "dynamic"
@@ -121,9 +122,13 @@ update_map_choropleth <- function(
     df_build$wind_mix_html <- ""
   }
   
-  time_title <- if (use_period) projection_period else as.character(sel_year)
-  if (show_projections && is_projection_year) {
-    time_title <- paste0(time_title, " (Proj)")
+  if (temporal_mode == "WS" && !is.null(selected_ws) && selected_ws != "") {
+    time_title <- get_ws_display_label(selected_ws)
+  } else {
+    time_title <- if (use_period) projection_period else as.character(sel_year)
+    if (show_projections && is_projection_year) {
+      time_title <- paste0(time_title, " (Proj)")
+    }
   }
 
   decimals <- if (var_unit == "CF" && display_unit != "%") 3 else 2
