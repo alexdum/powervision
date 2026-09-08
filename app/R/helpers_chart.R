@@ -1661,7 +1661,7 @@ build_ws_annual_cycle_chart <- function(df_ws, var_name, var_meta, region_name, 
   var_unit  <- var_meta$unit
   
   title_main <- sprintf("WS Daily %s", var_label)
-  title_sub  <- sprintf("%s \u00b7 36 scenarios (ENTSO-E) \u00b7 SSP2-4.5", region_name)
+  title_sub  <- sprintf("%s \u00b7 36 scenarios (ENTSO-E champion set) \u00b7 SSP2-4.5", region_name)
   
   # Format dates for hover
   if (!("DateStr" %in% names(df_ws))) {
@@ -1710,8 +1710,9 @@ build_ws_annual_cycle_chart <- function(df_ws, var_name, var_meta, region_name, 
       y = ~Value,
       type = "scatter",
       mode = "lines",
-      line = list(color = "rgba(148, 163, 184, 0.15)", width = 1, shape = "spline"),
-      showlegend = FALSE,
+      name = "ENTSO-E champion set",
+      line = list(color = "rgba(148, 163, 184, 0.35)", width = 1, shape = "spline"),
+      showlegend = TRUE,
       hoverinfo = "none"
     )
   }
