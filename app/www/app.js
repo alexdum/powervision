@@ -916,9 +916,16 @@ $(document).ready(function () {
 
   // Mobile viewport detection
   function updateMobileState() {
-    Shiny.setInputValue('is_mobile', window.innerWidth < 768);
+    if (typeof Shiny !== 'undefined' && typeof Shiny.setInputValue === 'function') {
+      try {
+        Shiny.setInputValue('is_mobile', window.innerWidth < 768);
+      } catch (e) {
+        // Shiny may not be initialized yet; shiny:connected will set the value
+      }
+    }
   }
   window.addEventListener('resize', updateMobileState);
+  $(document).on('shiny:connected', updateMobileState);
   updateMobileState();
 
   Shiny.addCustomMessageHandler('toggle_ws_selection', function(msg) {

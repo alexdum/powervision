@@ -1322,23 +1322,30 @@ server <- function(input, output, session) {
   # ----------------------------------------------------------------------------
   # Automatically fits map bounds to the selected spatial tier's extent
   # when the tier is changed in the dropdown, or on initial app startup.
+  # We use observeEvent on map_loaded() and input$spatial_level so that other
+  # reactive inputs (like input$is_mobile or window resize events) do not
+  # trigger an unexpected auto-zoom reset. In addition, we explicitly guard
+  # against resetting bounds if a region is currently selected.
   # ----------------------------------------------------------------------------
-  observe({
-    req(map_loaded(), current_boundaries())
+  observeEvent(list(map_loaded(), input$spatial_level), {
+    req(map_loaded())
     
-    # Take a dependency on the selected tier to trigger the zoom
-    level_code <- input$spatial_level
-    geom_data  <- current_boundaries()
+    # Do not auto-zoom to the entire tier if a polygon region is actively selected
+    if (!is.null(clicked_region())) return()
+    
+    geom_data <- current_boundaries()
     req(geom_data)
     
+    level_code <- input$spatial_level
     bbox <- sf::st_bbox(geom_data)
     message(sprintf("Auto-zooming to spatial extent of tier: %s...", level_code))
     maplibre_proxy("map") %>%
       fit_bounds(
         c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
         animate = TRUE,
-        # Default Europe/tier zoom respects left control panel overlay
-        padding = list(top = 40, bottom = 40, left = if (isTRUE(input$is_mobile)) 16 else 320, right = 40)
+        # Default Europe/tier zoom respects left control panel overlay.
+        # input$is_mobile is isolated so layout/viewport changes never trigger auto-zoom.
+        padding = list(top = 40, bottom = 40, left = if (isTRUE(isolate(input$is_mobile))) 16 else 320, right = 40)
       )
   })
 
