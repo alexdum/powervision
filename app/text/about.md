@@ -1,12 +1,6 @@
 > ⚠️ **This application is under active development** and may be modified until the final version is delivered by the end of the project.
 
-An interactive spatial dashboard produced during the ECMWF Code for Earth 2026 <a href="https://github.com/ECMWFCode4Earth/Challenges_2026/issues/15" target="_blank">Challenge 14 - Visualising the impact of climate change for the European power system</a> for exploring the **Pan-European Climate Database (PECD v4.2)** (which is provided by the Copernicus Climate Change Service (C3S) in collaboration with ENTSO-E).
-
-### Data Sources
-* **Copernicus PECD v4.2** — Climate and energy variables from ERA5 reanalysis and CMIP6 projections (6 models, 4 SSP scenarios)
-* **Eurostat GISCO** — NUTS 2021 administrative boundaries (Level 0 & Level 2)
-* **ENTSO-E** — Bidding zone boundaries (P2ON, P2OF)
-* **Study Zones** — Fine-grained onshore and offshore zones (SZON, SZOF)
+An interactive spatial dashboard produced during the ECMWF Code for Earth 2026 <a href="https://github.com/ECMWFCode4Earth/Challenges_2026/issues/15" target="_blank">Challenge 14 - Visualising the impact of climate change for the European power system</a> for exploring the <a href="https://doi.org/10.24381/cds.f323c5ec" target="_blank">**Pan-European Climate Database (PECD v4.2)**</a> (provided by the Copernicus Climate Change Service (C3S) in collaboration with ENTSO-E).
 
 ### Climate Variables (Available across all map tiers)
 * 2m Air Temperature (TA)
@@ -49,3 +43,10 @@ Wind power projections are fundamentally intertwined with turbine technology evo
 In addition to historical reanalysis and future projections, the explorer includes **36 Weather Scenarios (WS)**. 
 * **What they are**: These weather scenarios represent the champion set of 36 model-year combinations available for ENTSO-E-wide and national studies. They intend to be a representative subset of all six different models from the Coupled Model Intercomparison Project Phase 6 available in the PECD over the time period from 2026 to 2055.
 * **How to find them**: In the left sidebar, change the **Temporal Filter** dropdown from *Annual* (or any season/month) to **Weather Scenarios (Daily)**. The map will update to show the 36-scenario average for each region. Click on any region to open the bottom statistics drawer, where you can explore the **WS Annual Cycle** tab. This chart displays the 15-day smoothed daily trajectories of all 36 scenarios simultaneously, highlighting the envelope of variability throughout the year. You can also explicitly highlight specific scenarios from the left sidebar.
+
+### Data Sources & Citation
+* **Copernicus PECD v4.2** — Climate and energy related variables derived from reanalysis and climate projections (6 models, 4 SSP scenarios).
+  * **Citation**: Copernicus Climate Change Service (2024): *Climate and energy related variables from the Pan-European Climate Database derived from reanalysis and climate projections*. Copernicus Climate Change Service (C3S) Climate Data Store (CDS). DOI: <a href="https://doi.org/10.24381/cds.f323c5ec" target="_blank">10.24381/cds.f323c5ec</a>
+* **Eurostat GISCO** — NUTS 2021 administrative boundaries (Level 0 & Level 2)
+* **ENTSO-E** — Bidding zone boundaries (P2ON, P2OF)
+* **Study Zones** — Fine-grained onshore and offshore zones (SZON, SZOF)

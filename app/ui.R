@@ -755,11 +755,25 @@ ui <- page_fillable(
 
       tags$div(
         class = "about-footer",
+        tags$div(
+          class = "about-logoline",
+          tags$a(
+            href = "https://climate.copernicus.eu/",
+            target = "_blank",
+            rel = "noopener noreferrer",
+            title = "Copernicus Climate Change Service (C3S)",
+            tags$img(
+              src = "logoline_c3s_neg.png",
+              alt = "European Commission, Copernicus, ECMWF, C3S",
+              class = "logoline-img"
+            )
+          )
+        ),
         tags$p(
           "ECMWF · ",
           tags$a(
             href = "https://codeforearth.ecmwf.int/",
-            target = "blank",
+            target = "_blank",
             "Code for Earth 2026"
           )
         )
