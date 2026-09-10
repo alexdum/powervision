@@ -107,9 +107,9 @@ update_map_choropleth <- function(
     }
     tech_year <- resolve_tech_year(tech_mix_mode, target_data_year)
     
-    # Detect fixed_2020 mode so the tooltip correctly shows "100% Existing Fleet"
+    # Detect fixed_2020 mode (or WS mode) so the tooltip correctly shows "100% Existing Fleet"
     # instead of the interpolated 2025 technology blend
-    is_existing_fleet_only <- (tech_mix_mode == "fixed_2020")
+    is_existing_fleet_only <- (tech_mix_mode == "fixed_2020" || temporal_mode == "WS")
     
     df_build$wind_mix_html <- vapply(
       df_build$zone_id, 

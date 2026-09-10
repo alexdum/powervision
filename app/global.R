@@ -355,9 +355,15 @@ get_solar_tech_name <- function(tech_code) {
 
 enrich_var_meta <- function(var_meta, solar_tech) {
   if (isTRUE(var_meta$is_solar) && !is.null(solar_tech) && solar_tech != "") {
-    tech_name <- get_solar_tech_name(solar_tech)
-    if (!is.null(tech_name)) {
-      var_meta$label <- paste0(var_meta$label, " — ", tech_name)
+    st <- as.character(solar_tech)
+    is_pv <- grepl("Photovoltaic", var_meta$label, ignore.case = TRUE) || identical(var_meta$variable, "solar_power_pv")
+    is_csp <- grepl("Concentrated", var_meta$label, ignore.case = TRUE) || identical(var_meta$variable, "solar_power_csp")
+    valid <- if (is_pv) st %in% c("60", "61", "62", "63") else if (is_csp) st %in% c("40", "41", "42", "43") else TRUE
+    if (valid) {
+      tech_name <- get_solar_tech_name(st)
+      if (!is.null(tech_name)) {
+        var_meta$label <- paste0(var_meta$label, " — ", tech_name)
+      }
     }
   }
   return(var_meta)
@@ -585,6 +591,14 @@ projection_available_variables <- c(
   "hydropower_run_of_river_inflow",
   "hydropower_run_of_river_with_pondage_generation",
   "hydropower_run_of_river_with_pondage_inflow"
+)
+
+# Variables supported in Weather Scenario (WS) mode and WS Annual Cycle drawer tab
+ws_supported_variables <- c(
+  "2m_temperature", "total_precipitation", "surface_solar_radiation_downwards",
+  "10m_wind_speed", "100m_wind_speed",
+  "solar_power_pv", "solar_power_csp",
+  "wind_power_onshore", "wind_power_offshore"
 )
 
 # Detect which spatial levels actually have projection data in the parquet store.

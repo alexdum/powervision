@@ -619,6 +619,20 @@ $(document).ready(function () {
 
   // Ensure tabs are hidden on initial load if projections are off
   $(document).on('shiny:connected', function(event) {
+    if (typeof Shiny !== 'undefined' && typeof Shiny.setInputValue === 'function') {
+      var activeViewMode = $('.view-mode-toggle .view-toggle-option.active').data('value') || $('#projection_view_mode').val() || 'year';
+      var activeDisplayMode = $('.display-mode-toggle .display-toggle-option.active').data('value') || $('#display_mode').val() || 'absolute';
+      var activeShowProj = $('#show_projections').val() || '0';
+      var activeProjStyle = $('#projection-style-toggle-container .display-toggle-option.active').data('value') || 'band';
+
+      $('#projection_view_mode').val(activeViewMode);
+      $('#display_mode').val(activeDisplayMode);
+
+      Shiny.setInputValue('projection_view_mode', activeViewMode);
+      Shiny.setInputValue('display_mode', activeDisplayMode);
+      Shiny.setInputValue('show_projections', activeShowProj);
+      Shiny.setInputValue('projection_style', activeProjStyle);
+    }
     if ($('#show_projections').val() === '0') {
       $('a[data-value="all_trends"]').parent().addClass('collapsed-control');
       $('a[data-value="all_seasonality"]').parent().addClass('collapsed-control');
@@ -651,6 +665,9 @@ $(document).ready(function () {
     } else {
       $container.removeClass('toggle-right');
     }
+
+    // Update underlying hidden input if present
+    $('#display_mode').val(newValue);
 
     // Push the value into Shiny's input binding
     Shiny.setInputValue('display_mode', newValue);
@@ -711,6 +728,9 @@ $(document).ready(function () {
       // Show the year slider again
       $('#selected_year').closest('.form-group').removeClass('collapsed-control');
     }
+
+    // Update underlying hidden input if present
+    $('#projection_view_mode').val(newValue);
 
     // Push the value into Shiny's input binding
     Shiny.setInputValue('projection_view_mode', newValue);

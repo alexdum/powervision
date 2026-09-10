@@ -88,14 +88,20 @@ server <- function(input, output, session) {
       req(input$map_selected_ws)
       if (input$map_selected_ws == "") return(NULL)
 
-      # NOTE: query_ws_annual_for_map currently does not support dynamic wind power blending.
-      # If wind power is selected, it will return NULL.
-      df_raw <- query_ws_annual_for_map(var_name, sp_level, input$map_selected_ws)
+      # For wind power in Weather Scenario mode, use ONLY fixed existing technology
+      # (pure raw existing fleet: tech_30 for onshore, tech_20 for offshore)
+      df_raw <- query_ws_annual_for_map(
+        var_name = var_name,
+        sp_level = sp_level,
+        ws_code = input$map_selected_ws,
+        solar_tech = input$solar_technology,
+        tech_mix_mode = "fixed_2020"
+      )
       if (is.null(df_raw)) return(NULL)
 
       df_raw$variable <- var_name
       df_raw$SpatialLevel <- sp_level
-      df_raw$Year <- as.integer(gsub("WS", "", input$map_selected_ws)) # Use WS number as placeholder Year
+      df_raw$Year <- as.integer(gsub("[^0-9]", "", input$map_selected_ws)) # Use WS number as placeholder Year
       return(df_raw)
 
     } else if (use_projection) {
@@ -233,14 +239,17 @@ server <- function(input, output, session) {
   # ----------------------------------------------------------------------------
   observeEvent(input$climate_variable, {
     is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
-    session$sendCustomMessage("toggle_tech_mix_controls", list(show = is_wind))
+    session$sendCustomMessage("toggle_tech_mix_controls", list(show = is_wind && input$temporal_mode != "WS"))
     
     is_solar <- input$climate_variable %in% c("solar_power_csp", "solar_power_pv")
     session$sendCustomMessage("toggle_solar_tech_controls", list(show = is_solar))
     
-    is_climate <- input$climate_variable %in% c("2m_temperature", "total_precipitation", "surface_solar_radiation_downwards", "10m_wind_speed", "100m_wind_speed")
-    if (is_climate) {
+    is_ws_supported <- input$climate_variable %in% ws_supported_variables
+    if (is_ws_supported) {
       showTab(inputId = "drawer_tabs", target = "ws_cycle")
+      if (input$temporal_mode == "WS") {
+        updateTabsetPanel(session, "drawer_tabs", selected = "ws_cycle")
+      }
     } else {
       hideTab(inputId = "drawer_tabs", target = "ws_cycle")
       if (isTRUE(input$drawer_tabs == "ws_cycle")) {
@@ -279,8 +288,9 @@ server <- function(input, output, session) {
   # Wind power data is not available at the NUT2 level.
   # This observer updates the PECD Variable dropdown to hide Energy Indicators
   # when an incompatible spatial tier is selected.
-  observeEvent(input$spatial_level, {
+  observeEvent(list(input$spatial_level, input$temporal_mode), {
     sp <- input$spatial_level
+    is_ws <- identical(input$temporal_mode, "WS")
     
     # Base choices available everywhere
     base_choices <- c(
@@ -291,10 +301,10 @@ server <- function(input, output, session) {
       "100m Wind Speed" = "100m_wind_speed"
     )
     
-    # PECD v4.2 deprecates NUT0 aggregation for energy variables due to inaccuracy.
+    # Energy variables are supported at P2ON, P2OF, SZON (hydropower),
+    # and NUT0 (country level via area-weighted spatial aggregation for wind and solar).
     # We hide wind/solar for SZON/SZOF because the raw parquet data maps those regions into P2ON/P2OF.
-    # Hydropower, however, is explicitly mapped to SZON.
-    show_energy <- (sp %in% c("P2ON", "P2OF", "SZON"))
+    show_energy <- (sp %in% c("P2ON", "P2OF", "SZON", "NUT0"))
     
     choices_list <- list("Climate Variables" = base_choices)
     if (show_energy) {
@@ -310,6 +320,20 @@ server <- function(input, output, session) {
           "Wind Power Offshore" = "wind_power_offshore",
           "Wind Resource Group" = "wind_resource_group_offshore"
         )
+      } else if (sp == "NUT0") {
+        if (is_ws) {
+          energy_choices <- c(
+            "Wind Power Onshore" = "wind_power_onshore",
+            "Wind Power Offshore" = "wind_power_offshore",
+            "Concentrated Solar Power" = "solar_power_csp",
+            "Solar Photovoltaic" = "solar_power_pv"
+          )
+        } else {
+          energy_choices <- c(
+            "Wind Power Onshore" = "wind_power_onshore",
+            "Wind Power Offshore" = "wind_power_offshore"
+          )
+        }
       } else if (sp == "SZON") {
         energy_choices <- c(
           "Hydro: RoR Generation" = "hydropower_run_of_river_generation",
@@ -858,13 +882,13 @@ server <- function(input, output, session) {
     geom_data <- isolate(current_boundaries())
     req(geom_data)
 
-    is_ws_mode <- (input$temporal_mode == "WS")
-    view_mode <- if (is_ws_mode) "year" else input$projection_view_mode
+    is_ws_mode <- isTRUE(input$temporal_mode == "WS")
+    view_mode <- if (is_ws_mode || is.null(input$projection_view_mode)) "year" else input$projection_view_mode
     show_proj <- if (is_ws_mode) FALSE else isolate(isTRUE(input$show_projections == "1"))
-    display_mode_val <- if (is_ws_mode) "absolute" else input$display_mode
+    display_mode_val <- if (is_ws_mode) "absolute" else (if (!is.null(input$display_mode)) input$display_mode else "absolute")
     use_period <- (isTRUE(view_mode == "period") && !is_ws_mode)
 
-    if (use_period) {
+    if (isTRUE(use_period)) {
       clim_data <- period_averaged_climate_data()
     } else {
       clim_data <- filtered_climate_data()
@@ -1058,7 +1082,8 @@ server <- function(input, output, session) {
 
     # Slide up the stats drawer
     session$sendCustomMessage("toggle_stats_drawer", list(show = TRUE))
-    if (input$temporal_mode == "WS") {
+    is_ws_supported <- input$climate_variable %in% ws_supported_variables
+    if (input$temporal_mode == "WS" && is_ws_supported) {
       updateTabsetPanel(session, "drawer_tabs", selected = "ws_cycle")
     }
 
@@ -1379,14 +1404,12 @@ server <- function(input, output, session) {
       tryCatch(ws_daily_data(), error = function(e) NULL)
     } else NULL
 
-    clim_df_val <- if (temp_m != "WS") {
-      tryCatch({
-        v_mode <- input$projection_view_mode
-        if (isTRUE(v_mode == "period")) period_averaged_climate_data() else filtered_climate_data()
-      }, error = function(e) NULL)
-    } else NULL
+    clim_df_val <- tryCatch({
+      v_mode <- input$projection_view_mode
+      if (!isTRUE(temp_m == "WS") && isTRUE(v_mode == "period")) period_averaged_climate_data() else filtered_climate_data()
+    }, error = function(e) NULL)
 
-    base_df_val <- if (temp_m != "WS") {
+    base_df_val <- if (!isTRUE(temp_m == "WS")) {
       tryCatch(baseline_map_data(), error = function(e) NULL)
     } else NULL
 
@@ -1404,7 +1427,7 @@ server <- function(input, output, session) {
       selected_year = input$selected_year,
       historical_period = input$historical_period,
       projection_period = input$projection_period,
-      projection_view_mode = input$projection_view_mode,
+      projection_view_mode = if (!is.null(input$projection_view_mode)) input$projection_view_mode else "year",
       display_mode = input$display_mode,
       ssp_scenario = input$ssp_scenario,
       solar_technology = input$solar_technology
@@ -1424,7 +1447,8 @@ server <- function(input, output, session) {
     # Take dependencies on all controls that affect the legend
     req(input$climate_variable, input$temporal_mode, input$selected_year)
     # Explicit dependencies for period mode
-    view_mode <- input$projection_view_mode
+    is_ws_mode <- isTRUE(input$temporal_mode == "WS")
+    view_mode <- if (is_ws_mode || is.null(input$projection_view_mode)) "year" else input$projection_view_mode
     show_proj <- isTRUE(input$show_projections == "1")
     proj_period <- if (show_proj) input$projection_period else input$historical_period
 
@@ -1432,10 +1456,9 @@ server <- function(input, output, session) {
     is_precip <- (input$climate_variable == "total_precipitation")
 
     # Check display mode (force absolute view and non-period mode in WS mode)
-    show_proj <- isTRUE(input$show_projections == "1")
-    use_anomaly_legend <- (show_proj && isTRUE(input$display_mode == "anomaly") && input$temporal_mode != "WS")
+    use_anomaly_legend <- (show_proj && isTRUE(input$display_mode == "anomaly") && !is_ws_mode)
     if (isTRUE(var_meta$is_categorical)) use_anomaly_legend <- FALSE
-    use_period <- (isTRUE(view_mode == "period") && input$temporal_mode != "WS")
+    use_period <- (isTRUE(view_mode == "period") && !is_ws_mode)
     sel_year <- as.integer(input$selected_year)
 
     # Determine if the current view shows projected data.
@@ -2457,10 +2480,18 @@ server <- function(input, output, session) {
   # rendered the DOM element before we attempt to update it. The ignoreInit
   # is FALSE so it also fires on first load.
   observeEvent(input$temporal_mode, {
+    is_wind <- input$climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
+    session$sendCustomMessage("toggle_tech_mix_controls", list(show = is_wind && input$temporal_mode != "WS"))
+
+    is_ws_supported <- input$climate_variable %in% ws_supported_variables
     if (input$temporal_mode == "WS") {
       choices <- get_ws_dropdown_choices()
       updateSelectizeInput(session, "selected_ws", choices = choices, server = FALSE)
-      updateTabsetPanel(session, "drawer_tabs", selected = "ws_cycle")
+      if (is_ws_supported) {
+        updateTabsetPanel(session, "drawer_tabs", selected = "ws_cycle")
+      } else {
+        updateTabsetPanel(session, "drawer_tabs", selected = "trends")
+      }
     } else {
       if (isTRUE(input$drawer_tabs == "ws_cycle")) {
         updateTabsetPanel(session, "drawer_tabs", selected = "trends")
@@ -2476,11 +2507,23 @@ server <- function(input, output, session) {
     var_name <- input$climate_variable
     sp_level <- spatial_level_to_parquet[input$spatial_level]
     target_region <- region$zone_id
+    solar_tech <- if (var_name %in% c("solar_power_pv", "solar_power_csp")) input$solar_technology else NULL
     
-    query_ws_daily(var_name, sp_level, target_region)
+    query_ws_daily(var_name, sp_level, target_region, solar_tech = solar_tech)
   }) |> 
-    bindCache(input$climate_variable, input$spatial_level, if (!is.null(clicked_region())) clicked_region()$zone_id else "") |> 
-    bindEvent(input$drawer_tabs, input$climate_variable, input$spatial_level, clicked_region())
+    bindCache(
+      input$climate_variable,
+      input$spatial_level,
+      if (!is.null(clicked_region())) clicked_region()$zone_id else "",
+      if (input$climate_variable %in% c("solar_power_pv", "solar_power_csp")) input$solar_technology else ""
+    ) |> 
+    bindEvent(
+      input$drawer_tabs,
+      input$climate_variable,
+      input$spatial_level,
+      clicked_region(),
+      input$solar_technology
+    )
 
   output$ws_annual_cycle <- renderPlotly({
     req(input$drawer_tabs == "ws_cycle")
@@ -2488,7 +2531,22 @@ server <- function(input, output, session) {
     req(region)
     
     df_ws <- ws_daily_data()
-    req(df_ws)
+    if (is.null(df_ws) || nrow(df_ws) == 0) {
+      return(
+        plot_ly() %>%
+          layout(
+            title = list(
+              text = sprintf("No Weather Scenario daily data available for %s", region$name),
+              font = list(family = "Inter, sans-serif", size = 13, color = "#94a3b8"),
+              x = 0.5, xanchor = "center"
+            ),
+            paper_bgcolor = "rgba(0,0,0,0)",
+            plot_bgcolor = "rgba(0,0,0,0)",
+            xaxis = list(visible = FALSE),
+            yaxis = list(visible = FALSE)
+          )
+      )
+    }
     
     var_name <- input$climate_variable
     var_meta <- enrich_var_meta(climate_variables[[var_name]], input$solar_technology)
@@ -2503,12 +2561,15 @@ server <- function(input, output, session) {
     highlighted_ws <- highlighted_ws[nzchar(highlighted_ws)]
     if (length(highlighted_ws) == 0) highlighted_ws <- NULL
     
-    build_ws_annual_cycle_chart(
+    p <- build_ws_annual_cycle_chart(
       df_ws = df_ws,
       var_name = var_name,
       var_meta = var_meta,
       region_name = region$name,
       highlighted_ws = highlighted_ws
     )
+
+    if (isTRUE(input$is_mobile)) p <- p |> layout(showlegend = FALSE)
+    p
   })
 }

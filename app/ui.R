@@ -864,7 +864,7 @@ ui <- page_fillable(
             plotlyOutput("all_region_seasonality", height = "100%", width = "100%")
           ),
           tabPanel(
-            title = "Weather Scenarios",
+            title = "WS Annual Cycle",
             value = "ws_cycle",
             div(
               style = "display: flex; flex-direction: column; height: 100%; gap: 6px;",

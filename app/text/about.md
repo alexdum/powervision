@@ -41,8 +41,17 @@ Wind power projections are fundamentally intertwined with turbine technology evo
 
 ### Weather Scenarios (WS)
 In addition to historical reanalysis and future projections, the explorer includes **36 Weather Scenarios (WS)**. 
-* **What they are**: These weather scenarios represent the champion set of 36 model-year combinations available for ENTSO-E-wide and national studies. They intend to be a representative subset of all six different models from the Coupled Model Intercomparison Project Phase 6 available in the PECD over the time period from 2026 to 2055.
-* **How to find them**: In the left sidebar, change the **Temporal Filter** dropdown from *Annual* (or any season/month) to **Weather Scenarios (Daily)**. The map will update to show the 36-scenario average for each region. Click on any region to open the bottom statistics drawer, where you can explore the **WS Annual Cycle** tab. This chart displays the 15-day smoothed daily trajectories of all 36 scenarios simultaneously, highlighting the envelope of variability throughout the year. You can also explicitly highlight specific scenarios from the left sidebar.
+* **What they are**: These weather scenarios represent the champion set of 36 model-year combinations available for ENTSO-E-wide and national studies. They intend to be a representative subset of all six different models from the Coupled Model Intercomparison Project Phase 6 available in the PECD over the time period from 2026 to 2055 under SSP2-4.5.
+* **How to find them**: In the left sidebar, change the **Temporal Filter** dropdown from *Annual* (or any season/month) to **Weather Scenarios (Daily)**. The map will update to show the selected scenario's value for each region. Click on any region to open the bottom statistics drawer, where you can explore the **WS Annual Cycle** tab. This chart displays the 15-day smoothed daily trajectories of all 36 scenarios simultaneously, highlighting the envelope of variability throughout the year. You can also explicitly highlight specific scenarios from the left sidebar.
+* **Energy Indicators Daily Methodology**:
+  * **Wind Power (2020 Existing Fleet Baseline)**: Onshore wind is evaluated using the pure raw existing fleet baseline (`tech_30`), and offshore wind is evaluated using the pure raw coastal existing fleet baseline (`tech_20`) across all 36 scenario-years under SSP2-4.5. This isolates meteorological impacts on the existing European wind turbine fleet without confounding dynamic technology upgrade assumptions.
+  * **Solar Power (Direct Technology Lookups)**: Both Solar Photovoltaic (PV) and Concentrated Solar Power (CSP) provide direct lookups across available technology subcodes:
+    * *Solar PV*: Subcode 60 (Industrial rooftop, default), Subcode 61 (Residential rooftop), Subcode 62 (Commercial rooftop), and Subcode 63 (Utility-scale ground-mounted).
+    * *Solar CSP*: Subcode 40 (Pre-dispatch, no storage, default), Subcode 41 (Dispatched, no storage), Subcode 42 (Pre-dispatch, 7h storage), and Subcode 43 (Dispatched, 7h storage).
+    * Switching solar technologies in the left sidebar dynamically updates the 36 daily annual cycle trajectories in real time.
+  * **Country-Level Spatial Aggregation (NUT0)**: For national-level analysis (`NUT0`), daily capacity factor time series are synthesized via polygon area-weighted spatial aggregation (`area_km2`) of the underlying granular bidding zones (`P2ON` for onshore wind and solar; `P2OF` coastal zones for offshore wind).
+  * **Calendar Harmonization**: To enable exact day-of-year comparisons across all 36 scenarios, all daily time series are harmonized to exactly 365 daily steps per scenario-year (leap day February 29 is excluded in leap years).
+
 
 ### Data Sources & Citation
 * **Copernicus PECD v4.2** — Climate and energy related variables derived from reanalysis and climate projections (6 models, 4 SSP scenarios).

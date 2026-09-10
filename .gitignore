@@ -29,4 +29,8 @@ Thumbs.db
 # Documentation
 .agents/
 DEPLOYMENT.md
-misc
+misc/*
+!misc/tests/
+misc/tests/*
+!misc/tests/test_ws_energy_queries.R
+!misc/tests/test_region_stats_cards.R

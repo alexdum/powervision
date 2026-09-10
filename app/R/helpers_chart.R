@@ -1644,10 +1644,22 @@ build_all_scenarios_seasonality_chart <- function(
 smooth_ws_series <- function(x, window = 15) {
   if (length(x) < window) return(x)
   pad <- floor((window - 1) / 2)
+  x_clean <- x
+  if (anyNA(x_clean)) {
+    mean_val <- mean(x_clean, na.rm = TRUE)
+    x_clean[is.na(x_clean)] <- if (is.finite(mean_val)) mean_val else 0
+  }
   # Circular padding: Dec 25-31 before Jan 1, Jan 1-7 after Dec 31
-  x_padded <- c(tail(x, pad), x, head(x, pad))
+  x_padded <- c(tail(x_clean, pad), x_clean, head(x_clean, pad))
   res <- stats::filter(x_padded, rep(1/window, window), sides = 2)
-  as.numeric(res[(pad + 1):(length(x) + pad)])
+  smoothed <- as.numeric(res[(pad + 1):(length(x_clean) + pad)])
+  if (all(x >= 0, na.rm = TRUE)) {
+    smoothed <- pmax(0, smoothed)
+  }
+  if (all(x <= 1, na.rm = TRUE)) {
+    smoothed <- pmin(1, smoothed)
+  }
+  smoothed
 }
 
 #' Build Weather Scenarios (WS) Annual Cycle Chart
@@ -1663,6 +1675,9 @@ build_ws_annual_cycle_chart <- function(df_ws, var_name, var_meta, region_name, 
   title_main <- sprintf("WS Daily %s", var_label)
   title_sub  <- sprintf("%s \u00b7 36 scenarios (ENTSO-E champion set) \u00b7 SSP2-4.5", region_name)
   
+  # Ensure clean chronological sorting by WS code and day of year
+  df_ws <- df_ws[order(df_ws$WS, df_ws$DayOfYear), , drop = FALSE]
+
   # Format dates for hover
   if (!("DateStr" %in% names(df_ws))) {
     df_ws$DateStr <- format(as.Date(df_ws$DayOfYear - 1, origin = "2023-01-01"), "%b %d")
@@ -1729,17 +1744,19 @@ build_ws_annual_cycle_chart <- function(df_ws, var_name, var_meta, region_name, 
         hl_color <- ws_highlight_palette[color_idx]
         display_label <- if (exists("get_ws_display_label")) get_ws_display_label(ws_code) else ws_code
         
+        y_val_fmt <- if (isTRUE(var_meta$is_cf) || identical(var_unit, "CF")) ".3f" else ".1f"
         p <- p %>% add_trace(
           data = df_hl,
           x = ~DayOfYear,
           y = ~Value,
+          customdata = ~DateStr,
           type = "scatter",
           mode = "lines",
           name = display_label,
           line = list(color = hl_color, width = 2.5, shape = "spline"),
           showlegend = TRUE,
           hovertemplate = paste0(
-            "<b><span style='color:", hl_color, "'>", display_label, "</span></b>: %{y:.1f} ", var_unit,
+            "<b>%{customdata} \u00b7 <span style='color:", hl_color, "'>", display_label, "</span></b>: %{y:", y_val_fmt, "} ", var_unit,
             "<extra></extra>"
           )
         )
@@ -1771,7 +1788,8 @@ build_ws_annual_cycle_chart <- function(df_ws, var_name, var_meta, region_name, 
       title = list(text = y_label, font = list(size = 12)),
       gridcolor = "rgba(148, 163, 184, 0.08)",
       zerolinecolor = "rgba(148, 163, 184, 0.15)",
-      tickfont = list(size = 11)
+      tickfont = list(size = 11),
+      rangemode = if (isTRUE(var_meta$is_cf) || identical(var_unit, "CF") || var_name %in% c("total_precipitation", "surface_solar_radiation_downwards", "10m_wind_speed", "100m_wind_speed")) "tozero" else "normal"
     ),
     legend = list(
       orientation = "h", x = 0, y = -0.15,
@@ -1779,7 +1797,17 @@ build_ws_annual_cycle_chart <- function(df_ws, var_name, var_meta, region_name, 
       bgcolor = "rgba(0,0,0,0)"
     ),
     margin = list(l = 60, r = 20, t = 60, b = 50),
-    hovermode = "x unified"
+    hovermode = "x unified",
+    hoverlabel = list(
+      namelength = 0,
+      bgcolor = "rgba(15, 23, 42, 0.90)",
+      bordercolor = "rgba(255, 255, 255, 0.15)",
+      font = list(
+        family = "Inter, sans-serif",
+        size = 12,
+        color = "#f8fafc"
+      )
+    )
   ) %>%
     config(
       displayModeBar = "hover",

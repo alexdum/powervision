@@ -10,10 +10,11 @@ library(shiny)
 
 # Helper to build a single metric card
 metric_card <- function(label, value, accent_class = "") {
-  content <- if (inherits(value, "shiny.tag") || inherits(value, "html") || inherits(value, "shiny.tag.list")) {
-    value
+  safe_val <- if (is.null(value) || length(value) == 0) "\u2014" else value
+  content <- if (inherits(safe_val, "shiny.tag") || inherits(safe_val, "html") || inherits(safe_val, "shiny.tag.list")) {
+    safe_val
   } else {
-    HTML(value)
+    HTML(as.character(safe_val))
   }
   div(
     class = paste("metric-card", accent_class),
@@ -37,6 +38,20 @@ build_region_stats_cards <- function(region, spatial_level, show_projections, pr
                                       solar_technology = NULL) {
   if (is.null(region)) return(NULL)
 
+  # Defensive defaults for inputs that might be NULL, empty, NA, or invalid during initialization
+  if (is.null(temporal_mode) || length(temporal_mode) == 0 || is.na(temporal_mode) || !nzchar(temporal_mode)) {
+    temporal_mode <- "Annual"
+  }
+  if (is.null(projection_view_mode) || length(projection_view_mode) == 0 || is.na(projection_view_mode)) {
+    projection_view_mode <- "year"
+  }
+  if (is.null(show_projections) || length(show_projections) == 0 || is.na(show_projections)) {
+    show_projections <- "0"
+  }
+  if (is.null(projection_style) || length(projection_style) == 0 || is.na(projection_style)) {
+    projection_style <- "band"
+  }
+
   area_txt <- "N/A"
   if (!is.null(region$area_km2) && !is.na(region$area_km2)) {
     area_txt <- sprintf("%s km\u00b2", format(round(as.numeric(region$area_km2)), big.mark = ",", trim = TRUE))
@@ -48,10 +63,10 @@ build_region_stats_cards <- function(region, spatial_level, show_projections, pr
   }
 
   # Translate Study Zones for UI clarity if they are bundled inside Bidding Zone maps
-  display_level <- region$level
-  if (spatial_level == "P2ON" && region$level == "SZON") {
+  display_level <- if (!is.null(region$level) && nzchar(region$level)) region$level else spatial_level
+  if (spatial_level == "P2ON" && identical(region$level, "SZON")) {
     display_level <- "P2ON (Study Zone)"
-  } else if (spatial_level == "P2OF" && region$level == "SZOF") {
+  } else if (spatial_level == "P2OF" && identical(region$level, "SZOF")) {
     display_level <- "P2OF (Study Zone)"
   }
 
@@ -63,26 +78,72 @@ build_region_stats_cards <- function(region, spatial_level, show_projections, pr
   )
 
   # Weather Scenario Metric Card (when in WS mode)
-  if (temporal_mode == "WS" && !is.null(map_selected_ws) && map_selected_ws != "" && !is.null(ws_df) && nrow(ws_df) > 0) {
-    ws_sub <- ws_df[ws_df$WS == map_selected_ws, ]
-    if (nrow(ws_sub) > 0) {
-      var_meta <- if (!is.null(climate_variable) && climate_variable %in% names(climate_variables)) {
-        enrich_var_meta(climate_variables[[climate_variable]], solar_technology)
-      } else NULL
-      
-      unit_str <- if (!is.null(var_meta)) var_meta$unit else ""
-      is_extensive <- (climate_variable %in% c("total_precipitation") || grepl("^hydropower_", climate_variable))
-      
+  if (isTRUE(temporal_mode == "WS") && !is.null(map_selected_ws) && map_selected_ws != "") {
+    var_meta <- if (!is.null(climate_variable) && climate_variable %in% names(climate_variables)) {
+      enrich_var_meta(climate_variables[[climate_variable]], solar_technology)
+    } else NULL
+    
+    unit_str <- if (!is.null(var_meta)) var_meta$unit else ""
+    is_extensive <- (climate_variable %in% c("total_precipitation") || grepl("^hydropower_", climate_variable))
+    is_cf <- (!is.null(unit_str) && unit_str == "CF")
+    
+    calc_val <- NULL
+    calc_type <- NULL
+
+    # 1. Try daily ws_df if available (e.g., climate variables on ws_cycle tab)
+    has_ws_df <- (!is.null(ws_df) && nrow(ws_df) > 0)
+    ws_sub <- if (has_ws_df) ws_df[ws_df$WS == map_selected_ws, ] else NULL
+
+    if (!is.null(ws_sub) && nrow(ws_sub) > 0) {
       if (is_extensive) {
         calc_val <- sum(ws_sub$Value, na.rm = TRUE)
         calc_type <- "Annual Sum"
       } else {
         calc_val <- mean(ws_sub$Value, na.rm = TRUE)
-        calc_type <- "Annual Mean"
+        calc_type <- if (is_cf) "Annual CF" else "Annual Mean"
       }
-      
-      val_fmt <- format(round(calc_val, 1), nsmall = 1, big.mark = ",", trim = TRUE)
-      val_display <- sprintf("%s %s", val_fmt, unit_str)
+    } else if (!is.null(clim_df) && nrow(clim_df) > 0) {
+      # 2. Fallback to annual choropleth data (filtered_climate_data) for wind, solar, or non-daily tabs
+      target_id <- region$zone_id
+      if (spatial_level %in% c("SZOF", "szof")) {
+        target_id <- sub("_OFF$", "", target_id)
+      }
+      curr_row <- clim_df[clim_df$Region == target_id | clim_df$Region == region$zone_id, ]
+      if (nrow(curr_row) > 0) {
+        calc_val <- curr_row$Value[1]
+        calc_type <- if (is_cf) "Annual CF" else if (is_extensive) "Annual Sum" else "Annual Mean"
+      }
+    }
+
+    # 3. Direct query fallback via query_ws_annual_for_map if neither ws_df nor clim_df provided data
+    if (is.null(calc_val) && exists("query_ws_annual_for_map") && !is.null(climate_variable)) {
+      ws_annual_df <- tryCatch(
+        query_ws_annual_for_map(
+          var_name = climate_variable,
+          sp_level = spatial_level,
+          ws_code = map_selected_ws,
+          solar_tech = solar_technology,
+          tech_mix_mode = "fixed_2020"
+        ),
+        error = function(e) NULL
+      )
+      if (!is.null(ws_annual_df) && nrow(ws_annual_df) > 0) {
+        target_id <- region$zone_id
+        if (spatial_level %in% c("SZOF", "szof")) {
+          target_id <- sub("_OFF$", "", target_id)
+        }
+        curr_row <- ws_annual_df[ws_annual_df$Region == target_id | ws_annual_df$Region == region$zone_id, ]
+        if (nrow(curr_row) > 0) {
+          calc_val <- curr_row$Value[1]
+          calc_type <- if (is_cf) "Annual CF" else if (is_extensive) "Annual Sum" else "Annual Mean"
+        }
+      }
+    }
+    
+    if (!is.null(calc_val) && is.finite(calc_val)) {
+      dec <- if (is_cf) 3 else 1
+      val_fmt <- format(round(calc_val, dec), nsmall = dec, big.mark = ",", trim = TRUE)
+      val_display <- if (nzchar(unit_str)) sprintf("%s %s", val_fmt, unit_str) else val_fmt
       
       ws_label <- if (exists("get_ws_display_label")) get_ws_display_label(map_selected_ws) else map_selected_ws
       
@@ -93,10 +154,10 @@ build_region_stats_cards <- function(region, spatial_level, show_projections, pr
       
       cards <- c(cards, list(metric_card(ws_label, ws_content, "accent-warning ws-metric-card")))
     }
-  } else if (temporal_mode != "WS" && !is.null(clim_df) && nrow(clim_df) > 0 && !is.null(climate_variable)) {
+  } else if (!isTRUE(temporal_mode == "WS") && !is.null(clim_df) && nrow(clim_df) > 0 && !is.null(climate_variable)) {
     # Non-WS Summary Card for Annual, Monthly, and Seasonal modes
     target_id <- region$zone_id
-    if (spatial_level == "SZOF") {
+    if (spatial_level %in% c("SZOF", "szof")) {
       target_id <- sub("_OFF$", "", target_id)
     }
     
@@ -112,15 +173,15 @@ build_region_stats_cards <- function(region, spatial_level, show_projections, pr
         if (nrow(b_row) > 0) base_val <- b_row$baseline_value[1]
       }
       
-      time_hdr <- if (temporal_mode == "Annual") {
-        if (projection_view_mode == "period" && isTRUE(show_projections == "1")) {
+      time_hdr <- if (identical(temporal_mode, "Annual") || isTRUE(temporal_mode == "Annual")) {
+        if (isTRUE(projection_view_mode == "period") && isTRUE(show_projections == "1")) {
           sprintf("%s Period", projection_period)
         } else {
           sprintf("%s Annual", selected_year)
         }
       } else if (temporal_mode %in% as.character(1:12)) {
         m_name <- month.name[as.integer(temporal_mode)]
-        if (projection_view_mode == "period" && isTRUE(show_projections == "1")) {
+        if (isTRUE(projection_view_mode == "period") && isTRUE(show_projections == "1")) {
           sprintf("%s (%s)", m_name, projection_period)
         } else {
           sprintf("%s %s", m_name, selected_year)
@@ -128,7 +189,7 @@ build_region_stats_cards <- function(region, spatial_level, show_projections, pr
       } else {
         season_names <- c("DJF" = "Winter (DJF)", "MAM" = "Spring (MAM)", "JJA" = "Summer (JJA)", "SON" = "Autumn (SON)")
         s_name <- if (temporal_mode %in% names(season_names)) season_names[[temporal_mode]] else temporal_mode
-        if (projection_view_mode == "period" && isTRUE(show_projections == "1")) {
+        if (isTRUE(projection_view_mode == "period") && isTRUE(show_projections == "1")) {
           sprintf("%s (%s)", s_name, projection_period)
         } else {
           sprintf("%s %s", s_name, selected_year)

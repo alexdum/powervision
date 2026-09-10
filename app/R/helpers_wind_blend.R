@@ -106,6 +106,10 @@ get_resource_group <- function(region_id, wind_type) {
   if (nrow(res) > 0) {
     return(res$ResourceGroup[1])
   } else {
+    clean_id <- sub("_OFF$", "", region_id)
+    if (nzchar(clean_id) && nchar(clean_id) == 2) {
+      return("Country Aggregate")
+    }
     return("Unknown")
   }
 }
@@ -206,7 +210,8 @@ get_all_group_weights <- function(target_year, wind_type,
 blend_wind_power_all_regions <- function(
   tech_mix_mode, wind_type, ds_annual, ds_seasonal, ds_monthly,
   temporal_mode, sp_level, year = NULL, year_start = NULL, year_end = NULL,
-  target_year = NULL, scenario_val = NULL, target_region = NULL
+  target_year = NULL, scenario_val = NULL, target_region = NULL,
+  model_val = NULL
 ) {
   
   valid_levels <- if (wind_type == "onshore") c("nuts_0", "p2on", "szon") else c("nuts_0", "p2of", "szof")
@@ -263,7 +268,8 @@ blend_wind_power_all_regions <- function(
       year_end = year_end,
       scenario_val = scenario_val,
       target_region = query_target_region,
-      select_cols = c("Region", "Value", "Year", "scenario", "model")
+      select_cols = c("Region", "Value", "Year", "scenario", "model"),
+      model_val = model_val
     )
     
     if (is.null(tech_data)) next
@@ -319,15 +325,43 @@ blend_wind_power_all_regions <- function(
   if (is_nut0_agg) {
     # Extract area weights from geojson
     sf_layer_name <- ifelse(wind_type == "onshore", "P2ON", "P2OF")
-    sf_data <- spatial_boundary_cache[[sf_layer_name]]
-    
+    sf_data <- if (exists("spatial_boundary_cache")) spatial_boundary_cache[[sf_layer_name]] else NULL
+    areas_df <- NULL
+
     if (!is.null(sf_data)) {
-      # Extract NUT0 code from region ID (first 2 chars)
-      areas_df <- sf_data |> 
-        sf::st_drop_geometry() |> 
-        dplyr::select(zone_id, area_km2) |>
-        dplyr::rename(Region = zone_id)
-      
+      if (inherits(sf_data, "sf") && requireNamespace("sf", quietly = TRUE)) {
+        areas_df <- sf_data |> 
+          sf::st_drop_geometry() |> 
+          dplyr::select(zone_id, area_km2) |>
+          dplyr::rename(Region = zone_id)
+      } else if (is.data.frame(sf_data) && all(c("zone_id", "area_km2") %in% names(sf_data))) {
+        areas_df <- sf_data[, c("zone_id", "area_km2")]
+        names(areas_df) <- c("Region", "area_km2")
+      }
+    }
+
+    # Fallback to reading geojson via jsonlite if areas_df not yet available
+    if (is.null(areas_df)) {
+      geojson_path <- if (file.exists(file.path("www/data/geo", paste0("pecd_", sf_layer_name, ".geojson")))) {
+        file.path("www/data/geo", paste0("pecd_", sf_layer_name, ".geojson"))
+      } else if (file.exists(file.path("app/www/data/geo", paste0("pecd_", sf_layer_name, ".geojson")))) {
+        file.path("app/www/data/geo", paste0("pecd_", sf_layer_name, ".geojson"))
+      } else NULL
+
+      if (!is.null(geojson_path) && requireNamespace("jsonlite", quietly = TRUE)) {
+        tryCatch({
+          geo_json <- jsonlite::fromJSON(geojson_path)
+          props <- geo_json$features$properties
+          if (all(c("zone_id", "area_km2") %in% names(props))) {
+            areas_df <- data.frame(Region = props$zone_id, area_km2 = props$area_km2, stringsAsFactors = FALSE)
+          }
+        }, error = function(e) NULL)
+      }
+    }
+
+    if (!is.null(areas_df)) {
+      areas_df$Region <- as.character(areas_df$Region)
+      final_blended$Region <- as.character(final_blended$Region)
       final_blended <- final_blended |>
         dplyr::left_join(areas_df, by = "Region") |>
         dplyr::mutate(
@@ -342,11 +376,25 @@ blend_wind_power_all_regions <- function(
       final_blended <- final_blended |>
         dplyr::group_by(dplyr::across(dplyr::all_of(agg_cols))) |>
         dplyr::summarize(
-          Value = sum(Value * area_km2, na.rm = TRUE) / sum(area_km2, na.rm = TRUE),
+          Value = if (all(is.na(Value))) NA_real_ else sum(Value * area_km2, na.rm = TRUE) / sum(area_km2[!is.na(Value)]),
           .groups = "drop"
         ) |>
         dplyr::rename(Region = NUT0) |>
         dplyr::mutate(ResourceGroup = "Aggregated") # NUTS0 loses granular group
+    } else {
+      # Fallback to unweighted mean by country prefix
+      agg_cols <- setdiff(group_cols, c("Region", "ResourceGroup"))
+      agg_cols <- c("NUT0", agg_cols)
+
+      final_blended <- final_blended |>
+        dplyr::mutate(NUT0 = substr(Region, 1, 2)) |>
+        dplyr::group_by(dplyr::across(dplyr::all_of(agg_cols))) |>
+        dplyr::summarize(
+          Value = mean(Value, na.rm = TRUE),
+          .groups = "drop"
+        ) |>
+        dplyr::rename(Region = NUT0) |>
+        dplyr::mutate(ResourceGroup = "Aggregated")
     }
   }
   
@@ -367,10 +415,38 @@ blend_wind_power_timeseries <- function(region_id, tech_mix_mode, wind_type, ds_
   # For NUT0, we must fetch ALL regions in that country, blend them dynamically, and aggregate
   if (is_nut0_agg) {
     sf_layer_name <- ifelse(wind_type == "onshore", "P2ON", "P2OF")
-    sf_data <- spatial_boundary_cache[[sf_layer_name]]
-    if (is.null(sf_data)) return(NULL)
+    sf_data <- if (exists("spatial_boundary_cache")) spatial_boundary_cache[[sf_layer_name]] else NULL
+    sub_regions_df <- NULL
+
+    if (!is.null(sf_data)) {
+      if (inherits(sf_data, "sf") && requireNamespace("sf", quietly = TRUE)) {
+        sub_regions_df <- sf_data |> sf::st_drop_geometry() |> dplyr::select(zone_id, area_km2)
+      } else if (is.data.frame(sf_data) && all(c("zone_id", "area_km2") %in% names(sf_data))) {
+        sub_regions_df <- sf_data[, c("zone_id", "area_km2")]
+      }
+    }
+
+    if (is.null(sub_regions_df)) {
+      geojson_path <- if (file.exists(file.path("www/data/geo", paste0("pecd_", sf_layer_name, ".geojson")))) {
+        file.path("www/data/geo", paste0("pecd_", sf_layer_name, ".geojson"))
+      } else if (file.exists(file.path("app/www/data/geo", paste0("pecd_", sf_layer_name, ".geojson")))) {
+        file.path("app/www/data/geo", paste0("pecd_", sf_layer_name, ".geojson"))
+      } else NULL
+
+      if (!is.null(geojson_path) && requireNamespace("jsonlite", quietly = TRUE)) {
+        tryCatch({
+          geo_json <- jsonlite::fromJSON(geojson_path)
+          props <- geo_json$features$properties
+          if (all(c("zone_id", "area_km2") %in% names(props))) {
+            sub_regions_df <- data.frame(zone_id = props$zone_id, area_km2 = props$area_km2, stringsAsFactors = FALSE)
+          }
+        }, error = function(e) NULL)
+      }
+    }
+
+    if (is.null(sub_regions_df)) return(NULL)
     
-    sub_regions_df <- sf_data |> sf::st_drop_geometry() |> dplyr::select(zone_id, area_km2)
+    sub_regions_df$zone_id <- as.character(sub_regions_df$zone_id)
     # Filter to regions whose ID starts with the NUT0 code
     sub_regions_df <- sub_regions_df[substr(sub_regions_df$zone_id, 1, 2) == region_id, ]
     target_regions <- sub_regions_df$zone_id
@@ -485,7 +561,7 @@ blend_wind_power_timeseries <- function(region_id, tech_mix_mode, wind_type, ds_
     final_blended <- final_blended |>
       dplyr::group_by(dplyr::across(dplyr::all_of(agg_cols))) |>
       dplyr::summarize(
-        Value = sum(Value * area_km2, na.rm = TRUE) / sum(area_km2, na.rm = TRUE),
+        Value = if (all(is.na(Value))) NA_real_ else sum(Value * area_km2, na.rm = TRUE) / sum(area_km2[!is.na(Value)]),
         .groups = "drop"
       ) |>
       dplyr::mutate(Region = region_id)

@@ -64,7 +64,8 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mod
                                 var_name, sp_level,
                                 year = NULL, year_start = NULL, year_end = NULL,
                                 target_region = NULL, scenario_val = NULL,
-                                select_cols = NULL, solar_tech = NULL) {
+                                select_cols = NULL, solar_tech = NULL,
+                                model_val = NULL) {
 
   # If a solar variable is selected, append the technology number from the dropdown
   if (!is.null(solar_tech) && solar_tech != "") {
@@ -121,6 +122,11 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mod
   # Optional: filter by SSP scenario (only for projection datasets).
   if (!is.null(scenario_val)) {
     query <- query |> dplyr::filter(scenario %in% !!scenario_val)
+  }
+
+  # Optional: filter by climate model (e.g. for Weather Scenarios).
+  if (!is.null(model_val)) {
+    query <- query |> dplyr::filter(model %in% !!model_val)
   }
 
   # For seasonal/monthly modes, also filter by the active season/month.
