@@ -1,8 +1,14 @@
 # PowerClimate Vision Explorer
 
-Interactive spatial dashboard for exploring Copernicus PECD v4.2 climate-energy boundaries across Europe. Built with R Shiny and MapLibre GL, developed as part of Code for Earth 2026.
+[![Live App on Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Live%20Demo-blue)](https://adumitrescu-powervision.hf.space/)
+[![Code for Earth 2026](https://img.shields.io/badge/Code%20for%20Earth-2026-teal)](https://codeforearth.ecmwf.int/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-The app lets you browse different spatial tiers (countries, NUTS2 regions, ENTSO-E bidding zones, study zones) on an interactive globe, click on regions to see metadata, and switch between basemaps.
+Interactive spatial dashboard for exploring Copernicus PECD v4.2 climate-energy projections across Europe. Built with R Shiny, Apache Arrow, and MapLibre GL, developed as part of **Code for Earth 2026** (Stream 1: Data Visualization, Challenge 14).
+
+🚀 **Live Application:** [https://adumitrescu-powervision.hf.space/](https://adumitrescu-powervision.hf.space/) (Instant access, no login required)
+
+The app lets you browse different spatial tiers (countries, NUTS2 regions, ENTSO-E bidding zones, study zones) on an interactive globe, click on regions to see metadata, explore multi-model climate-energy projections, and switch between basemaps.
 
 ## What it does
 
@@ -99,20 +105,42 @@ docker run -e PECD_GEOJSON_VERSION=mixed ...
 
 ## Project layout
 
-```
-├── global.R          # Libraries, config, spatial level definitions
-├── server.R          # Reactive logic, map rendering, event handlers
-├── ui.R              # Page layout, floating panels, stats drawer
-├── www/
-│   ├── styles.css    # Dark glassmorphism design system
-│   ├── app.js        # Drawer toggle, layer control JS
-│   └── data/
-│       ├── geo/      # GeoJSON boundary files (v4.0 and v4.2)
-│       └── pecd/     # Hive-partitioned Parquet climate datasets
-│           ├── historical/
-│           │   ├── annual/
-│           │   └── seasonal/
-│           └── projections/
+```text
+├── Dockerfile                  # Multi-stage production container build (Hugging Face / standalone)
+├── docker-compose.yml          # Local container orchestration
+├── docker/
+│   ├── Dockerfile              # Shiny Server container specification
+│   └── shiny-server.conf       # Shiny Server routing and worker config
+├── scripts/
+│   ├── push_to_hf.sh           # Automated deployment script to Hugging Face Spaces
+│   └── upload_data_to_hf.py    # Parquet dataset sync to Hugging Face Dataset Hub
+├── app/
+│   ├── global.R                # Dataset initialization, GeoJSON caching, constants
+│   ├── server.R                # Core reactive engine, MapLibre & Plotly observers
+│   ├── ui.R                    # Glassmorphism layout, sidebar controls, stats drawer
+│   ├── renv.lock               # Deterministic R package dependency pinning
+│   ├── R/                      # Modular backend query and UI helper modules
+│   │   ├── helpers_climate_query.R # Apache Arrow Hive Parquet query engine
+│   │   ├── helpers_wind_blend.R    # Dynamic wind turbine technology blending engine
+│   │   ├── helpers_ws_query.R      # Weather Scenarios (WS01–WS36) daily query helper
+│   │   ├── helpers_chart.R         # Plotly time-series, multi-scenario & cycle charts
+│   │   ├── helpers_map.R           # MapLibre GL choropleth rendering & styling
+│   │   ├── helpers_legend.R        # Dynamic legend colorbar slicing & intervals
+│   │   ├── helpers_ui_drawer.R     # Detail stats drawer UI modules and tabs
+│   │   └── helpers_export.R        # Context-aware RFC 4180 CSV export engine
+│   ├── text/
+│   │   └── about.md            # In-app information modal and documentation
+│   └── www/
+│       ├── styles.css          # Glassmorphism CSS design system & responsive rules
+│       ├── app.js              # JavaScript bridge for MapLibre, drawers & controls
+│       └── data/
+│           ├── geo/            # GeoJSON boundaries (NUTS 0/2, P2ON/P2OF, SZON/SZOF)
+│           ├── technology_mix/ # Turbine mix ratios, resource groups & mappings
+│           ├── ws/             # ENTSO-E Weather Scenarios mapping table
+│           └── pecd/           # Hive Parquet lakehouse (historical, projections, ws_daily)
+│               ├── historical/ # Annual, seasonal, and monthly ERA5 partitions
+│               ├── projections/# Annual, seasonal, and monthly CMIP6 partitions
+│               └── ws_daily/   # Daily annual cycle profiles for 36 Weather Scenarios
 ```
 
 ## License
