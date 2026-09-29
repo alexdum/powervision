@@ -59,3 +59,7 @@ In addition to historical reanalysis and future projections, the explorer includ
 * **Eurostat GISCO** — NUTS 2021 administrative boundaries (Level 0 & Level 2)
 * **ENTSO-E** — Bidding zone boundaries (P2ON, P2OF)
 * **Study Zones** — Fine-grained onshore and offshore zones (SZON, SZOF)
+
+### Feedback & Contributions
+We welcome feedback, bug reports, and proposals for new features or improvements.
+* **Submit an issue or feature proposal:** Please open a ticket on our <a href="https://github.com/alexdum/powervision/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a> tracker.
