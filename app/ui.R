@@ -22,6 +22,51 @@ ui <- page_fillable(
       content = "PowerClimate Vision Explorer — Copernicus PECD v4.2 Interactive Spatial Dashboard"
     ),
     tags$title("PowerClimate Vision Explorer"),
+
+    # ── Social Media Preview & Open Graph Meta Tags (LinkedIn, Twitter/X, etc.) ──
+    tags$meta(property = "og:type", content = "website"),
+    tags$meta(property = "og:site_name", content = "PowerClimate Vision Explorer"),
+    tags$meta(
+      property = "og:title",
+      content = "PowerClimate Vision – Interactive Climate-Energy Dashboard"
+    ),
+    tags$meta(
+      property = "og:description",
+      content = "Explore Pan-European climate-energy projections from PECD v4.2."
+    ),
+    tags$meta(
+      property = "og:image",
+      content = "https://adumitrescu-powervision.hf.space/powervision-preview.png"
+    ),
+    tags$meta(
+      property = "og:image:secure_url",
+      content = "https://adumitrescu-powervision.hf.space/powervision-preview.png"
+    ),
+    tags$meta(property = "og:image:type", content = "image/png"),
+    tags$meta(property = "og:image:width", content = "1200"),
+    tags$meta(property = "og:image:height", content = "675"),
+    tags$meta(
+      property = "og:image:alt",
+      content = "PowerClimate Vision Explorer — Interactive Climate-Energy Projections Dashboard"
+    ),
+    tags$meta(
+      property = "og:url",
+      content = "https://adumitrescu-powervision.hf.space/"
+    ),
+    # Twitter / X Card
+    tags$meta(name = "twitter:card", content = "summary_large_image"),
+    tags$meta(
+      name = "twitter:title",
+      content = "PowerClimate Vision – Interactive Climate-Energy Dashboard"
+    ),
+    tags$meta(
+      name = "twitter:description",
+      content = "Explore Pan-European climate-energy projections from PECD v4.2."
+    ),
+    tags$meta(
+      name = "twitter:image",
+      content = "https://adumitrescu-powervision.hf.space/powervision-preview.png"
+    ),
     tags$script(
       type = "module",
       HTML('if (!("popover" in HTMLElement.prototype)) { import("https://unpkg.com/@oddbird/popover-polyfill@latest/dist/popover.min.js"); }')
