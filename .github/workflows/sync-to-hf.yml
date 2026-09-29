@@ -48,10 +48,14 @@ jobs:
           # Sync root-level Dockerfile (HF-specific, port 7860)
           cp github-repo/Dockerfile hf-repo/Dockerfile
 
-          # Sync app source code (excludes Parquet data which is in .gitignore)
+          # Sync app source code (excludes Parquet data and binary preview images)
           rsync -av --delete \
             --exclude='www/data/pecd/' \
+            --exclude='www/powervision-preview*.png' \
             github-repo/app/ hf-repo/app/
+
+          # Ensure no binary preview images exist in HF git repo (avoids Git LFS requirement)
+          rm -f hf-repo/app/www/powervision-preview*.png
 
           # Copy README_HF.md as README.md for HF frontmatter
           cp github-repo/README_HF.md hf-repo/README.md

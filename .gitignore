@@ -11,6 +11,9 @@ renv-cache/
 # Generated Parquet data (reproducible from pipeline scripts)
 app/www/data/pecd/
 
+# Social preview image in app/www (stored in docs/ to avoid Git LFS on HF)
+app/www/powervision-preview*.png
+
 # Runtime logs
 logs/
 *.log

@@ -36,11 +36,11 @@ ui <- page_fillable(
     ),
     tags$meta(
       property = "og:image",
-      content = "https://adumitrescu-powervision.hf.space/powervision-preview.png"
+      content = "https://raw.githubusercontent.com/alexdum/powervision/main/docs/powervision-preview.png"
     ),
     tags$meta(
       property = "og:image:secure_url",
-      content = "https://adumitrescu-powervision.hf.space/powervision-preview.png"
+      content = "https://raw.githubusercontent.com/alexdum/powervision/main/docs/powervision-preview.png"
     ),
     tags$meta(property = "og:image:type", content = "image/png"),
     tags$meta(property = "og:image:width", content = "1200"),
@@ -65,7 +65,7 @@ ui <- page_fillable(
     ),
     tags$meta(
       name = "twitter:image",
-      content = "https://adumitrescu-powervision.hf.space/powervision-preview.png"
+      content = "https://raw.githubusercontent.com/alexdum/powervision/main/docs/powervision-preview.png"
     ),
     tags$script(
       type = "module",

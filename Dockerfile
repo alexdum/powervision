@@ -78,6 +78,10 @@ RUN pip install --no-cache-dir --break-system-packages huggingface_hub && \
 # --- Copy the full app source (code, GeoJSON, CSVs — NOT Parquet) ---
 COPY app/ .
 
+# --- Download social preview image from GitHub (avoids storing binary files in HF git) ---
+RUN curl -fsSL -o /app/www/powervision-preview.png \
+    https://raw.githubusercontent.com/alexdum/powervision/main/docs/powervision-preview.png || true
+
 # --- Environment variables ---
 ENV PECD_GEOJSON_VERSION=mixed
 
