@@ -691,7 +691,7 @@ ui <- page_fillable(
   absolutePanel(
     id = "right-btn-col",
     top = 18,
-    right = 14,
+    right = 18,
     style = "z-index: 1000; display: flex; flex-direction: column; gap: 8px; align-items: flex-end;",
 
     # Zoom In

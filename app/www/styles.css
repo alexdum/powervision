@@ -262,8 +262,20 @@ html.shiny-busy #global-shiny-loader {
 /* ---------------------------------------------------------------------------- */
 
 :root {
+  /* Desktop Layout & Fluid Geometry Tokens */
+  --sidebar-width:            clamp(270px, 19vw, 320px);
+  --panel-margin:              clamp(12px, 1.2vw, 18px);
+  --panel-radius:              12px;
+  --card-radius:               10px;
+  --drawer-left:               calc(var(--panel-margin) + var(--sidebar-width) + var(--panel-margin));
+  --drawer-right:              var(--panel-margin);
+  --drawer-height-collapsed:   clamp(290px, 40vh, 460px);
+  --drawer-height-expanded:    clamp(380px, 62vh, min(680px, calc(100vh - 275px)));
+  --btn-ctrl-size:             clamp(40px, 2.5vw, 44px);
+  --btn-ctrl-radius:           10px;
+
   /* Glass panel — dark navy */
-  --glass-dark-bg:     rgba(10, 15, 35, 0.85);
+  --glass-dark-bg:     rgba(10, 15, 35, 0.88);
   --glass-dark-border: rgba(255, 255, 255, 0.10);
   --glass-dark-blur:   blur(20px);
 
@@ -281,13 +293,29 @@ html.shiny-busy #global-shiny-loader {
   --text-muted:   rgba(241, 245, 249, 0.55);
   --border-dark:  rgba(255, 255, 255, 0.10);
 
-  /* Spacing */
-  --panel-radius: 14px;
-  --card-radius:  10px;
-
   /* Gradient Interpolation Fallbacks */
   --in-oklab: ;
   --in-oklch: ;
+}
+
+/* Base font-size scaling across desktop screen widths for optimal legibility */
+:root {
+  font-size: 14px;
+}
+@media (min-width: 1400px) {
+  :root {
+    font-size: 14.5px;
+  }
+}
+@media (min-width: 1920px) {
+  :root {
+    font-size: 15px;
+  }
+}
+@media (min-width: 2560px) {
+  :root {
+    font-size: 16px;
+  }
 }
 
 @supports (background: linear-gradient(in oklab, white, black)) {
@@ -303,10 +331,10 @@ html.shiny-busy #global-shiny-loader {
 
 #control-panel {
   position: fixed;
-  top: 18px;
-  left: 18px;
-  width: 290px;
-  max-height: calc(100vh - 36px);
+  top: var(--panel-margin);
+  left: var(--panel-margin);
+  width: var(--sidebar-width);
+  max-height: calc(100vh - (var(--panel-margin) * 2));
   z-index: 1000;
 
   /* Flex column: scrollable controls on top, pinned legend at bottom */
@@ -660,12 +688,12 @@ html.shiny-busy #global-shiny-loader {
   padding: 12px;
   width: 230px;
   
-  /* Reset default popover positioning */
+  /* Responsive popover positioning relative to 4th button in right-btn-col */
   margin: 0;
   inset: auto;
   position: absolute;
-  top: 162px;
-  right: 60px;
+  top: calc(var(--panel-margin) + (3 * var(--btn-ctrl-size)) + 24px);
+  right: calc(var(--panel-margin) + var(--btn-ctrl-size) + 12px);
   
   color: var(--text-primary);
 }
@@ -707,7 +735,9 @@ html.shiny-busy #global-shiny-loader {
 /* ---------------------------------------------------------------------------- */
 
 #right-btn-col {
-  /* The absolutePanel wrapper — flex column already set via inline style */
+  /* Override absolutePanel inline styles to guarantee symmetrical desktop margins */
+  top: var(--panel-margin) !important;
+  right: var(--panel-margin) !important;
   pointer-events: none;   /* let map events pass through the gap between buttons */
 }
 
@@ -718,13 +748,13 @@ html.shiny-busy #global-shiny-loader {
 .btn-map-ctrl {
   background: var(--glass-dark-bg);
   border: 1px solid var(--glass-dark-border);
-  border-radius: 10px;
+  border-radius: var(--btn-ctrl-radius);
   backdrop-filter: var(--glass-dark-blur);
   -webkit-backdrop-filter: var(--glass-dark-blur);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.30);
   color: var(--text-primary);
-  width: 44px;
-  height: 44px;
+  width: var(--btn-ctrl-size);
+  height: var(--btn-ctrl-size);
   padding: 0;
   display: flex;
   align-items: center;
@@ -766,26 +796,25 @@ html.shiny-busy #global-shiny-loader {
 #stats-drawer {
   position: fixed;
   bottom: 0;
-  /* Start the drawer AFTER the left control panel (290px width + 18px left gap + 18px internal margin = 326px) */
-  /* This keeps the control panel fully visible while the drawer is open — users can still change the */
-  /* variable/year without closing the drawer first. This is a key UX improvement over full-width drawers. */
-  left: 326px;
-  right: 18px;
+  /* Fluid positioning: starts after the left control panel, with matching outer margin on the right */
+  left: var(--drawer-left);
+  right: var(--drawer-right);
+  max-width: min(calc(100vw - var(--drawer-left) - var(--drawer-right)), 2200px);
   z-index: 1100;
 
   background: rgba(10, 15, 35, 0.92);
   border-top: 1px solid var(--glass-dark-border);
   border-left: 1px solid var(--glass-dark-border);
   border-right: 1px solid var(--glass-dark-border);
-  /* Rounded top-left and top-right corners since the drawer is floating 18px off the right edge */
+  /* Rounded top corners matching desktop floating symmetry */
   border-radius: 12px 12px 0 0;
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
   box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.55), -4px 0 24px rgba(0, 0, 0, 0.20);
 
-  padding: 16px 24px 18px;
-  height: 40vh;
-  max-height: 40vh;
+  padding: clamp(10px, 1.2vh, 16px) clamp(14px, 1.5vw, 24px) clamp(12px, 1.4vh, 18px);
+  height: var(--drawer-height-collapsed);
+  max-height: var(--drawer-height-collapsed);
   display: flex;
   flex-direction: column;
 
@@ -799,8 +828,8 @@ html.shiny-busy #global-shiny-loader {
 }
 
 #stats-drawer.expanded {
-  height: 65vh;
-  max-height: 65vh;
+  height: var(--drawer-height-expanded);
+  max-height: var(--drawer-height-expanded);
 }
 
 #stats-drawer.is-visible {
@@ -811,7 +840,7 @@ html.shiny-busy #global-shiny-loader {
 #stats-drawer .drawer-body-layout {
   display: flex;
   flex-direction: row;
-  gap: 24px;
+  gap: clamp(12px, 1.5vw, 24px);
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -820,8 +849,8 @@ html.shiny-busy #global-shiny-loader {
 #stats-drawer .drawer-sidebar-column {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  width: clamp(285px, 25vw, 340px);
+  gap: clamp(8px, 1vh, 14px);
+  width: clamp(260px, 22vw, 360px);
   flex-shrink: 0;
   overflow-y: auto;
   padding-right: 4px;
@@ -893,11 +922,13 @@ html.shiny-busy #global-shiny-loader {
 
 /* Drawer Tabs Styling */
 #stats-drawer .nav-pills {
-  margin-bottom: 8px;
+  margin-bottom: clamp(4px, 0.8vh, 8px);
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
-  padding: 4px;
-  display: inline-flex;
+  padding: 3px 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -908,13 +939,14 @@ html.shiny-busy #global-shiny-loader {
 #stats-drawer .nav-pills > li > a,
 #stats-drawer .nav-pills .nav-link {
   border-radius: 6px;
-  padding: 6px 16px;
+  padding: clamp(4px, 0.6vh, 6px) clamp(8px, 1vw, 14px);
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.85rem;
+  font-size: clamp(0.72rem, 0.75vw, 0.82rem);
   font-weight: 500;
   transition: all 0.2s ease;
   background: transparent;
   border: 1px solid transparent;
+  white-space: nowrap;
 }
 
 #stats-drawer .nav-pills > li > a:hover,
@@ -1001,12 +1033,13 @@ html.shiny-busy #global-shiny-loader {
 @media (max-width: 768px) {
   #stats-drawer {
     /* On mobile the left panel is not visible, so the drawer goes full-width again */
-    left: 0;
-    right: 0;
-    width: 100%;
-    border-radius: 0;
-    height: 55vh;
-    max-height: 55vh;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 0 !important;
+    height: 55vh !important;
+    max-height: 55vh !important;
     padding: 10px 14px;
     display: flex;
     flex-direction: column;
@@ -1583,11 +1616,11 @@ html.shiny-busy #global-shiny-loader {
   margin-bottom: 0;
 }
 
-/* Metric cards grid */
+/* Metric cards grid — desktop 2-column grid ensures cards never drop into a 360px vertical stack */
 #stats-drawer .metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(6px, 0.8vh, 10px);
 }
 
 /* Individual metric card */
@@ -1596,7 +1629,7 @@ html.shiny-busy #global-shiny-loader {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-left: 3px solid var(--accent);
   border-radius: var(--card-radius);
-  padding: 12px 14px;
+  padding: clamp(8px, 1vh, 12px) clamp(8px, 1vw, 14px);
   min-width: 0;
 }
 
@@ -1705,7 +1738,7 @@ code {
 #about-modal {
   margin: auto;
   border: none;
-  width: min(520px, calc(100vw - 48px));
+  width: min(600px, calc(100vw - 48px));
   max-height: calc(100vh - 80px);
   overflow: hidden;
   display: flex;
@@ -2068,6 +2101,117 @@ li.collapsed-control {
   }
 }
 
+/* ---------------------------------------------------------------------------- */
+/* Desktop-Agnostic Responsive Layout Rules                                      */
+/* Smooth adaptation across 768px tablet, 1080p, MacBook Pro M1, 1440p & 4K     */
+/* ---------------------------------------------------------------------------- */
+
+/* Compact Desktop & Tablet Landscape (768px to 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  :root {
+    --sidebar-width: 260px;
+    --panel-margin: 12px;
+    --btn-ctrl-size: 40px;
+  }
+
+  #stats-drawer .drawer-sidebar-column {
+    width: 230px;
+  }
+
+  #stats-drawer .drawer-body-layout {
+    gap: 12px;
+  }
+
+  #stats-drawer .metric-card {
+    padding: 6px 8px;
+  }
+
+  #stats-drawer .metric-card .metric-label {
+    font-size: 0.62em;
+  }
+
+  #stats-drawer .metric-card .metric-value {
+    font-size: 0.85em;
+  }
+}
+
+/* Short Desktop Viewports (height <= 800px) */
+@media (min-width: 768px) and (max-height: 800px) {
+  #control-panel .app-brand {
+    padding: 10px 14px 8px;
+  }
+
+  #control-panel .sidebar-scroll-area {
+    padding: 10px 14px 4px;
+  }
+
+  #control-panel .sidebar-footer {
+    padding: 8px 14px 8px;
+  }
+
+  #control-panel .filter-card {
+    padding: 10px 12px 2px;
+    margin-bottom: 8px;
+  }
+
+  #control-panel .filter-card-header {
+    margin-bottom: 8px;
+    font-size: 0.72em;
+  }
+
+  #stats-drawer {
+    padding: 10px 18px 12px;
+  }
+
+  #stats-drawer .drawer-header {
+    margin-bottom: 8px;
+  }
+
+  #stats-drawer .nav-pills {
+    margin-bottom: 4px;
+  }
+
+  #right-btn-col {
+    gap: 6px !important;
+  }
+
+  .btn-map-ctrl {
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+  }
+}
+
+/* Large / High-DPI Desktop (1601px to 2100px) */
+@media (min-width: 1601px) and (max-width: 2100px) {
+  :root {
+    --sidebar-width: 310px;
+    --panel-margin: 18px;
+    --btn-ctrl-size: 44px;
+  }
+
+  #stats-drawer .drawer-sidebar-column {
+    width: clamp(320px, 20vw, 380px);
+  }
+}
+
+/* Ultra-Wide & 4K Displays (>= 2101px) */
+@media (min-width: 2101px) {
+  :root {
+    --sidebar-width: 330px;
+    --panel-margin: 22px;
+    --btn-ctrl-size: 46px;
+  }
+
+  #stats-drawer .drawer-sidebar-column {
+    width: clamp(340px, 18vw, 420px);
+  }
+
+  #stats-drawer {
+    max-width: 2200px;
+  }
+}
+
 /* Mobile (< 768px): Enable navigation drawer pattern */
 @media (max-width: 767px) {
   #mobile-menu-btn {
@@ -2175,6 +2319,14 @@ li.collapsed-control {
   /* Dodge the stats drawer when it opens on mobile */
   body:has(#stats-drawer.is-visible) #right-btn-col {
     bottom: calc(55vh + 8px) !important;
+  }
+
+  /* Center the basemap popover above the mobile bottom bar */
+  .map-layer-popover {
+    top: auto !important;
+    bottom: 90px !important;
+    right: 50% !important;
+    transform: translateX(50%) !important;
   }
 }
 

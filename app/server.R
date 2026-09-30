@@ -1017,11 +1017,13 @@ server <- function(input, output, session) {
       target_geom <- current_boundaries() %>% filter(zone_id == selected$zone_id)
       if (nrow(target_geom) > 0) {
         bbox <- sf::st_bbox(target_geom)
+        bottom_pad <- if (!is.null(input$drawer_state$bottom_padding)) input$drawer_state$bottom_padding else 220
+        left_pad <- if (!is.null(input$drawer_state$left_padding)) input$drawer_state$left_padding else (if (isTRUE(input$is_mobile)) 40 else 340)
         maplibre_proxy("map") %>%
           fit_bounds(
             c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
             animate = TRUE,
-            padding = list(top = 80, bottom = 220, left = if (isTRUE(input$is_mobile)) 40 else 340, right = 80),
+            padding = list(top = 80, bottom = bottom_pad, left = left_pad, right = 80),
             maxZoom = 7.0
           )
         return()
@@ -1139,16 +1141,16 @@ server <- function(input, output, session) {
 
       message(sprintf("  Zooming to clicked region: %s", props$name))
 
-      # Calculate dynamic padding based on current window/drawer state
-      # The stats drawer covers ~40vh (collapsed) or ~65vh (expanded).
+      # Calculate dynamic padding based on measured window/drawer geometry from JS
       bottom_pad <- 420
+      left_pad <- if (isTRUE(input$is_mobile)) 40 else 340
       if (!is.null(input$drawer_state)) {
-        vh <- if (!is.null(input$drawer_state$vh)) input$drawer_state$vh else 1000
-        is_expanded <- if (!is.null(input$drawer_state$expanded)) input$drawer_state$expanded else FALSE
-        
-        bottom_pad <- if (is_expanded) (vh * 0.65) + 20 else (vh * 0.40) + 20
-        bottom_pad <- min(bottom_pad, vh - 150)
-        bottom_pad <- max(60, bottom_pad)
+        if (!is.null(input$drawer_state$bottom_padding)) {
+          bottom_pad <- input$drawer_state$bottom_padding
+        }
+        if (!is.null(input$drawer_state$left_padding)) {
+          left_pad <- input$drawer_state$left_padding
+        }
       }
 
       maplibre_proxy("map") %>%
@@ -1164,10 +1166,9 @@ server <- function(input, output, session) {
         fit_bounds(
           c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
           animate = TRUE,
-          # dynamic bottom padding pushes the polygon into the upper viewport,
-          # keeping it visible above the stats drawer. left = 340 clears
-          # the control panel. maxZoom = 7 keeps the view "one level out" for small regions.
-          padding = list(top = 60, bottom = bottom_pad, left = if (isTRUE(input$is_mobile)) 40 else 340, right = 60),
+          # dynamic bottom and left padding keeps the polygon centered in the visible
+          # map viewport above the stats drawer and right of the control panel.
+          padding = list(top = 60, bottom = bottom_pad, left = left_pad, right = 60),
           maxZoom = 7.0
         )
     }
@@ -1189,12 +1190,14 @@ server <- function(input, output, session) {
     if (nrow(highlight_geom) == 0) return()
     
     bbox <- sf::st_bbox(highlight_geom)
+    bottom_pad <- if (!is.null(input$drawer_state$bottom_padding)) input$drawer_state$bottom_padding else 420
+    left_pad <- if (!is.null(input$drawer_state$left_padding)) input$drawer_state$left_padding else (if (isTRUE(input$is_mobile)) 40 else 340)
     
     maplibre_proxy("map") %>%
       fit_bounds(
         c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
         animate = TRUE,
-        padding = list(top = 60, bottom = input$drawer_state$bottom_padding, left = if (isTRUE(input$is_mobile)) 40 else 340, right = 60),
+        padding = list(top = 60, bottom = bottom_pad, left = left_pad, right = 60),
         maxZoom = 7.0
       )
   }, ignoreInit = TRUE)
@@ -1317,13 +1320,14 @@ server <- function(input, output, session) {
       target_geom <- current_boundaries() %>% filter(zone_id == selected$zone_id)
       if (nrow(target_geom) > 0) {
         bbox <- sf::st_bbox(target_geom)
-        message(sprintf("Zooming view to spatial extent of selected region: %s...", selected$name))
+        bottom_pad <- if (!is.null(input$drawer_state$bottom_padding)) input$drawer_state$bottom_padding else 220
+        left_pad <- if (!is.null(input$drawer_state$left_padding)) input$drawer_state$left_padding else (if (isTRUE(input$is_mobile)) 40 else 340)
         maplibre_proxy("map") %>%
           fit_bounds(
             c(bbox[["xmin"]], bbox[["ymin"]], bbox[["xmax"]], bbox[["ymax"]]),
             animate = TRUE,
             # Maintain same padded offset zoom when homing on a selected polygon
-            padding = list(top = 80, bottom = 220, left = if (isTRUE(input$is_mobile)) 40 else 340, right = 80),
+            padding = list(top = 80, bottom = bottom_pad, left = left_pad, right = 80),
             maxZoom = 7.0
           )
         return()

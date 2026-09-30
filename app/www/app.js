@@ -237,25 +237,38 @@ $(document).ready(function () {
     var isVisible = drawer && drawer.classList.contains('is-visible');
     
     var vh = window.innerHeight;
-    var bottomPadding = window.innerWidth < 768 ? 90 : 60;
-    if (isVisible) {
-       if (window.innerWidth < 768) {
-         // Drawer takes 55vh. Add 80px to clear the drawer AND the map controllers sitting above it.
+    var vw = window.innerWidth;
+    var bottomPadding = vw < 768 ? 90 : 60;
+    if (isVisible && drawer) {
+       if (vw < 768) {
+         // Drawer takes 55vh on mobile. Add 80px to clear drawer + mobile controllers.
          bottomPadding = (vh * 0.55) + 80;
        } else {
-         bottomPadding = isExpanded ? (vh * 0.65) + 20 : (vh * 0.40) + 20;
+         // Desktop: read actual computed height of the drawer directly from the DOM
+         var actualDrawerHeight = drawer.offsetHeight;
+         if (!actualDrawerHeight || actualDrawerHeight <= 0) {
+           actualDrawerHeight = isExpanded ? Math.min(vh * 0.62, vh - 275) : Math.min(vh * 0.40, 460);
+         }
+         bottomPadding = actualDrawerHeight + 20;
        }
     }
     
-    if (bottomPadding > vh - 150) {
-       bottomPadding = vh - 150;
+    if (bottomPadding > vh - 120) {
+       bottomPadding = vh - 120;
     }
+
+    // Compute real panel right edge for left map padding
+    var panel = document.getElementById('control-panel');
+    var panelRight = (panel && vw >= 768) ? (panel.offsetLeft + panel.offsetWidth) : 0;
+    var leftPadding = (vw < 768) ? 40 : Math.max(300, panelRight + 24);
     
     Shiny.setInputValue('drawer_state', {
       expanded: isExpanded,
       visible: isVisible,
       bottom_padding: Math.max(60, Math.round(bottomPadding)),
+      left_padding: Math.round(leftPadding),
       vh: vh,
+      vw: vw,
       nonce: Math.random()
     });
   }
@@ -295,9 +308,9 @@ $(document).ready(function () {
       if (drawer) {
         drawer.classList.toggle('expanded');
       }
-      updateDrawerState();
-      // Wait for CSS transition then trigger Plotly redraw
+      // Wait for CSS transition then trigger Plotly redraw & update measured state
       setTimeout(function() {
+        updateDrawerState();
         window.dispatchEvent(new Event('resize'));
       }, 450);
     }
