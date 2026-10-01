@@ -2,7 +2,7 @@
 
 [![Live App on Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Live%20Demo-blue)](https://adumitrescu-powervision.hf.space/)
 [![Code for Earth 2026](https://img.shields.io/badge/Code%20for%20Earth-2026-teal)](https://codeforearth.ecmwf.int/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 Interactive spatial dashboard for exploring Copernicus PECD v4.2 climate-energy projections across Europe. Built with R Shiny, Apache Arrow, and MapLibre GL, developed as part of **Code for Earth 2026** (Stream 1: Data Visualization, Challenge 14).
 
@@ -143,6 +143,44 @@ docker run -e PECD_GEOJSON_VERSION=mixed ...
 │               └── ws_daily/   # Daily annual cycle profiles for 36 Weather Scenarios
 ```
 
+## Acknowledgements
+
+Developed under the **ECMWF Code for Earth 2026** programme ([Challenge 14: Visualising the impact of climate change for the European power system](https://github.com/ECMWFCode4Earth/Challenges_2026/issues/15)).
+
+Developed by the **Meteo Romania Team** (National Meteorological Administration) in close collaboration with mentors affiliated with:
+* **ECMWF** — European Centre for Medium-Range Weather Forecasts
+* **ENTSO-E** — European Network of Transmission System Operators for Electricity
+* **medTSO** — Association of Mediterranean Transmission System Operators
+* **RTE** — Réseau de Transport d'Électricité
+* **APG** — Austrian Power Grid
+* **TransnetBW GmbH**
+
 ## License
 
-Code for Earth 2026 — PowerClimate Vision Explorer, Meteo-Romania Team
+This project is licensed under the **Apache License, Version 2.0** — see the [LICENSE](LICENSE) file for details.
+
+```text
+Copyright 2026 Meteo Romania Team / PowerClimate Vision Explorer Contributors
+
+Developed in collaboration with mentors from ECMWF, ENTSO-E, medTSO, RTE, APG, and TransnetBW
+under ECMWF Code for Earth 2026 (Challenge 14):
+https://github.com/ECMWFCode4Earth/Challenges_2026/issues/15
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
+
+### Data Licences & Attribution
+
+* **Pan-European Climate Database (PECD v4.2)**: Copernicus Climate Change Service (C3S) / ECMWF / ENTSO-E, licensed under the [Copernicus Licence](https://cds.climate.copernicus.eu/api/v2/terms/static/licence-to-use-copernicus-products.pdf).
+* **Administrative Boundaries (NUTS 2021)**: © Eurostat GISCO.
+* **Basemaps**: Vector tiles © [OpenFreeMap](https://openfreemap.org/) / OpenStreetMap contributors; satellite imagery composite © [EOX IT Services GmbH](https://eox.at/) Sentinel-2 cloudless.
