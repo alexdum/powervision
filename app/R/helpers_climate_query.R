@@ -112,11 +112,21 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mod
   # offshore study zone region IDs in the parquet data (e.g., "AL00_OFF" became
   # "AL00"), but the GeoJSON zone_ids still include "_OFF". Strip it here so the
   # Arrow filter matches correctly.
+  # Southern Norway (SZON) hydro normalization: the GeoJSON has a single dissolved
+  # polygon "NOS0", but Copernicus parquet stores hydro under the 3 sub-bidding
+  # zones "NOS1", "NOS2", "NOS3". When "NOS0" is targeted for hydro, query all three
+  # and aggregate them after collection.
+  is_nos0_hydro <- FALSE
   if (!is.null(target_region)) {
     if (sp_level == "szof") {
       target_region <- sub("_OFF$", "", target_region)
     }
-    query <- query |> dplyr::filter(Region == !!target_region)
+    if (sp_level == "szon" && grepl("^hydropower_", var_name) && isTRUE(target_region == "NOS0")) {
+      is_nos0_hydro <- TRUE
+      query <- query |> dplyr::filter(Region %in% c("NOS1", "NOS2", "NOS3"))
+    } else {
+      query <- query |> dplyr::filter(Region == !!target_region)
+    }
   }
 
   # Optional: filter by SSP scenario (only for projection datasets).
@@ -154,6 +164,21 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mod
   # a data.table in this renv, and data.table's [,j] syntax is incompatible
   # with the base R column subsetting used throughout server.R.
   df_result <- as.data.frame(dplyr::collect(query))
+
+  # Aggregate Southern Norway hydro sub-regions (NOS1, NOS2, NOS3) into single NOS0
+  if (is_nos0_hydro && nrow(df_result) > 0) {
+    group_cols <- setdiff(names(df_result), c("Region", "Value"))
+    if (length(group_cols) > 0) {
+      df_result <- df_result |>
+        dplyr::group_by(dplyr::across(dplyr::all_of(group_cols))) |>
+        dplyr::summarise(Value = if (all(is.na(Value))) NA_real_ else sum(Value, na.rm = TRUE), .groups = "drop") |>
+        dplyr::mutate(Region = "NOS0")
+    } else {
+      df_result <- df_result |>
+        dplyr::summarise(Value = if (all(is.na(Value))) NA_real_ else sum(Value, na.rm = TRUE), .groups = "drop") |>
+        dplyr::mutate(Region = "NOS0")
+    }
+  }
 
   # Trim the final result to exactly what the caller requested.
   # We included extra partition columns above to ensure Arrow partition pruning worked.

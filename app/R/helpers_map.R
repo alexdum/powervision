@@ -25,6 +25,16 @@ update_map_choropleth <- function(
   df_build <- sf::st_drop_geometry(geom_data)
   
   if (!is.null(clim_data) && nrow(clim_data) > 0) {
+    # SZON hydro normalization: synthesize NOS0 from NOS1..3 if missing
+    if (spatial_level == "SZON" && grepl("^hydropower_", climate_variable)) {
+      if (!("NOS0" %in% clim_data$Region)) {
+        nos_rows <- clim_data %>% dplyr::filter(Region %in% c("NOS1", "NOS2", "NOS3"))
+        if (nrow(nos_rows) > 0) {
+          nos0_val <- if (all(is.na(nos_rows$Value))) NA_real_ else sum(nos_rows$Value, na.rm = TRUE)
+          clim_data <- dplyr::bind_rows(clim_data, data.frame(Region = "NOS0", Value = nos0_val, stringsAsFactors = FALSE))
+        }
+      }
+    }
     # SZOF normalization: The processing pipeline stripped the "_OFF" suffix from
     # offshore study zone region IDs in the parquet data, but the SZOF GeoJSON
     # still uses zone_ids with the "_OFF" suffix (e.g., "AL00_OFF", "FR00_OFF").
@@ -46,6 +56,9 @@ update_map_choropleth <- function(
   if (isTRUE(var_meta$is_categorical)) use_anomaly_map <- FALSE
   is_precip <- (climate_variable == "total_precipitation")
   sel_year <- as.integer(selected_year)
+  if (grepl("^hydropower_", climate_variable) && !is.na(sel_year)) {
+    sel_year <- pmax(1951L, pmin(if (show_projections) 2099L else 2024L, sel_year))
+  }
   use_period <- (isTRUE(view_mode == "period") && temporal_mode != "WS")
 
   is_wind <- climate_variable %in% c("wind_power_onshore", "wind_power_offshore")
@@ -66,6 +79,15 @@ update_map_choropleth <- function(
 
   if (use_anomaly_map) {
     if (!is.null(baseline_df) && nrow(baseline_df) > 0) {
+      if (spatial_level == "SZON" && grepl("^hydropower_", climate_variable)) {
+        if (!("NOS0" %in% baseline_df$Region)) {
+          nos_base <- baseline_df %>% dplyr::filter(Region %in% c("NOS1", "NOS2", "NOS3"))
+          if (nrow(nos_base) > 0) {
+            nos0_base_val <- if (all(is.na(nos_base$baseline_value))) NA_real_ else sum(nos_base$baseline_value, na.rm = TRUE)
+            baseline_df <- dplyr::bind_rows(baseline_df, data.frame(Region = "NOS0", baseline_value = nos0_base_val, stringsAsFactors = FALSE))
+          }
+        }
+      }
       # Same SZOF _OFF normalization as the clim_data join above
       if (spatial_level == "SZOF") {
         df_build$join_key <- sub("_OFF$", "", df_build$zone_id)
@@ -261,6 +283,7 @@ update_map_choropleth <- function(
 
   session$sendCustomMessage("paint_zone_fills", list(
     fill_expr_json = fill_expr_json,
-    opacity        = current_opacity
+    opacity        = current_opacity,
+    spatial_level  = spatial_level
   ))
 }

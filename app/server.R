@@ -54,6 +54,9 @@ server <- function(input, output, session) {
     var_name  <- input$climate_variable
     temp_mode <- input$temporal_mode
     sel_year  <- as.integer(input$selected_year)
+    if (grepl("^hydropower_", var_name) && !is.na(sel_year)) {
+      sel_year <- pmax(1951L, pmin(if (isTRUE(input$show_projections == "1")) 2099L else 2024L, sel_year))
+    }
     sp_level  <- spatial_level_to_parquet[input$spatial_level]
 
     is_wind_power <- var_name %in% c("wind_power_onshore", "wind_power_offshore")
@@ -143,6 +146,22 @@ server <- function(input, output, session) {
       df_out$SpatialLevel <- sp_level
       df_out$Year         <- sel_year
 
+      # Synthesize Southern Norway NOS0 from NOS1, NOS2, NOS3 if missing
+      if (sp_level == "szon" && grepl("^hydropower_", var_name) && !("NOS0" %in% df_out$Region)) {
+        nos_rows <- df_out %>% dplyr::filter(Region %in% c("NOS1", "NOS2", "NOS3"))
+        if (nrow(nos_rows) > 0) {
+          nos0_val <- if (all(is.na(nos_rows$Value))) NA_real_ else sum(nos_rows$Value, na.rm = TRUE)
+          df_out <- dplyr::bind_rows(df_out, data.frame(
+            Region = "NOS0",
+            Value = nos0_val,
+            variable = var_name,
+            SpatialLevel = sp_level,
+            Year = sel_year,
+            stringsAsFactors = FALSE
+          ))
+        }
+      }
+
       return(df_out)
 
     } else {
@@ -162,12 +181,24 @@ server <- function(input, output, session) {
         return(df_raw |> dplyr::select(Region, Value))
       } else {
         # Only read Region + Value — that's all the map choropleth needs.
-        query_arrow_dataset(solar_tech = input$solar_technology, 
+        df_hist <- query_arrow_dataset(solar_tech = input$solar_technology, 
           hist_annual_ds, hist_seasonal_ds, hist_monthly_ds, temp_mode,
           var_name, sp_level,
           year = sel_year,
           select_cols = c("Region", "Value")
         )
+        if (sp_level == "szon" && grepl("^hydropower_", var_name) && !is.null(df_hist) && nrow(df_hist) > 0 && !("NOS0" %in% df_hist$Region)) {
+          nos_rows <- df_hist %>% dplyr::filter(Region %in% c("NOS1", "NOS2", "NOS3"))
+          if (nrow(nos_rows) > 0) {
+            nos0_val <- if (all(is.na(nos_rows$Value))) NA_real_ else sum(nos_rows$Value, na.rm = TRUE)
+            df_hist <- dplyr::bind_rows(df_hist, data.frame(
+              Region = "NOS0",
+              Value = nos0_val,
+              stringsAsFactors = FALSE
+            ))
+          }
+        }
+        df_hist
       }
     }
   })
@@ -335,18 +366,24 @@ server <- function(input, output, session) {
           )
         }
       } else if (sp == "SZON") {
-        energy_choices <- c(
-          "Hydro: RoR Generation" = "hydropower_run_of_river_generation",
-          "Hydro: Reservoir Inflow" = "hydropower_reservoir_inflow",
-          "Hydro: Pumped Storage Inflow" = "hydropower_open_loop_pumped_storage_inflow",
-          "Hydro: Reservoir Generation" = "hydropower_reservoir_generation",
-          "Hydro: RoR Inflow" = "hydropower_run_of_river_inflow",
-          "Hydro: RoR w/ Pondage Gen" = "hydropower_run_of_river_with_pondage_generation",
-          "Hydro: RoR w/ Pondage Inflow" = "hydropower_run_of_river_with_pondage_inflow"
-        )
+        if (!is_ws) {
+          energy_choices <- c(
+            "Hydro: RoR Generation" = "hydropower_run_of_river_generation",
+            "Hydro: Reservoir Inflow" = "hydropower_reservoir_inflow",
+            "Hydro: Pumped Storage Inflow" = "hydropower_open_loop_pumped_storage_inflow",
+            "Hydro: Reservoir Generation" = "hydropower_reservoir_generation",
+            "Hydro: RoR Inflow" = "hydropower_run_of_river_inflow",
+            "Hydro: RoR w/ Pondage Gen" = "hydropower_run_of_river_with_pondage_generation",
+            "Hydro: RoR w/ Pondage Inflow" = "hydropower_run_of_river_with_pondage_inflow"
+          )
+        } else {
+          energy_choices <- character(0)
+        }
       }
       
-      choices_list[["Energy Indicators"]] <- energy_choices
+      if (length(energy_choices) > 0) {
+        choices_list[["Energy Indicators"]] <- energy_choices
+      }
     }
     
     # Preserve current selection if it's still available, else default to 2m temp
@@ -430,11 +467,13 @@ server <- function(input, output, session) {
     sp_level  <- spatial_level_to_parquet[input$spatial_level]
     proj_data_exists <- (var_name %in% projection_available_variables &&
                          sp_level %in% projection_available_spatial_levels)
+    is_hydro_var <- grepl("^hydropower_", var_name)
 
-    max_year <- if (show_proj && proj_data_exists) 2100 else hist_max_year
+    max_year <- if (show_proj && proj_data_exists) (if (is_hydro_var) 2099 else 2100) else hist_max_year
 
-    # Winter season has incomplete 1950 data, so min year is 1951 for seasonal mode
-    min_year <- if (input$temporal_mode == "Annual") 1950 else 1951
+    # Winter season has incomplete 1950 data, and Copernicus hydropower data begins in 1951,
+    # so min year is 1951 for seasonal mode or hydropower variables in annual mode
+    min_year <- if (input$temporal_mode == "Annual" && !is_hydro_var) 1950 else 1951
     
     # Note: Dynamic wind mode now shows blended historical data (fixed_2025 tech),
     # so no special min_year override is needed — users can browse all years.
@@ -645,6 +684,15 @@ server <- function(input, output, session) {
       dplyr::group_by(Region) |>
       dplyr::summarise(baseline_value = mean(Value, na.rm = TRUE), .groups = "drop")
 
+    # Synthesize Southern Norway NOS0 from NOS1, NOS2, NOS3 for hydro
+    if (sp_level == "szon" && grepl("^hydropower_", var_name) && !("NOS0" %in% baseline_df$Region)) {
+      nos_base <- baseline_df %>% dplyr::filter(Region %in% c("NOS1", "NOS2", "NOS3"))
+      if (nrow(nos_base) > 0) {
+        nos0_val <- if (all(is.na(nos_base$baseline_value))) NA_real_ else sum(nos_base$baseline_value, na.rm = TRUE)
+        baseline_df <- dplyr::bind_rows(baseline_df, data.frame(Region = "NOS0", baseline_value = nos0_val, stringsAsFactors = FALSE))
+      }
+    }
+
     baseline_df
   })
 
@@ -788,6 +836,22 @@ server <- function(input, output, session) {
     df_out$SpatialLevel <- sp_level
     df_out$Year         <- as.integer(round((period_start + period_end) / 2))
 
+    # Synthesize Southern Norway NOS0 from NOS1, NOS2, NOS3 for hydro
+    if (sp_level == "szon" && grepl("^hydropower_", var_name) && !("NOS0" %in% df_out$Region)) {
+      nos_rows <- df_out %>% dplyr::filter(Region %in% c("NOS1", "NOS2", "NOS3"))
+      if (nrow(nos_rows) > 0) {
+        nos0_val <- if (all(is.na(nos_rows$Value))) NA_real_ else sum(nos_rows$Value, na.rm = TRUE)
+        df_out <- dplyr::bind_rows(df_out, data.frame(
+          Region = "NOS0",
+          Value = nos0_val,
+          variable = var_name,
+          SpatialLevel = sp_level,
+          Year = as.integer(round((period_start + period_end) / 2)),
+          stringsAsFactors = FALSE
+        ))
+      }
+    }
+
     df_out
   })
 
@@ -840,7 +904,8 @@ server <- function(input, output, session) {
       url            = geojson_url,
       border_color   = "#ffffff",
       border_width   = 0.5,
-      border_opacity = 0.6
+      border_opacity = 0.6,
+      spatial_level  = current_level
     ))
 
     # Restore the crimson highlight if a region was selected before the style switch.
@@ -1071,7 +1136,11 @@ server <- function(input, output, session) {
         if (isolate(input$spatial_level) == "SZOF") {
           lookup_id <- sub("_OFF$", "", lookup_id)
         }
-        region_row <- clim_data[clim_data$Region == lookup_id, ]
+        if (isolate(input$spatial_level) == "SZON" && grepl("^hydropower_", isolate(input$climate_variable)) && lookup_id == "NOS0") {
+          region_row <- clim_data[clim_data$Region %in% c("NOS0", "NOS1", "NOS2", "NOS3"), ]
+        } else {
+          region_row <- clim_data[clim_data$Region == lookup_id, ]
+        }
         if (nrow(region_row) == 0 || all(is.na(region_row$Value))) {
           message(sprintf("Ignoring click on %s: No data available", props$name))
           return()
@@ -1501,6 +1570,9 @@ server <- function(input, output, session) {
       active_zones <- bounds$zone_id
       if (input$spatial_level == "SZOF") {
         active_zones <- sub("_OFF$", "", active_zones)
+      }
+      if (input$spatial_level == "SZON" && "NOS0" %in% active_zones) {
+        active_zones <- c(active_zones, "NOS1", "NOS2", "NOS3")
       }
       clim_data <- clim_data %>% dplyr::filter(Region %in% active_zones)
     }

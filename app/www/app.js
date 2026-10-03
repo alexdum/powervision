@@ -60,6 +60,38 @@ $(document).ready(function () {
     return null;
   }
 
+  // Paint Caching & Queue State
+  // Tracks the most recent paint command to prevent race conditions when
+  // switching spatial tiers or basemaps. If paint_zone_fills arrives before
+  // swap_tile_source finishes recreating the zone-fills layer, the paint command
+  // is queued and applied immediately after the new layer is added.
+  var _lastPaintMsg = null;
+  var _pendingPaintMsg = null;
+
+  function _applyPaintProperties(map, msg) {
+    if (!map || !map.getLayer('zone-fills') || !msg) return false;
+
+    // Parse the fill-color expression from the JSON string sent by R.
+    // We use a JSON string to avoid Shiny's automatic serialization converting
+    // R unnamed lists into JSON objects instead of arrays.
+    if (msg.fill_expr_json) {
+      try {
+        var fillExpr = JSON.parse(msg.fill_expr_json);
+        map.setPaintProperty('zone-fills', 'fill-color', fillExpr);
+      } catch (e) {
+        console.error('[Paint] Failed to parse fill expression:', e);
+      }
+    }
+
+    // Apply the fill-opacity
+    if (typeof msg.opacity === 'number') {
+      map.setPaintProperty('zone-fills', 'fill-opacity', msg.opacity);
+    }
+
+    console.log('[Paint] Applied fill colors and opacity:', msg.opacity);
+    return true;
+  }
+
   // --------------------------------------------------------------------------
   // GeoJSON Source Swap Handler
   // --------------------------------------------------------------------------
@@ -148,6 +180,18 @@ $(document).ready(function () {
       }
     }, targetBeforeId);
 
+    // Step 7: Check if there are pending or cached paint properties to restore immediately
+    var paintToApply = null;
+    if (_pendingPaintMsg && (!msg.spatial_level || !_pendingPaintMsg.spatial_level || _pendingPaintMsg.spatial_level === msg.spatial_level)) {
+      paintToApply = _pendingPaintMsg;
+      _pendingPaintMsg = null;
+    } else if (_lastPaintMsg && (!msg.spatial_level || !_lastPaintMsg.spatial_level || _lastPaintMsg.spatial_level === msg.spatial_level)) {
+      paintToApply = _lastPaintMsg;
+    }
+    if (paintToApply) {
+      _applyPaintProperties(map, paintToApply);
+    }
+
     console.log('[GeoJSON] Swapped source to:', geojsonUrl);
   });
 
@@ -180,35 +224,22 @@ $(document).ready(function () {
   // which only works on layers it created itself.
   // --------------------------------------------------------------------------
   Shiny.addCustomMessageHandler('paint_zone_fills', function (msg) {
+    _lastPaintMsg = msg;
     var map = _getMapInstance();
     if (!map) {
-      console.warn('[Paint] Map instance not found');
+      console.warn('[Paint] Map instance not found, queuing paint');
+      _pendingPaintMsg = msg;
       return;
     }
 
     if (!map.getLayer('zone-fills')) {
-      console.warn('[Paint] zone-fills layer not found, skipping paint');
+      console.warn('[Paint] zone-fills layer not found, queuing paint');
+      _pendingPaintMsg = msg;
       return;
     }
 
-    // Parse the fill-color expression from the JSON string sent by R.
-    // We use a JSON string to avoid Shiny's automatic serialization converting
-    // R unnamed lists into JSON objects instead of arrays.
-    if (msg.fill_expr_json) {
-      try {
-        var fillExpr = JSON.parse(msg.fill_expr_json);
-        map.setPaintProperty('zone-fills', 'fill-color', fillExpr);
-      } catch (e) {
-        console.error('[Paint] Failed to parse fill expression:', e);
-      }
-    }
-
-    // Apply the fill-opacity
-    if (typeof msg.opacity === 'number') {
-      map.setPaintProperty('zone-fills', 'fill-opacity', msg.opacity);
-    }
-
-    console.log('[Paint] Applied fill colors and opacity:', msg.opacity);
+    _applyPaintProperties(map, msg);
+    _pendingPaintMsg = null;
   });
 
 
