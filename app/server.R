@@ -187,6 +187,14 @@ server <- function(input, output, session) {
           year = sel_year,
           select_cols = c("Region", "Value")
         )
+        # Duplicate-region guard (runs BEFORE the NOS0 synthesis so stale
+        # duplicate parquet rows can never double-count Southern Norway).
+        # Keeps the first row per region and logs a warning to the R console.
+        if (!is.null(df_hist) && anyDuplicated(df_hist$Region) > 0) {
+          message(sprintf("WARNING [filtered_climate_data]: %d duplicate Region rows for %s / %s / %d - keeping first row per region. Check the parquet store for stale files.",
+                          sum(duplicated(df_hist$Region)), var_name, sp_level, sel_year))
+          df_hist <- df_hist %>% dplyr::distinct(Region, .keep_all = TRUE)
+        }
         if (sp_level == "szon" && grepl("^hydropower_", var_name) && !is.null(df_hist) && nrow(df_hist) > 0 && !("NOS0" %in% df_hist$Region)) {
           nos_rows <- df_hist %>% dplyr::filter(Region %in% c("NOS1", "NOS2", "NOS3"))
           if (nrow(nos_rows) > 0) {
@@ -197,11 +205,6 @@ server <- function(input, output, session) {
               stringsAsFactors = FALSE
             ))
           }
-        }
-        if (!is.null(df_hist) && nrow(df_hist) > 0) {
-          df_hist <- df_hist %>%
-            dplyr::group_by(Region) %>%
-            dplyr::summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop")
         }
         df_hist
       }

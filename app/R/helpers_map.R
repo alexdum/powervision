@@ -25,6 +25,19 @@ update_map_choropleth <- function(
   df_build <- sf::st_drop_geometry(geom_data)
   
   if (!is.null(clim_data) && nrow(clim_data) > 0) {
+    # Duplicate-region guard: the map needs exactly ONE value per region.
+    # Duplicates should never happen with clean data, but they did occur on
+    # Hugging Face when old unpartitioned parquet files sat next to the new
+    # partitioned ones (Arrow read both). We keep the first row and log a
+    # warning so the data problem is visible instead of silently averaged.
+    # distinct() is used (not mean()) because categorical layers such as the
+    # Wind Resource Group store text values like "High" / "Low".
+    if (anyDuplicated(clim_data$Region) > 0) {
+      message(sprintf("WARNING [map]: %d duplicate Region rows in map data for %s / %s - keeping first row per region. Check the parquet store for stale files.",
+                      sum(duplicated(clim_data$Region)), climate_variable, spatial_level))
+      clim_data <- clim_data %>% dplyr::distinct(Region, .keep_all = TRUE)
+    }
+
     # SZON hydro normalization: synthesize NOS0 from NOS1..3 if missing
     if (spatial_level == "SZON" && grepl("^hydropower_", climate_variable)) {
       if (!("NOS0" %in% clim_data$Region)) {
@@ -35,10 +48,6 @@ update_map_choropleth <- function(
         }
       }
     }
-    # Defensively aggregate any duplicate Region entries in clim_data to guarantee a strict 1:1 join
-    clim_data <- clim_data %>%
-      dplyr::group_by(Region) %>%
-      dplyr::summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop")
 
     # SZOF normalization: The processing pipeline stripped the "_OFF" suffix from
     # offshore study zone region IDs in the parquet data, but the SZOF GeoJSON
@@ -53,8 +62,6 @@ update_map_choropleth <- function(
       df_build <- df_build %>%
         dplyr::left_join(clim_data, by = c("zone_id" = "Region"))
     }
-    # Ensure df_build strictly retains one row per zone_id (prevents MapLibre branch label collisions)
-    df_build <- df_build %>% dplyr::distinct(zone_id, .keep_all = TRUE)
   } else {
     df_build$Value <- NA_real_
   }
@@ -86,6 +93,14 @@ update_map_choropleth <- function(
 
   if (use_anomaly_map) {
     if (!is.null(baseline_df) && nrow(baseline_df) > 0) {
+      # Same duplicate-region guard as for clim_data above (run BEFORE the
+      # NOS0 synthesis so duplicates can never double-count Southern Norway)
+      if (anyDuplicated(baseline_df$Region) > 0) {
+        message(sprintf("WARNING [map]: %d duplicate Region rows in baseline data for %s / %s - keeping first row per region.",
+                        sum(duplicated(baseline_df$Region)), climate_variable, spatial_level))
+        baseline_df <- baseline_df %>% dplyr::distinct(Region, .keep_all = TRUE)
+      }
+
       if (spatial_level == "SZON" && grepl("^hydropower_", climate_variable)) {
         if (!("NOS0" %in% baseline_df$Region)) {
           nos_base <- baseline_df %>% dplyr::filter(Region %in% c("NOS1", "NOS2", "NOS3"))
@@ -95,10 +110,6 @@ update_map_choropleth <- function(
           }
         }
       }
-      # Defensively aggregate any duplicate Region entries in baseline_df to guarantee a strict 1:1 join
-      baseline_df <- baseline_df %>%
-        dplyr::group_by(Region) %>%
-        dplyr::summarise(baseline_value = mean(baseline_value, na.rm = TRUE), .groups = "drop")
 
       # Same SZOF _OFF normalization as the clim_data join above
       if (spatial_level == "SZOF") {
@@ -110,8 +121,6 @@ update_map_choropleth <- function(
         df_build <- df_build %>%
           dplyr::left_join(baseline_df, by = c("zone_id" = "Region"))
       }
-      # Ensure df_build strictly retains one row per zone_id
-      df_build <- df_build %>% dplyr::distinct(zone_id, .keep_all = TRUE)
 
       if (is_relative_anomaly) {
         df_build <- df_build %>%
