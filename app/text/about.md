@@ -22,6 +22,10 @@ An interactive spatial dashboard produced during the ECMWF Code for Earth 2026 <
   * Hydropower Run-of-River (Generation & Inflow)
   * Hydropower Run-of-River w/ Pondage (Generation & Inflow)
   * Hydropower Open-Loop Pumped Storage (Inflow)
+* **NUT0 (National / Country Boundaries — Dynamically Synthesized)**
+  * Wind Power Onshore & Offshore (Area-Weighted Capacity Factor)
+  * Solar Photovoltaic & Concentrated Solar Power (Area-Weighted Capacity Factor)
+  * Hydropower (7 Indicators — Volume Summation in GWh)
 
 ### Basemap Layers
 * **OpenFreeMap Positron & Bright** — Vector tile basemaps optimized for clean spatial visualization, powered by OpenStreetMap data.
@@ -52,6 +56,23 @@ In addition to historical reanalysis and future projections, the explorer includ
   * **Country-Level Spatial Aggregation (NUT0)**: For national-level analysis (`NUT0`), daily capacity factor time series are synthesized via polygon area-weighted spatial aggregation (`area_km2`) of the underlying granular bidding zones (`P2ON` for onshore wind and solar; `P2OF` coastal zones for offshore wind).
   * **Calendar Harmonization**: To enable exact day-of-year comparisons across all 36 scenarios, all daily time series are harmonized to exactly 365 daily steps per scenario-year (leap day February 29 is excluded in leap years).
 
+
+### National-Level Energy Indicators (NUTS 0 Dynamic Synthesis)
+In the raw Copernicus PECD v4.2 dataset, renewable energy indicators are published strictly at granular operational boundaries: onshore wind and solar under ENTSO-E market bidding zones (`P2ON`), offshore wind under coastal study zones (`P2OF`), and hydropower under river-basin study zones (`SZON`). Pre-computed country-level (`NUT0`) tables do not exist in the source dataset.
+
+To provide seamless national-level energy analytics for European policymakers and researchers, PowerVision dynamically synthesizes national metrics on the fly using physical dimensional duality:
+
+* **Capacity Factors (Intensive Metrics — Wind & Solar Power)**:
+  Capacity factors represent dimensionless efficiency ratios ($0 \le \text{CF} \le 1$). Simple addition across regions would be mathematically meaningless. The explorer calculates national capacity factors via **polygon area-weighted spatial aggregation** using the exact geographic surface areas (`area_km2`) of each constituent bidding zone:
+  $$\text{CF}_{\text{NUT0}} = \frac{\sum_{i \in \text{country}} \text{CF}_i \times \text{area}_i}{\sum_{i \in \text{country}, \text{CF}_i \neq \text{NA}} \text{area}_i}$$
+  *Active weight re-normalization* is applied dynamically so that missing sub-zones do not artificially depress the national average. Greek bidding zones (`GR01`, `GR02`, `GR03`) are automatically mapped to Eurostat NUTS 0 code `EL`.
+
+* **Hydropower (Extensive Metrics — Energy Generation & Inflows in GWh)**:
+  All 7 hydropower indicators represent physical energy flows in Gigawatt-hours (GWh). National totals are synthesized by **volume summation** across constituent river basins and bidding zones:
+  $$\text{Energy}_{\text{NUT0}} = \sum_{i \in \text{country}} \text{Energy}_i$$
+  * **Norway Bidding Zones Rollup**: Norway's 5 bidding zones (`NOM1`, `NON1`, `NOS1`, `NOS2`, `NOS3`) are summed into Norway (`NO`). The synthetic dissolved zone `NOS0` is filtered out during national aggregation to prevent double-counting Southern Norway.
+  * **Multi-Zone Country Rollups**: Italy (`ITCA..ITSI` $\to$ `IT`), Sweden (`SE01..SE04` $\to$ `SE`), the United Kingdom (`UK00`, `UKNI` $\to$ `UK`), and Greece (`GR00` $\to$ `EL`) are mapped cleanly to national totals.
+  * **Unmodeled Asset Fallback**: Countries without modeled hydropower assets in Copernicus PECD (such as Denmark, Netherlands for reservoir assets, Cyprus, Estonia, Iceland, Liechtenstein, and Malta) cleanly display a semi-transparent dark slate fallback (`#33415533`) with a "No Data" tooltip, ensuring visual clarity without distorting European color ramps.
 
 ### Data Sources & Citation
 * **Copernicus PECD v4.2** — Climate and energy related variables derived from reanalysis and climate projections (6 models, 4 SSP scenarios).

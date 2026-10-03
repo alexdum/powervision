@@ -304,11 +304,24 @@ server <- function(input, output, session) {
       ))
     }
     
-    # NUTS 0 deprecation warning
+    # NUTS 0 dynamic synthesis notifications
     if (is_wind && !is.null(input$spatial_level) && input$spatial_level == "NUT0") {
       showNotification(
         "NUTS 0 wind power capacity factors are synthesized dynamically using area-weighting from granular spatial tiers. Use with caution for national capacity planning.",
         type = "warning", duration = 8, id = "nut0_wind_warning"
+      )
+    }
+    if (is_solar && !is.null(input$spatial_level) && input$spatial_level == "NUT0") {
+      showNotification(
+        "NUTS 0 solar power capacity factors are synthesized dynamically using area-weighting from granular spatial tiers (P2ON). Use with caution for national capacity planning.",
+        type = "warning", duration = 8, id = "nut0_solar_warning"
+      )
+    }
+    is_hydro <- startsWith(input$climate_variable, "hydropower_")
+    if (is_hydro && !is.null(input$spatial_level) && input$spatial_level == "NUT0") {
+      showNotification(
+        "NUTS 0 hydropower metrics are synthesized dynamically by summing energy volumes from granular study zones (SZON). Use with caution for national capacity planning.",
+        type = "warning", duration = 8, id = "nut0_hydro_warning"
       )
     }
   }, ignoreInit = FALSE)
@@ -362,7 +375,16 @@ server <- function(input, output, session) {
         } else {
           energy_choices <- c(
             "Wind Power Onshore" = "wind_power_onshore",
-            "Wind Power Offshore" = "wind_power_offshore"
+            "Wind Power Offshore" = "wind_power_offshore",
+            "Concentrated Solar Power" = "solar_power_csp",
+            "Solar Photovoltaic" = "solar_power_pv",
+            "Hydro: RoR Generation" = "hydropower_run_of_river_generation",
+            "Hydro: Reservoir Inflow" = "hydropower_reservoir_inflow",
+            "Hydro: Pumped Storage Inflow" = "hydropower_open_loop_pumped_storage_inflow",
+            "Hydro: Reservoir Generation" = "hydropower_reservoir_generation",
+            "Hydro: RoR Inflow" = "hydropower_run_of_river_inflow",
+            "Hydro: RoR w/ Pondage Gen" = "hydropower_run_of_river_with_pondage_generation",
+            "Hydro: RoR w/ Pondage Inflow" = "hydropower_run_of_river_with_pondage_inflow"
           )
         }
       } else if (sp == "SZON") {

@@ -707,11 +707,28 @@ if (!is.null(hist_annual_ds)) {
 #' @param sp_level Parquet-level spatial level code (e.g. "nuts_0")
 #' @return Integer maximum year
 get_historical_max_year <- function(var_name, sp_level) {
+  # Normalize spatial level for dynamically aggregated NUTS 0 tiers
+  if (sp_level %in% c("nuts_0", "NUT0", "nut0")) {
+    if (grepl("^hydropower_", var_name)) {
+      sp_level <- "szon"
+    } else if (var_name %in% c("solar_power_pv", "solar_power_csp") || grepl("^solar_", var_name)) {
+      sp_level <- "p2on"
+    } else if (var_name == "wind_power_onshore") {
+      sp_level <- "p2on"
+    } else if (var_name == "wind_power_offshore") {
+      sp_level <- "p2of"
+    }
+  }
+
   # Map UI variable names to raw variables in Parquet if needed
   pq_var <- if (var_name == "wind_power_onshore") {
     "wind_onshore_30"
   } else if (var_name == "wind_power_offshore") {
     "wind_offshore_20"
+  } else if (var_name == "solar_power_pv") {
+    "solar_photovoltaic_60"
+  } else if (var_name == "solar_power_csp") {
+    "solar_concentrated_40"
   } else {
     var_name
   }
@@ -724,6 +741,12 @@ get_historical_max_year <- function(var_name, sp_level) {
   }
   
   # Fallback logic if key is missing from cache
-  is_offshore <- sp_level %in% c("p2of", "szof")
-  if (is_offshore) 2023 else 2021
+  if (grepl("^hydropower_", var_name) || sp_level == "szon") {
+    2024
+  } else if (grepl("^solar_", var_name) || grepl("^wind_", var_name)) {
+    2025
+  } else {
+    is_offshore <- sp_level %in% c("p2of", "szof")
+    if (is_offshore) 2023 else 2021
+  }
 }

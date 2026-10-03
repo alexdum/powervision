@@ -17,6 +17,75 @@
 # ==============================================================================
 
 
+# Cached data frame of P2ON bidding zone areas (zone_id and area_km2)
+.p2on_areas_cache <- NULL
+
+#' Helper to fetch P2ON polygon areas for area-weighted spatial aggregation
+#' Checks spatial_boundary_cache first, then falls back to pecd_P2ON.geojson
+get_p2on_areas <- function() {
+  if (!is.null(.p2on_areas_cache)) return(.p2on_areas_cache)
+
+  areas_df <- NULL
+
+  # 1. Try global boundary cache
+  if (exists("spatial_boundary_cache", envir = .GlobalEnv) &&
+      !is.null(.GlobalEnv$spatial_boundary_cache[["P2ON"]])) {
+    sf_p2on <- .GlobalEnv$spatial_boundary_cache[["P2ON"]]
+    if (inherits(sf_p2on, "sf") && requireNamespace("sf", quietly = TRUE)) {
+      areas_df <- sf_p2on |>
+        sf::st_drop_geometry() |>
+        dplyr::select(zone_id, area_km2) |>
+        dplyr::rename(Region = zone_id)
+    } else if (is.data.frame(sf_p2on) && all(c("zone_id", "area_km2") %in% names(sf_p2on))) {
+      areas_df <- sf_p2on[, c("zone_id", "area_km2")]
+      names(areas_df) <- c("Region", "area_km2")
+    }
+  } else if (exists("spatial_boundary_cache") && !is.null(spatial_boundary_cache[["P2ON"]])) {
+    sf_p2on <- spatial_boundary_cache[["P2ON"]]
+    if (inherits(sf_p2on, "sf") && requireNamespace("sf", quietly = TRUE)) {
+      areas_df <- sf_p2on |>
+        sf::st_drop_geometry() |>
+        dplyr::select(zone_id, area_km2) |>
+        dplyr::rename(Region = zone_id)
+    } else if (is.data.frame(sf_p2on) && all(c("zone_id", "area_km2") %in% names(sf_p2on))) {
+      areas_df <- sf_p2on[, c("zone_id", "area_km2")]
+      names(areas_df) <- c("Region", "area_km2")
+    }
+  }
+
+  # 2. Fallback to GeoJSON files
+  if (is.null(areas_df)) {
+    candidates <- c(
+      "www/data/geo/pecd_P2ON.geojson",
+      "app/www/data/geo/pecd_P2ON.geojson",
+      "../www/data/geo/pecd_P2ON.geojson",
+      "../../app/www/data/geo/pecd_P2ON.geojson"
+    )
+    for (cand in candidates) {
+      if (file.exists(cand) && requireNamespace("jsonlite", quietly = TRUE)) {
+        tryCatch({
+          geo_json <- jsonlite::fromJSON(cand)
+          props <- geo_json$features$properties
+          if (all(c("zone_id", "area_km2") %in% names(props))) {
+            areas_df <- data.frame(
+              Region = as.character(props$zone_id),
+              area_km2 = as.numeric(props$area_km2),
+              stringsAsFactors = FALSE
+            )
+            break
+          }
+        }, error = function(e) NULL)
+      }
+    }
+  }
+
+  if (!is.null(areas_df)) {
+    .p2on_areas_cache <<- areas_df
+  }
+  areas_df
+}
+
+
 # ------------------------------------------------------------------------------
 # query_arrow_dataset()
 # ------------------------------------------------------------------------------
@@ -67,14 +136,21 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mod
                                 select_cols = NULL, solar_tech = NULL,
                                 model_val = NULL) {
 
-  # If a solar variable is selected, append the technology number from the dropdown
-  if (!is.null(solar_tech) && solar_tech != "") {
-    if (var_name == "solar_power_csp") {
-      var_name <- paste0("solar_concentrated_", solar_tech)
-    } else if (var_name == "solar_power_pv") {
-      var_name <- paste0("solar_photovoltaic_", solar_tech)
-    }
+  # If a solar variable is selected, resolve the technology subcode
+  is_solar <- grepl("^solar_photovoltaic_", var_name) ||
+              grepl("^solar_concentrated_", var_name) ||
+              var_name %in% c("solar_power_pv", "solar_power_csp")
+
+  if (var_name == "solar_power_csp") {
+    tech_code <- if (!is.null(solar_tech) && solar_tech != "") solar_tech else "40"
+    var_name <- paste0("solar_concentrated_", tech_code)
+  } else if (var_name == "solar_power_pv") {
+    tech_code <- if (!is.null(solar_tech) && solar_tech != "") solar_tech else "60"
+    var_name <- paste0("solar_photovoltaic_", tech_code)
   }
+
+  is_hydro <- grepl("^hydropower_", var_name)
+  is_nut0 <- tolower(sp_level) %in% c("nuts_0", "nut0")
 
   # Pick the correct dataset based on temporal mode.
   ds <- if (temporal_mode == "Annual") {
@@ -88,6 +164,152 @@ query_arrow_dataset <- function(ds_annual, ds_seasonal, ds_monthly, temporal_mod
   # Guard: exit early if the dataset is not available (e.g., projections
   # haven't been downloaded yet, or the parquet directory is missing)
   if (is.null(ds)) return(NULL)
+
+  # ── Dynamic NUTS 0 Aggregation Engine for Solar and Hydropower ──────────────
+  if (is_nut0 && (is_solar || is_hydro)) {
+    granular_sp_level <- if (is_solar) "p2on" else "szon"
+
+    query <- ds |>
+      dplyr::filter(variable == !!var_name, SpatialLevel == !!granular_sp_level)
+
+    # Optional: filter to a single year
+    if (!is.null(year)) {
+      query <- query |> dplyr::filter(Year == !!year)
+    }
+
+    # Optional: filter to a year range
+    if (!is.null(year_start) && !is.null(year_end)) {
+      query <- query |> dplyr::filter(Year >= !!year_start, Year <= !!year_end)
+    }
+
+    # Optional: filter to constituent zones of target region
+    if (!is.null(target_region)) {
+      target_upper <- toupper(as.character(target_region))
+      prefix_targets <- if (target_upper %in% c("EL", "GR")) c("GR", "EL") else target_upper
+      query <- query |> dplyr::filter(substr(Region, 1, 2) %in% !!prefix_targets)
+    }
+
+    # Defensively exclude synthetic Southern Norway NOS0 for hydro to avoid double-counting
+    if (is_hydro) {
+      query <- query |> dplyr::filter(Region != "NOS0")
+    }
+
+    # Optional: filter by SSP scenario
+    if (!is.null(scenario_val)) {
+      query <- query |> dplyr::filter(scenario %in% !!scenario_val)
+    }
+
+    # Optional: filter by climate model
+    if (!is.null(model_val)) {
+      query <- query |> dplyr::filter(model %in% !!model_val)
+    }
+
+    # Seasonal or monthly filters
+    if (temporal_mode %in% c("Winter", "Spring", "Summer", "Autumn")) {
+      query <- query |> dplyr::filter(Season == !!temporal_mode)
+    } else if (temporal_mode != "Annual") {
+      month_int <- as.integer(temporal_mode)
+      query <- query |> dplyr::filter(Month == !!month_int)
+    }
+
+    # Column selection: ensure Region, Value, and grouping columns are preserved
+    safe_select <- unique(c(
+      select_cols, "Region", "Value", "variable", "SpatialLevel",
+      "Year", "Season", "Month", "scenario", "model"
+    ))
+    query <- query |> dplyr::select(dplyr::any_of(safe_select))
+
+    df_result <- as.data.frame(dplyr::collect(query))
+    if (nrow(df_result) == 0) return(NULL)
+
+    # Secondary guard against NOS0 for hydro
+    if (is_hydro) {
+      df_result <- df_result[df_result$Region != "NOS0", , drop = FALSE]
+      if (nrow(df_result) == 0) return(NULL)
+    }
+
+    # Solar: load P2ON areas and join
+    if (is_solar) {
+      areas_df <- get_p2on_areas()
+      if (!is.null(areas_df)) {
+        areas_df$Region <- as.character(areas_df$Region)
+        df_result$Region <- as.character(df_result$Region)
+        df_result <- dplyr::left_join(df_result, areas_df, by = "Region")
+        df_result$area_km2 <- ifelse(is.na(df_result$area_km2) | df_result$area_km2 <= 0, 1, df_result$area_km2)
+      } else {
+        df_result$area_km2 <- 1
+      }
+    }
+
+    # Map constituent granular zones to country code (normalizing GR -> EL)
+    country_codes <- substr(as.character(df_result$Region), 1, 2)
+    country_codes <- ifelse(country_codes == "GR", "EL", country_codes)
+    df_result$Region <- country_codes
+
+    # Filter to normalized target country if target_region was specified
+    if (!is.null(target_region)) {
+      target_upper <- toupper(as.character(target_region))
+      exp_country <- if (target_upper %in% c("EL", "GR")) "EL" else target_upper
+      df_result <- df_result[df_result$Region == exp_country, , drop = FALSE]
+      if (nrow(df_result) == 0) return(NULL)
+    }
+
+    # Group by all available slice dimensions
+    group_cols <- intersect(c("Region", "Year", "Season", "Month", "scenario", "model", "variable"), names(df_result))
+
+    if (is_solar) {
+      # Solar: area-weighted mean with active weight re-normalization (Rule 7)
+      if (length(group_cols) > 0) {
+        df_agg <- df_result |>
+          dplyr::group_by(dplyr::across(dplyr::all_of(group_cols))) |>
+          dplyr::summarise(
+            Value = if (all(is.na(Value))) NA_real_ else sum(Value * area_km2, na.rm = TRUE) / sum(area_km2[!is.na(Value)]),
+            .groups = "drop"
+          )
+      } else {
+        df_agg <- df_result |>
+          dplyr::summarise(
+            Value = if (all(is.na(Value))) NA_real_ else sum(Value * area_km2, na.rm = TRUE) / sum(area_km2[!is.na(Value)]),
+            .groups = "drop"
+          )
+      }
+    } else {
+      # Hydropower: volume summation (GWh). Return NA if all constituent values are NA.
+      if (length(group_cols) > 0) {
+        df_agg <- df_result |>
+          dplyr::group_by(dplyr::across(dplyr::all_of(group_cols))) |>
+          dplyr::summarise(
+            Value = if (all(is.na(Value))) NA_real_ else sum(Value, na.rm = TRUE),
+            .groups = "drop"
+          )
+      } else {
+        df_agg <- df_result |>
+          dplyr::summarise(
+            Value = if (all(is.na(Value))) NA_real_ else sum(Value, na.rm = TRUE),
+            .groups = "drop"
+          )
+      }
+    }
+
+    df_agg <- as.data.frame(df_agg)
+
+    if ("SpatialLevel" %in% names(df_result)) {
+      df_agg$SpatialLevel <- "nuts_0"
+    }
+
+    if (!is.null(select_cols)) {
+      available_cols <- intersect(select_cols, names(df_agg))
+      df_agg <- df_agg[, available_cols, drop = FALSE]
+    }
+
+    if (nrow(df_agg) == 0) return(NULL)
+
+    if ("Year" %in% names(df_agg)) {
+      df_agg <- df_agg[order(df_agg$Year), , drop = FALSE]
+    }
+
+    return(df_agg)
+  }
 
   # Start with the two required base filters: variable name and spatial level.
   # These are present in every query throughout the app.

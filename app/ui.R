@@ -201,6 +201,8 @@ ui <- page_fillable(
         "Energy Indicators" = c(
           "Wind Power Onshore (CF)" = "wind_power_onshore",
           "Wind Power Offshore (CF)" = "wind_power_offshore",
+          "Solar Photovoltaic (CF)" = "solar_power_pv",
+          "Concentrated Solar Power (CF)" = "solar_power_csp",
           "Hydro: RoR Generation" = "hydropower_run_of_river_generation",
           "Hydro: Reservoir Inflow" = "hydropower_reservoir_inflow",
           "Hydro: Pumped Storage Inflow" = "hydropower_open_loop_pumped_storage_inflow",
