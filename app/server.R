@@ -2234,13 +2234,10 @@ server <- function(input, output, session) {
     p
   })
 
-  observeEvent(input$climate_variable, {
-    if (grepl("wind", input$climate_variable)) {
-      showTab(inputId = "drawer_tabs", target = "tech")
-    } else {
-      hideTab(inputId = "drawer_tabs", target = "tech")
-    }
-  }, ignoreInit = FALSE)
+  # NOTE: A former observer here called showTab()/hideTab() on a drawer tab with
+  # value "tech". That tab no longer exists in ui.R, so every variable change
+  # threw a client-side Shiny error ("There is no tabPanel ... equal to 'tech'").
+  # The observer was removed. Re-add it only if a "tech" tabPanel is restored.
 
   observeEvent(input$show_projections, {
     if (isTRUE(input$show_projections == "1")) {
