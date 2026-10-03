@@ -198,6 +198,11 @@ server <- function(input, output, session) {
             ))
           }
         }
+        if (!is.null(df_hist) && nrow(df_hist) > 0) {
+          df_hist <- df_hist %>%
+            dplyr::group_by(Region) %>%
+            dplyr::summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop")
+        }
         df_hist
       }
     }

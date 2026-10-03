@@ -35,6 +35,11 @@ update_map_choropleth <- function(
         }
       }
     }
+    # Defensively aggregate any duplicate Region entries in clim_data to guarantee a strict 1:1 join
+    clim_data <- clim_data %>%
+      dplyr::group_by(Region) %>%
+      dplyr::summarise(Value = mean(Value, na.rm = TRUE), .groups = "drop")
+
     # SZOF normalization: The processing pipeline stripped the "_OFF" suffix from
     # offshore study zone region IDs in the parquet data, but the SZOF GeoJSON
     # still uses zone_ids with the "_OFF" suffix (e.g., "AL00_OFF", "FR00_OFF").
@@ -48,6 +53,8 @@ update_map_choropleth <- function(
       df_build <- df_build %>%
         dplyr::left_join(clim_data, by = c("zone_id" = "Region"))
     }
+    # Ensure df_build strictly retains one row per zone_id (prevents MapLibre branch label collisions)
+    df_build <- df_build %>% dplyr::distinct(zone_id, .keep_all = TRUE)
   } else {
     df_build$Value <- NA_real_
   }
@@ -88,6 +95,11 @@ update_map_choropleth <- function(
           }
         }
       }
+      # Defensively aggregate any duplicate Region entries in baseline_df to guarantee a strict 1:1 join
+      baseline_df <- baseline_df %>%
+        dplyr::group_by(Region) %>%
+        dplyr::summarise(baseline_value = mean(baseline_value, na.rm = TRUE), .groups = "drop")
+
       # Same SZOF _OFF normalization as the clim_data join above
       if (spatial_level == "SZOF") {
         df_build$join_key <- sub("_OFF$", "", df_build$zone_id)
@@ -98,6 +110,8 @@ update_map_choropleth <- function(
         df_build <- df_build %>%
           dplyr::left_join(baseline_df, by = c("zone_id" = "Region"))
       }
+      # Ensure df_build strictly retains one row per zone_id
+      df_build <- df_build %>% dplyr::distinct(zone_id, .keep_all = TRUE)
 
       if (is_relative_anomaly) {
         df_build <- df_build %>%
@@ -200,6 +214,9 @@ update_map_choropleth <- function(
         )
       )
   }
+
+  # Defensively guarantee df_build has unique zone_ids before calculating colors and MapLibre match expressions
+  df_build <- df_build %>% dplyr::distinct(zone_id, .keep_all = TRUE)
 
   vals <- df_build$Value
   colors <- rep("rgba(51, 65, 85, 0.2)", nrow(df_build))
