@@ -526,7 +526,7 @@ server <- function(input, output, session) {
     prev_min <- isolate(last_slider_min())
     prev_max <- isolate(last_slider_max())
 
-    value_needs_clamping <- (new_val != current_yr)
+    value_needs_clamping <- is.null(input$selected_year) || (new_val != current_yr)
     bounds_need_update   <- !identical(prev_min, min_year) ||
                             !identical(prev_max, max_year)
 

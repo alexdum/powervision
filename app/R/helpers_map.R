@@ -202,7 +202,7 @@ update_map_choropleth <- function(
   }
 
   vals <- df_build$Value
-  colors <- rep("#33415533", nrow(df_build))
+  colors <- rep("rgba(51, 65, 85, 0.2)", nrow(df_build))
 
   is_categorical <- isTRUE(climate_variables[[climate_variable]]$is_categorical)
 
@@ -210,7 +210,7 @@ update_map_choropleth <- function(
     valid_mask <- !is.na(vals) & vals != ""
     if (any(valid_mask)) {
       cat_colors <- sapply(vals[valid_mask], function(v) {
-        if (v %in% names(palette)) palette[[v]] else "#33415533"
+        if (v %in% names(palette)) palette[[v]] else "rgba(51, 65, 85, 0.2)"
       })
       colors[valid_mask] <- cat_colors
     }
@@ -276,7 +276,7 @@ update_map_choropleth <- function(
   fill_expr_json <- paste0(
     '["match",["get","zone_id"],',
     paste(interleaved, collapse = ","),
-    ',"#33415533"]'
+    ',"rgba(51, 65, 85, 0.2)"]'
   )
 
   current_opacity <- if (is.null(polygon_opacity)) 0.65 else polygon_opacity

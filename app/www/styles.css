@@ -51,6 +51,14 @@ body:not(.is-ws-mode):not(:has(#temporal_mode option[value="WS"]:checked)):not(:
   opacity: 1;
 }
 
+/* Year Slider is hidden ONLY in Period mode (when NOT in WS mode) */
+body:not(.is-ws-mode):not(:has(#temporal_mode option[value="WS"]:checked)):not(:has(#temporal_mode [value="WS"]:checked)):has(#view-mode-toggle .view-toggle-option[data-value="period"].active) .year-slider {
+  display: none !important;
+  max-height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* Weather Scenario Mode UI overrides — Force hide ALL non-WS controls */
 body.is-ws-mode .year-slider,
 body.is-ws-mode #view-mode-toggle,

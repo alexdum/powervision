@@ -75,11 +75,18 @@ $(document).ready(function () {
     // We use a JSON string to avoid Shiny's automatic serialization converting
     // R unnamed lists into JSON objects instead of arrays.
     if (msg.fill_expr_json) {
+      var fillExpr = null;
       try {
-        var fillExpr = JSON.parse(msg.fill_expr_json);
-        map.setPaintProperty('zone-fills', 'fill-color', fillExpr);
+        fillExpr = JSON.parse(msg.fill_expr_json);
       } catch (e) {
-        console.error('[Paint] Failed to parse fill expression:', e);
+        console.error('[Paint] Failed to parse fill expression JSON:', e);
+      }
+      if (fillExpr) {
+        try {
+          map.setPaintProperty('zone-fills', 'fill-color', fillExpr);
+        } catch (e) {
+          console.error('[Paint] MapLibre failed to apply fill-color paint property:', e);
+        }
       }
     }
 
@@ -162,9 +169,9 @@ $(document).ready(function () {
       type: 'fill',
       source: sourceId,
       paint: {
-        'fill-color': '#00000000',
+        'fill-color': 'rgba(0, 0, 0, 0)',
         'fill-opacity': 0,
-        'fill-outline-color': '#ffffff00'
+        'fill-outline-color': 'rgba(255, 255, 255, 0)'
       }
     }, targetBeforeId);
 
@@ -755,23 +762,25 @@ $(document).ready(function () {
     var $container = $btn.closest('.view-mode-toggle');
     var newValue   = $btn.data('value');
 
-    // Skip if this option is already active
-    if ($btn.hasClass('active')) return;
-
-    // Swap active class and aria-pressed
-    $container.find('.view-toggle-option').removeClass('active').attr('aria-pressed', 'false');
-    $btn.addClass('active').attr('aria-pressed', 'true');
-
-    // Slide the pill: "period" = toggle-right, "year" = default left
+    // Slide the pill and update slider visibility before early return
     if (newValue === 'period') {
       $container.addClass('toggle-right');
       // Hide the year slider — it's replaced by the period dropdown
       $('#selected_year').closest('.form-group').addClass('collapsed-control');
     } else {
       $container.removeClass('toggle-right');
-      // Show the year slider again
+      // Show the year slider again and refresh ionRangeSlider
       $('#selected_year').closest('.form-group').removeClass('collapsed-control');
+      var slider = $('#selected_year').data('ionRangeSlider');
+      if (slider) slider.update();
     }
+
+    // Skip if this option is already active
+    if ($btn.hasClass('active')) return;
+
+    // Swap active class and aria-pressed
+    $container.find('.view-toggle-option').removeClass('active').attr('aria-pressed', 'false');
+    $btn.addClass('active').attr('aria-pressed', 'true');
 
     // Update underlying hidden input if present
     $('#projection_view_mode').val(newValue);
@@ -1029,6 +1038,9 @@ $(document).ready(function () {
         Shiny.setInputValue('projection_view_mode', 'year');
         Shiny.setInputValue('display_mode', 'absolute');
 
+        // Ensure year slider is uncollapsed when entering WS mode (CSS handles hiding)
+        $('#selected_year').closest('.form-group').removeClass('collapsed-control');
+
         // Explicitly collapse and hide period wrappers
         $('#historical-period-wrapper, #projection-period-wrapper').addClass('collapsed-control').css({
           'display': 'none',
@@ -1036,12 +1048,20 @@ $(document).ready(function () {
           'opacity': '0'
         });
       } else {
-        // Clean inline styles when exiting WS mode so CSS rules govern visibility
-        $('#historical-period-wrapper, #projection-period-wrapper').css({
+        // Clean inline styles and remove collapsed-control when exiting WS mode
+        $('#historical-period-wrapper, #projection-period-wrapper').removeClass('collapsed-control').css({
           'display': '',
           'max-height': '',
           'opacity': ''
         });
+        var activeMode = $('#view-mode-toggle .view-toggle-option.active').data('value') || 'year';
+        if (activeMode === 'year') {
+          $('#selected_year').closest('.form-group').removeClass('collapsed-control');
+          var slider = $('#selected_year').data('ionRangeSlider');
+          if (slider) slider.update();
+        } else {
+          $('#selected_year').closest('.form-group').addClass('collapsed-control');
+        }
       }
     }
 

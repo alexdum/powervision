@@ -72,7 +72,7 @@ To provide seamless national-level energy analytics for European policymakers an
   $$\text{Energy}_{\text{NUT0}} = \sum_{i \in \text{country}} \text{Energy}_i$$
   * **Norway Bidding Zones Rollup**: Norway's 5 bidding zones (`NOM1`, `NON1`, `NOS1`, `NOS2`, `NOS3`) are summed into Norway (`NO`). The synthetic dissolved zone `NOS0` is filtered out during national aggregation to prevent double-counting Southern Norway.
   * **Multi-Zone Country Rollups**: Italy (`ITCA..ITSI` $\to$ `IT`), Sweden (`SE01..SE04` $\to$ `SE`), the United Kingdom (`UK00`, `UKNI` $\to$ `UK`), and Greece (`GR00` $\to$ `EL`) are mapped cleanly to national totals.
-  * **Unmodeled Asset Fallback**: Countries without modeled hydropower assets in Copernicus PECD (such as Denmark, Netherlands for reservoir assets, Cyprus, Estonia, Iceland, Liechtenstein, and Malta) cleanly display a semi-transparent dark slate fallback (`#33415533`) with a "No Data" tooltip, ensuring visual clarity without distorting European color ramps.
+  * **Unmodeled Asset Fallback**: Countries without modeled hydropower assets in Copernicus PECD (such as Denmark, Netherlands for reservoir assets, Cyprus, Estonia, Iceland, Liechtenstein, and Malta) cleanly display a semi-transparent dark slate fallback (`rgba(51, 65, 85, 0.2)`) with a "No Data" tooltip, ensuring visual clarity without distorting European color ramps.
 
 ### Data Sources & Citation
 * **Copernicus PECD v4.2** — Climate and energy related variables derived from reanalysis and climate projections (6 models, 4 SSP scenarios).
